@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel>
+      <module name="DIP1_main" target="1.8" />
+      <module name="DIP1_test" target="1.8" />
+      <module name="FullNode_main" target="1.10" />
+      <module name="FullNode_test" target="1.10" />
+      <module name="FullNodeClient_main" target="1.10" />
+      <module name="FullNodeClient_test" target="1.10" />
+      <module name="GenesisBlockMaker_main" target="1.10" />
+      <module name="GenesisBlockMaker_test" target="1.10" />
+      <module name="HospitalApp_main" target="1.10" />
+      <module name="HospitalApp_test" target="1.10" />
+      <module name="Validator_main" target="1.10" />
+      <module name="Validator_test" target="1.10" />
+      <module name="ValidatorClient_main" target="1.10" />
+      <module name="ValidatorClient_test" target="1.10" />
+    </bytecodeTargetLevel>
+  </component>
+</project>
