@@ -1,0 +1,32 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+    id 'java'
+    id "com.github.johnrengelman.shadow" version "4.0.3"
+}
+
+group 'GensisBlockMaker'
+
+
+repositories {
+    mavenCentral()
+}
+
+
+task genesisBlockMakerJar(type: ShadowJar) {
+    manifest.attributes 'Main-Class': 'GenesisBlockMaker'
+
+    baseName = 'genesisBlockMaker'
+    destinationDir = file('./jars')
+
+    from(project.convention.getPlugin(JavaPluginConvention).sourceSets.main.output)
+
+    configurations = [project.configurations.runtime]
+    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+}
+
+dependencies {
+    compile group: 'org.bouncycastle', name: 'bcpkix-jdk15on', version: '1.60'
+    compile group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.60'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}

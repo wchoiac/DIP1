@@ -1,0 +1,4 @@
+12월 23, 2018 5:23:51 오후 rest.server.resource.AuthenticationFilterRootLevel abortWithUnauthorized
+정보: 127.0.0.1: unauthorized access to /api/authority/get-overall-list
+12월 23, 2018 5:24:11 오후 rest.server.resource.AuthenticationFilterRootLevel abortWithUnauthorized
+정보: 127.0.0.1: unauthorized access to /api/authority/get-overall-list
