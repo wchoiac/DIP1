@@ -1,3 +1,5 @@
+package blockchain;
+
 import config.Configuration;
 import general.security.SecurityHelper;
 
