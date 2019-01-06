@@ -136,6 +136,17 @@ public class SecurityHelper {
         return IETFUtils.valueToString(cn.getFirst().getValue());
     }
 
+    //referece: https://www.programcreek.com/java-api-examples/?api=org.bouncycastle.util.io.pem.PemReader
+    public static X509Certificate getX509FromBytes(byte[] bytes) throws IOException, CertificateException {
+        CertificateFactory certificateFactory = CertificateFactory.getInstance("X509");
+        ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+        X509Certificate cert = (X509Certificate)certificateFactory.generateCertificate(bis);
+        bis.close();
+
+        return cert;
+    }
+
+
     //reference: https://stackoverflow.com/questions/16412315/creating-custom-x509-v3-extensions-in-java-with-bouncy-castle
     public static X509Certificate issueCertificate(PublicKey newPublicKey, ECPublicKey issuerPublicKey, PrivateKey issuerPrivateKey, Date noAfter, String subjectName, String authorityName
             , byte[] subjectKeyIdentifierBytes, byte[] authorityKeyIdentifierBytes, InetAddress ipAddress, String algo, boolean isForSigning) throws CertificateException, OperatorCreationException, IOException {

@@ -1,6 +1,5 @@
 
-import config.Configuration;
-import exception.InvalidUser;
+import exception.*;
 import general.security.SecurityHelper;
 import general.utility.GeneralHelper;
 import pojo.*;
@@ -57,7 +56,7 @@ public class ValidatorRestClient {
      *  If successful, secure token
      */
 
-    public void login(String name, char[] password) throws InvalidUser {
+    public void login(String name, char[] password) throws InvalidUserInfo {
         WebTarget webTarget = base.path("user/login");
 
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.TEXT_PLAIN);
@@ -68,25 +67,278 @@ public class ValidatorRestClient {
 
         Response response = invocationBuilder.post(Entity.json(userInfoPojo));
 
+        if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode())
+            throw new InvalidUserInfo();
+
         String result = response.readEntity(String.class);
         response.close();
-
-        if (result == null)
-            throw new InvalidUser("Invalid user");
         token = result;
+    }
 
-        System.out.println(token);
+    /*
+     * return list of authority information
+     *
+     * @SecuredRootLevel
+     */
+    public AuthorityInfoPojo[] getOverallAuthorityShortInfoList() throws UnAuthorized, BadRequest, NotFound, ServerError {
+        WebTarget webTarget = base.path("authority/get-overall-list");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
+
+        Response response = invocationBuilder.get();
+
+        checkException(response);
+
+
+        AuthorityInfoPojo[] result = response.readEntity(AuthorityInfoPojo[].class);
+        response.close();
+
+        return result;
+
+    }
+
+
+    /*
+     * return list of votes that to be processed (votes that are in the vote pool of validator)
+     *
+     * @SecuredRootLevel
+     */
+    public VotePojo[] getToBeProcessedVotingList() throws UnAuthorized, BadRequest, NotFound, ServerError {
+        WebTarget webTarget = base.path("authority/vote/get-processing-list");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
+
+        Response response = invocationBuilder.get();
+
+        checkException(response);
+
+        VotePojo[] result = response.readEntity(VotePojo[].class);
+        response.close();
+
+        return result;
 
     }
 
     /*
-     * return status code(1 byte) + transaction id(32 byte) (if successful)
+     * return list of on-going votings
+     *
+     * @SecuredRootLevel
+     */
+    public VotingPojo[] getOnGoingVotingList() throws UnAuthorized, BadRequest, NotFound, ServerError {
+        WebTarget webTarget = base.path("authority/vote/get-current-list");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
+
+        Response response = invocationBuilder.get();
+
+        checkException(response);
+
+        VotingPojo[] result = response.readEntity(VotingPojo[].class);
+        response.close();
+
+        return result;
+
+    }
+
+
+    /*
+     * For voting for adding a new authority or removing an existing authority
+     *
+     * return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: cannot be processed (e.g. already voted)
+     *
+     * @SecuredRootLevel
+     */
+    public void castVote(String name, ECPublicKey ecPublicKey, boolean add, boolean agree) throws UnAuthorized, BadRequest, NotFound, ServerError, Unsuccessful {
+        WebTarget webTarget = base.path("authority/vote/cast");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.TEXT_PLAIN);
+
+        AuthorityInfoPojo authorityInfoPojo = new AuthorityInfoPojo(name, ecPublicKey.getEncoded(), true);
+        VotePojo votePojo = new VotePojo(authorityInfoPojo, add, agree);
+
+        Response response = invocationBuilder.post(Entity.json(votePojo));
+
+        checkException(response);
+
+        byte result = Byte.valueOf(response.readEntity(String.class));
+        response.close();
+
+        if (result != 0)
+            throw new Unsuccessful(result);
+
+
+    }
+
+    /*
+     * return list of short information of the patient
+     *
+     * @SecuredUserLevel
+     */
+
+    public PatientShortInfoPojo[] getPatientShortInfoList(byte[] patientIdentifier) throws UnAuthorized, BadRequest, NotFound, ServerError {
+
+
+        WebTarget webTarget = base.path("patient/get-patient-short-info-list");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
+
+        Response response = invocationBuilder.post(Entity.json(new ByteArrayWrapper(patientIdentifier)));
+
+        checkException(response);
+
+        PatientShortInfoPojo[] result = response.readEntity(PatientShortInfoPojo[].class);
+        response.close();
+
+        return result;
+    }
+
+    /*
+     * return list of the requested patient information contents
+     *
+     * @SecuredUserLevel
+     */
+    public PatientInfoContentPojo[] getPatientContentList(LocationPojo[] locationPojos) throws UnAuthorized, BadRequest, NotFound, ServerError {
+
+
+        WebTarget webTarget = base.path("patient/get-patient-info-content-list");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
+
+        Response response = invocationBuilder.post(Entity.json(locationPojos));
+
+        checkException(response);
+
+        PatientInfoContentPojo[] result = response.readEntity(PatientInfoContentPojo[].class);
+        response.close();
+
+        return result;
+    }
+
+    /*
+     * For registering patient information
+     *
+     * return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: already exists
+     *
+     * Information for patient mobile application and registration software -----------------------
+     * signature = signature( timeStamp  | encryptedInfo ) , "|" means concatenate.
+     * (You may use GeneralHelper.longToBytes(timestamp) for converting long to byte arrays
+     * and GeneralHelper.merge mergeByteArrays(...))
+     *
+     * For the steps,
+     * 1. patient gives timestamp and AES key from pseudo random function with input of the timestamp
+     * 2. authority gives SHA256 hash of (timeStamp  | encryptedInfo) to patient
+     * 3. patient sign the hash with "NONEwithECDSA" ("NONE" because signing with hash)
+     *
+     * Also, simply using Signature.sign(..) gives out DER encoded signature.
+     * So, if you are using it, set isSignatureDER as true.
+     * --------------------------------------------------------------------------------------------
+     *
+     *
+     * @SecuredUserLevel
+     */
+
+    public void registerPatientInfo(long timstamp, ECPublicKey publicKey, byte[] encryptedInfo, byte[] signature, boolean isSignatureDEREncoded) throws Unsuccessful, UnAuthorized, BadRequest, NotFound, ServerError {
+
+
+        WebTarget webTarget = base.path("patient/register");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.TEXT_PLAIN).header(HttpHeaders.AUTHORIZATION, token);
+
+        PatientInfoPojo patientInfoPojo = new PatientInfoPojo(timstamp, publicKey.getEncoded(), encryptedInfo, signature, true
+                , isSignatureDEREncoded);
+
+
+        Response response = invocationBuilder.put(Entity.json(patientInfoPojo));
+
+        checkException(response);
+
+        byte result = Byte.valueOf(response.readEntity(String.class));
+        response.close();
+
+        if (result != 0)
+            throw new Unsuccessful(result);
+
+    }
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: patient doesn't exist
+     * 3: already updated
+     *
+     * Generally, it's the same as register (above), except that it doesn't get processed if the patient doesn't exist.
+     */
+
+    public void updatePatientInfo(long timstamp, ECPublicKey publicKey, byte[] encryptedInfo, byte[] signature, boolean isSignatureDEREncoded) throws Unsuccessful, UnAuthorized, BadRequest, NotFound, ServerError {
+
+
+        WebTarget webTarget = base.path("patient/update");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.TEXT_PLAIN).header(HttpHeaders.AUTHORIZATION, token);
+
+        PatientInfoPojo patientInfoPojo = new PatientInfoPojo(timstamp, publicKey.getEncoded(), encryptedInfo, signature, true
+                , isSignatureDEREncoded);
+
+
+        Response response = invocationBuilder.put(Entity.json(patientInfoPojo));
+
+        checkException(response);
+
+        byte result = Byte.valueOf(response.readEntity(String.class));
+        response.close();
+
+        if (result != 0)
+            throw new Unsuccessful(result);
+
+    }
+    /*
+     * For revoking authorization given to a medical organization
+     * return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: authorized by another authority
+     *
+     * @SecuredUserLevel
+     */
+
+    public void revokeMedicalOrg(byte[] medicalOrgIdentifier) throws UnAuthorized, BadRequest, NotFound, ServerError, Unsuccessful {
+
+
+        WebTarget webTarget = base.path("medical-org/revoke");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
+
+        Response response = invocationBuilder.put(Entity.json(new ByteArrayWrapper(medicalOrgIdentifier)));
+
+        checkException(response);
+
+        byte result = Byte.valueOf(response.readEntity(String.class));
+        response.close();
+
+        if (result != 0)
+            throw new Unsuccessful(result);
+
+    }
+
+    /*
+     * For authorizing medical organizations
+     *
+     * return status code(1 byte) + DER encoded certificate(if success):
      * status code:
      * 0: successful
      * 1: being processed
      * 2: already exists
+     *
+     * @SecuredUserLevel
      */
-    public X509Certificate authorize(String name, ECPublicKey publicKey, Date noAfter) throws Exception {
+    public X509Certificate authorizeMedicalOrg(String name, ECPublicKey publicKey, Date noAfter) throws UnAuthorized, BadRequest, NotFound, ServerError, IOException, Unsuccessful {
 
 
         WebTarget webTarget = base.path("medical-org/authorize");
@@ -100,436 +352,124 @@ public class ValidatorRestClient {
         authorizationRequestPojo.setNoAfter(noAfter);
 
         Response response = invocationBuilder.put(Entity.json(authorizationRequestPojo));
+
+        checkException(response);
+
         byte[] result = response.readEntity(ByteArrayWrapper.class).getContent();
         response.close();
 
-        if (result == null || result[0] != 0) {
-            System.out.println(result[0]);
-            throw new Exception("Invalid Input");
-        }
+        if (result[0] != 0)
+            throw new Unsuccessful(result[0]);
+
 
         byte[] certBytes = Arrays.copyOfRange(result, 1, result.length);
 
-        return SecurityHelper.getX509FromBytes(certBytes);
+        try {
+            return SecurityHelper.getX509FromBytes(certBytes);
+        } catch (CertificateException e) {
+            throw new ServerError(); // not expected if status (not HTTP status code) code is 0
+        }
     }
 
-    public MedicalOrgShortInfoPojo[] loadAllMedicalOrgShortInfoAuthorizedByMe() throws InvalidUser {
+    /*
+     * return list of short information of medical organizations authorized by this authority
+     *
+     * @SecuredUserLevel
+     */
+
+    public MedicalOrgShortInfoPojo[] getAllMedicalOrgShortInfoAuthorizedByMe() throws UnAuthorized, BadRequest, NotFound, ServerError {
         WebTarget webTarget = base.path("medical-org/get-authorization-list");
 
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
 
         Response response = invocationBuilder.get();
+
+        checkException(response);
+
+
         MedicalOrgShortInfoPojo[] result = response.readEntity(MedicalOrgShortInfoPojo[].class);
         response.close();
 
         return result;
 
     }
+
+
     /*
-     *return status code:
+     * return the corresponding DER encoded X509 certificate
+     *
+     * @SecuredUserLevel
+     */
+
+    public X509Certificate getIssuedMedicalOrgCertificate(byte[] medicalOrgIdentifier) throws UnAuthorized, BadRequest, NotFound, ServerError, IOException, Unsuccessful {
+
+
+        WebTarget webTarget = base.path("medical-org/get-certificate");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
+
+        Response response = invocationBuilder.put(Entity.json(new ByteArrayWrapper(medicalOrgIdentifier)));
+
+        checkException(response);
+
+        byte[] result = response.readEntity(ByteArrayWrapper.class).getContent();
+        response.close();
+
+        try {
+            return SecurityHelper.getX509FromBytes(result);
+        } catch (CertificateException e) {
+            throw new ServerError(); // not expected if status (not HTTP status code) code is 0
+        }
+    }
+
+    /*
+     * return status code(1 byte) + encoded certificate:
+     * status code:
      * 0: successful
-     * 1: being processed
-     * 2: already exists
+     * 1: not authorized
+     * 2: not authorized by this authority
+     *
+     * @SecuredUserLevel
      */
 
-    public byte register(long timstamp, ECPublicKey publicKey, byte[] encryptedInfo, byte[] signature) throws NoSuchAlgorithmException {
+    public X509Certificate renewMedicalOrgCertificate(byte[] medicalOrgIdentifier, Date noAfter) throws UnAuthorized, BadRequest, NotFound, ServerError, IOException, Unsuccessful {
 
 
-        WebTarget webTarget = base.path("patient/register");
-
-        Invocation.Builder invocationBuilder = webTarget.request(MediaType.TEXT_PLAIN).header(HttpHeaders.AUTHORIZATION, token);
-
-        PatientInfoPojo patientInfoPojo = new PatientInfoPojo(timstamp, publicKey.getEncoded(), encryptedInfo, signature, true
-                , false);
-
-
-        Response response = invocationBuilder.put(Entity.json(patientInfoPojo));
-        byte result = Byte.valueOf(response.readEntity(String.class));
-        response.close();
-
-        return result;
-    }
-
-    /*
-     * return list of short information of the patient
-     */
-
-    public PatientShortInfoPojo[] getPatientShortInfoList(byte[] patientIdentifier) throws Exception {
-
-
-        WebTarget webTarget = base.path("patient/get-patient-short-info-list");
+        WebTarget webTarget = base.path("medical-org/renew-certificate");
 
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
 
-        Response response = invocationBuilder.post(Entity.json(new ByteArrayWrapper(patientIdentifier)));
 
+        CertificateRenewRequestPojo certificateRenewRequestPojo = new CertificateRenewRequestPojo(medicalOrgIdentifier,noAfter);
 
-        PatientShortInfoPojo[] result = response.readEntity(PatientShortInfoPojo[].class);
+        Response response = invocationBuilder.put(Entity.json(certificateRenewRequestPojo));
+
+        checkException(response);
+
+        byte[] result = response.readEntity(ByteArrayWrapper.class).getContent();
         response.close();
 
-        return result;
+        if (result[0] != 0)
+            throw new Unsuccessful(result[0]);
+
+
+        byte[] certBytes = Arrays.copyOfRange(result, 1, result.length);
+
+        try {
+            return SecurityHelper.getX509FromBytes(certBytes);
+        } catch (CertificateException e) {
+            throw new ServerError(); // not expected if status (not HTTP status code) code is 0
+        }
     }
 
-    /*
-     * return list of the requested patient information contents
-     */
-    public PatientInfoContentPojo[] getPatientContentList(LocationPojo[] locationPojos) throws Exception {
-
-
-        WebTarget webTarget = base.path("patient/get-patient-info-content-list");
-
-        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
-
-        Response response = invocationBuilder.post(Entity.json(locationPojos));
-
-
-        PatientInfoContentPojo[] result = response.readEntity(PatientInfoContentPojo[].class);
-        response.close();
-
-        return result;
+    private void checkException(Response response) throws UnAuthorized, BadRequest, NotFound, ServerError {
+        if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode())
+            throw new UnAuthorized("Unauthorized request.");
+        else if (response.getStatus() == Response.Status.BAD_REQUEST.getStatusCode())
+            throw new BadRequest();
+        else if (response.getStatus() == Response.Status.NOT_FOUND.getStatusCode())
+            throw new NotFound();
+        else if (response.getStatus() == Response.Status.INTERNAL_SERVER_ERROR.getStatusCode())
+            throw new ServerError();
     }
-//
-//    @GET
-//    @Produces(MediaType.TEXT_PLAIN)
-//    @Path("test")
-//    public Response test(@Context Request request, @QueryParam("test") String test) {
-//
-//        System.out.println(test + " " + request.getRequestURI());
-//
-//        return Response.serverError().build();
-//    }
-//
-//    /*
-//     *  If successful, Secure token
-//     *  Else, return "login failed"
-//     */
-//    @POST
-//    @Produces(MediaType.TEXT_PLAIN)
-//    @Consumes(MediaType.APPLICATION_JSON)
-//    @Path("user/login")
-//    public Response login(@Context Request request, UserInfoPojo userInfoPojo) {
-//
-//        String token;
-//        try {
-//            token = ValidatorRestServer.getRunningServer().getAPIResolver().apiLogin(userInfoPojo);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (BadRequest e) {
-//            return Response.status(Response.Status.BAD_REQUEST).build();
-//        } catch (InvalidUserInfo e) {
-//            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ": login fail " + userInfoPojo.getUsername());
-//            return Response.status(Response.Status.UNAUTHORIZED).build();
-//        }
-//
-//        ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ": login success(" + userInfoPojo.getUsername() + ")");
-//        return Response.ok(token,MediaType.TEXT_PLAIN).build();
-//
-//    }
-//
-//    /*
-//     * return list of authority information
-//     */
-//    @GET
-//    @SecuredRootLevel
-//    @Produces(MediaType.APPLICATION_JSON) // Read with AuthorityInfoPojo[]
-//    @Path("authority/get-overall-list")
-//    public Response getOverallList() {
-//
-//        try {
-//            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getOverallList(), MediaType.APPLICATION_JSON).build();
-//        } catch (IOException | BlockChainObjectParsingException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        }
-//    }
-//
-//
-//    /*
-//     * return list of votes that to be processed
-//     */
-//    @GET
-//    @SecuredRootLevel
-//    @Produces(MediaType.APPLICATION_JSON) // Read with VotePojo[]
-//    @Path("authority/vote/get-processing-list")
-//    public Response getMyVotes() {
-//
-//        return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getMyVotes()
-//                , MediaType.APPLICATION_JSON).build();
-//
-//    }
-//
-//
-//    /*
-//     * return list of on-going votings
-//     */
-//    @GET
-//    @SecuredRootLevel
-//    @Produces(MediaType.APPLICATION_JSON) //Read with VotingPojo[]
-//    @Path("authority/vote/get-current-list")
-//    public Response getCurrentVotingList() {
-//
-//        return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getCurrentVotingList()
-//                , MediaType.APPLICATION_JSON).build();
-//
-//    }
-//
-//
-//    /*
-//     *return status code:
-//     * 0: successful
-//     * 1: being processed
-//     * 2: cannot be processed (e.g. already voted)
-//     */
-//    @POST
-//    @SecuredRootLevel
-//    @Produces(MediaType.TEXT_PLAIN)
-//    @Consumes(MediaType.APPLICATION_JSON)
-//    @Path("authority/vote/cast")
-//    public Response castVote(VotePojo votePojo) {
-//        try {
-//            return Response.ok("" + ValidatorRestServer.getRunningServer().getAPIResolver().castVote(votePojo), MediaType.TEXT_PLAIN).build();
-//        } catch (IOException | BlockChainObjectParsingException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (InvalidKeySpecException | BadRequest e) {
-//            e.printStackTrace();
-//            return Response.status(Response.Status.BAD_REQUEST).build();
-//        }
-//    }
-//
-//    /*
-//     * return list of short information of the patient
-//     */
-//    @POST
-//    @SecuredUserLevel
-//    @Produces(MediaType.APPLICATION_JSON) // Read with PatientShortInfoPojo[]
-//    @Consumes(MediaType.APPLICATION_JSON) // {"content": <Patient's identifier - byte array>} - use ByteArrayWrapper
-//    @Path("patient/get-patient-short-info-list")
-//    public Response getPatientShortInfoList(ByteArrayWrapper wrapper) {
-//
-//        try {
-//            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getPatientShortInfoList(wrapper.getContent())
-//                    , MediaType.APPLICATION_JSON).build();
-//        } catch (IOException | BlockChainObjectParsingException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (BadRequest e) {
-//            e.printStackTrace();
-//            return Response.status(Response.Status.BAD_REQUEST).build();
-//        } catch (NotFound e) {
-//            e.printStackTrace();
-//            return Response.status(Response.Status.NOT_FOUND).build();
-//        }
-//
-//
-//    }
-//
-//    /*
-//     * return list of the requested patient information contents
-//     */
-//    @POST
-//    @SecuredUserLevel
-//    @Produces(MediaType.APPLICATION_JSON) // read with PatientInfoContentPojo[]
-//    @Consumes(MediaType.APPLICATION_JSON)
-//    @Path("patient/get-patient-info-content-list")
-//    public Response getPatientInfoContentsList(ArrayList<LocationPojo> locationPojos) {
-//
-//        try {
-//            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getPatientInfoContentsList(locationPojos)
-//                    , MediaType.APPLICATION_JSON).build();
-//        } catch (IOException | BlockChainObjectParsingException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (NotFound e) {
-//            e.printStackTrace();// may be just bad request
-//            return Response.status(Response.Status.NOT_FOUND).build();
-//        } catch (BadRequest e) {
-//            e.printStackTrace();
-//            return Response.status(Response.Status.BAD_REQUEST).build();
-//        }
-//
-//    }
-//
-//    /*
-//     *return status code:
-//     * 0: successful
-//     * 1: being processed
-//     * 2: already exists
-//     *
-//     * To note, signature = signature( GeneralHelper.longToBytes(timeStamp) | encryptedInfo ) , "|" means concatenate
-//     */
-//    @PUT
-//    @SecuredUserLevel
-//    @Produces(MediaType.TEXT_PLAIN)
-//    @Consumes(MediaType.APPLICATION_JSON)
-//    @Path("patient/register")
-//    public Response register(PatientInfoPojo patientInfoPojo) {
-//
-//        try {
-//            return Response.ok("" + ValidatorRestServer.getRunningServer().getAPIResolver().register(patientInfoPojo)
-//                    , MediaType.TEXT_PLAIN).build();
-//        } catch (ServerError|IOException | BlockChainObjectParsingException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (InvalidKeySpecException | BadRequest e) {
-//            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
-//        }
-//
-//    }
-//
-//    /*
-//     *return status code:
-//     * 0: successful
-//     * 1: being processed
-//     * 2: patient doesn't exist
-//     * 3: already updated
-//     *
-//     * To note, signature = signature( GeneralHelper.longToBytes(timeStamp) | encryptedInfo ), "|" means concatenate
-//     */
-//    @PUT
-//    @SecuredUserLevel
-//    @Produces(MediaType.TEXT_PLAIN)
-//    @Consumes(MediaType.APPLICATION_JSON)
-//    @Path("patient/update")
-//    public Response update(PatientInfoPojo patientInfoPojo) {
-//
-//        try {
-//            return Response.ok("" + ValidatorRestServer.getRunningServer().getAPIResolver().update(patientInfoPojo)
-//                    , MediaType.TEXT_PLAIN).build();
-//        } catch (ServerError|IOException | BlockChainObjectParsingException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (InvalidKeyException|SignatureException|InvalidKeySpecException | BadRequest e) {
-//            e.printStackTrace();
-//            return Response.status(Response.Status.BAD_REQUEST).build();
-//        }
-//    }
-//
-//    /*
-//     *return status code:
-//     * 0: successful
-//     * 1: being processed
-//     * 2: authorized by another authority
-//     */
-//    @PUT
-//    @SecuredUserLevel
-//    @Produces(MediaType.TEXT_PLAIN)
-//    @Consumes(MediaType.APPLICATION_JSON) //{"content": <Medical organization's identifier - byte array>}
-//    @Path("medical-org/revoke")
-//    public Response revoke(ByteArrayWrapper byteArrayWrapper) {
-//
-//        try {
-//            return Response.ok("" + ValidatorRestServer.getRunningServer().getAPIResolver().revoke(byteArrayWrapper.getContent())
-//                    , MediaType.TEXT_PLAIN).build();
-//        } catch (IOException | BlockChainObjectParsingException|FileCorruptionException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (BadRequest e) {
-//            return Response.status(Response.Status.BAD_REQUEST).build();
-//        }  catch (NotFound notFound) {
-//            return Response.status(Response.Status.NOT_FOUND).build();
-//        }
-//
-//    }
-//
-//    /*
-//     * return status code(1 byte) + encoded certificate(if success):
-//     * status code:
-//     * 0: successful
-//     * 1: being processed
-//     * 2: already exists
-//     */
-//    @SecuredUserLevel
-//    @PUT
-//    @Produces(MediaType.APPLICATION_JSON)// {"content": <Status code(1 byte) + DER encoded certificate(if success) - byte array>} - use ByteArrayWrapper
-//    @Consumes(MediaType.APPLICATION_JSON)
-//    @Path("medical-org/authorize")
-//    public Response authorize(AuthorizationRequestPojo authorizationRequestPojo) {
-//
-//
-//        try {
-//            return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().authorize(authorizationRequestPojo))
-//                    , MediaType.APPLICATION_JSON).build();
-//        } catch (FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (InvalidKeySpecException | BadRequest e) {
-//            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
-//        }
-//    }
-//
-//    /*
-//     * return list of information of medical organizations authorized by this authority
-//     */
-//    @GET
-//    @SecuredUserLevel
-//    @Produces(MediaType.APPLICATION_JSON) // Read with MedicalOrgShortInfoPojo[]
-//    @Path("medical-org/get-authorization-list")
-//    public Response loadAllMedicalOrgShortInfoAuthorizedByMe() {
-//
-//        try {
-//            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().loadAllMedicalOrgShortInfoAuthorizedByThisAuthority()
-//                    , MediaType.APPLICATION_JSON).build();
-//        } catch (BlockChainObjectParsingException | IOException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        }
-//
-//    }
-//
-//    /*
-//     * return the corresponding DER encoded X509 certificate
-//     */
-//    @POST
-//    @SecuredUserLevel
-//    @Produces(MediaType.APPLICATION_JSON) // {"content": <DER encoded X509 certificate - byte array>} - Read with ByteArrayWrapper
-//    @Consumes(MediaType.APPLICATION_JSON) // {"content": <Medical organization's identifier - byte array>} - use ByteArrayWrapper
-//    @Path("medical-org/get-certificate")
-//    public Response getCertificate(ByteArrayWrapper wrapper) {
-//
-//
-//        try {
-//            byte[] result = ValidatorRestServer.getRunningServer().getAPIResolver().getCertificate(wrapper.getContent());
-//            return Response.ok(new ByteArrayWrapper(result), MediaType.APPLICATION_JSON).build();
-//        } catch (CertificateEncodingException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (NotFound e) {
-//            e.printStackTrace();
-//            return Response.status(Response.Status.NOT_FOUND).build();
-//        } catch (BadRequest e) {
-//            e.printStackTrace();
-//            return Response.status(Response.Status.BAD_REQUEST).build();
-//        }
-//
-//    }
-//
-//    /*
-//     * return status code(1 byte) + encoded certificate:
-//     * status code:
-//     * 0: successful
-//     * 1: not authorized
-//     * 2: not authorized by this authority
-//     */
-//    @POST
-//    @SecuredUserLevel
-//    @Produces(MediaType.APPLICATION_JSON)// {"content": <Status code(1 byte) + DER encoded certificate(if success) - byte array>} - Read with ByteArrayWrapper
-//    @Consumes(MediaType.APPLICATION_JSON)
-//    @Path("medical-org/renew-certificate")
-//    public Response renewCertificate(AuthorizationRequestPojo authorizationRequestPojo) {
-//
-//
-//        try {
-//            return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().renewCertificate(authorizationRequestPojo))
-//                    , MediaType.APPLICATION_JSON).build();
-//        } catch (FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {
-//            e.printStackTrace();
-//            return Response.serverError().build();
-//        } catch (InvalidKeySpecException | BadRequest e) {
-//            return Response.status(Response.Status.BAD_REQUEST).build();
-//        }
-//
-//    }
-
 }

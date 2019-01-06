@@ -366,13 +366,13 @@ public class ValidatorResource {
     @Produces(MediaType.APPLICATION_JSON)// {"content": <Status code(1 byte) + DER encoded certificate(if success) - byte array>} - Read with ByteArrayWrapper
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("medical-org/renew-certificate")
-    public Response renewCertificate(AuthorizationRequestPojo authorizationRequestPojo) {
+    public Response renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) {
 
 
         try {
-            return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().renewCertificate(authorizationRequestPojo))
+            return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().renewCertificate(certificateRenewRequestPojo))
                     , MediaType.APPLICATION_JSON).build();
-        } catch (FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {
+        } catch (ServerError| FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {
             e.printStackTrace();
             return Response.serverError().build();
         } catch (InvalidKeySpecException | BadRequest e) {

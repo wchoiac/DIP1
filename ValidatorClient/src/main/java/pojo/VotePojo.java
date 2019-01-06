@@ -5,6 +5,15 @@ public class VotePojo {
     private boolean add; // true:add, false:remove
     private boolean agree;
 
+    public VotePojo(AuthorityInfoPojo beneficiary, boolean add, boolean agree) {
+        this.beneficiary = beneficiary;
+        this.add = add;
+        this.agree = agree;
+    }
+
+    public VotePojo() {
+    }
+
     public AuthorityInfoPojo getBeneficiary() {
         return beneficiary;
     }
