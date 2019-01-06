@@ -90,13 +90,13 @@ public class FullNodeRestClient {
      * 1: being processed
      * 2: already exists or invalid
      *
-     *
+     * Information for patient mobile application -------------------------------------------------------------------
      * To note, signature = signature( timeStamp  | encryptedRecord | medicalOrgIdentifier ) , "|" means concatenate.
      * (You may use GeneralHelper.longToBytes(timestamp) for converting long to byte arrays
      * and GeneralHelper.merge mergeByteArrays(...) for merging byte arrays)
-     *
+     * ------------------------------------------------------------------------------------------------------
      * Also, simply using Signature.sign(..) gives out DER encoded signature.
-     * So, if you are using it, set isSignatureDER as true.
+     * So, if the patient app uses it, set isSignatureDER as true.
      */
 
     public byte[] addTransaction(long timeStamp, byte[] encryptedRecord, boolean isSignatureDEREncoded, byte[] patientSignature, byte[] patientIdentifier) throws UnAuthorized, NotFound, BadRequest, ServerError, Unsuccessful {
