@@ -1891,7 +1891,7 @@ public class Validator {
      * 1: not authorized
      * 2: not authorized by me
      */
-    public byte isMedicalOrgAuthorizedByMe(MedicalOrgInfo medicalOrgInfo) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+    public byte isMedicalOrgAuthorizedByMe(byte[] identifier) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
 
         byte result = 0;
 
@@ -1902,9 +1902,9 @@ public class Validator {
         GeneralHelper.lockForMe(usingLock, readMyChainLock);
 
 
-        if (!myMainChain.hasMedicalOrg(medicalOrgInfo.getIdentifier()))
+        if (!myMainChain.hasMedicalOrg(identifier))
             result = 1;
-        else if (!Arrays.equals(myIdentifier, myMainChain.getMedicalOrgInfoForInternal(medicalOrgInfo.getIdentifier()).getAuthorityIdentifier()))
+        else if (!Arrays.equals(myIdentifier, myMainChain.getMedicalOrgInfoForInternal(identifier).getAuthorityIdentifier()))
             result = 2;
 
         GeneralHelper.unLockForMe(usingLock);
@@ -1917,6 +1917,28 @@ public class Validator {
                 , noAfter, medicalOrgInfo.getName(), myName
                 ,BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(medicalOrgInfo.getPublicKey())
                 , myIdentifier,null, Configuration.SIGNING_CERTIFICATE_SIGNATURE_ALGORITHM, true);
+    }
+
+
+    public MedicalOrgInfo getMedicalOrgInfo(byte[] medicalOrgIdentifier) throws BlockChainObjectParsingException, IOException {
+
+        ReadLock readMyChainLock = myChainLock.readLock();
+
+        readMyChainLock.lock();
+
+        MedicalOrgInfo medicalOrgInfo = null;
+        try {
+            medicalOrgInfo = myMainChain.getMedicalOrgInfoForInternal(medicalOrgIdentifier).getMedicalOrgInfo();
+        } catch (FileCorruptionException e) {
+            e.printStackTrace();
+            shutdown();
+        }
+        finally {
+            readMyChainLock.unlock();
+        }
+
+        return medicalOrgInfo;
+
     }
 
     public ArrayList<MedicalOrgShortInfo> getAllMedicalOrgShortInfoAuthorizedBy(byte[] authorityIdentifier) throws BlockChainObjectParsingException, IOException {

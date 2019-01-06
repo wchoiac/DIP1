@@ -54,11 +54,6 @@ public class FullNodeRestClient {
         base =client.target(new URI("https://"+ipAddress.getHostAddress())).path("api");
     }
 
-    //for testing
-    public String getToken()
-    {
-        return token;
-    }
 
     /*
      *  If successful, secure token

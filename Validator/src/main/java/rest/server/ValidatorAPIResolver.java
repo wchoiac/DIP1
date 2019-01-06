@@ -23,6 +23,7 @@ import general.security.SecurityHelper;
 import java.io.*;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
@@ -301,35 +302,26 @@ public class ValidatorAPIResolver {
      * 0: successful
      * 1: not authorized
      * 2: not authorized by me
-     * 3: invalid date or medical organization information
      */
-    public byte[] renewCertificate(AuthorizationRequestPojo authorizationRequestPojo) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, BlockChainObjectParsingException, InvalidKeySpecException, BadRequest, FileCorruptionException {
+    public byte[] renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, BlockChainObjectParsingException, InvalidKeySpecException, BadRequest, FileCorruptionException, ServerError {
 
-        if (authorizationRequestPojo == null || authorizationRequestPojo.getMedicalOrgInfo() == null
-                || authorizationRequestPojo.getMedicalOrgInfo().getName() == null
-                || authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey() == null
-                || (!authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded()
-                && authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey().length != Configuration.RAW_PUBLICKEY_LENGTH)
-                || authorizationRequestPojo.getNoAfter() == null
-                || authorizationRequestPojo.getNoAfter().getTime() <= System.currentTimeMillis())
+        if (certificateRenewRequestPojo==null
+        ||certificateRenewRequestPojo.getIdentifier() == null || certificateRenewRequestPojo.getIdentifier().length!=Configuration.IDENTIFIER_LENGTH
+                ||certificateRenewRequestPojo.getNoAfter()==null
+        || certificateRenewRequestPojo.getNoAfter().getTime() <= System.currentTimeMillis())
             throw new BadRequest("Bad data");
-
-        ECPublicKey ecPublicKey = authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded()
-                ? SecurityHelper.getECPublicKeyFromEncoded(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey())
-                : SecurityHelper.getECPublicKeyFromCompressedRaw(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey(), Configuration.ELIPTIC_CURVE);
 
 
         ByteArrayOutputStream result = new ByteArrayOutputStream();
-        MedicalOrgInfo medicalOrgInfo = new MedicalOrgInfo(authorizationRequestPojo.getMedicalOrgInfo().getName(), ecPublicKey);
 
-        byte isAuthorizedByMe = validator.isMedicalOrgAuthorizedByMe(medicalOrgInfo);
+        byte isAuthorizedByMe = validator.isMedicalOrgAuthorizedByMe(certificateRenewRequestPojo.getIdentifier());
         result.write(isAuthorizedByMe);
 
         if (isAuthorizedByMe == 0) {
-            X509Certificate x509Certificate = validator.issueCertificate(medicalOrgInfo, authorizationRequestPojo.getNoAfter());
+            MedicalOrgInfo medicalOrgInfo = validator.getMedicalOrgInfo(certificateRenewRequestPojo.getIdentifier());
+            X509Certificate x509Certificate = validator.issueCertificate(medicalOrgInfo, certificateRenewRequestPojo.getNoAfter());
             CertificateManager.store(x509Certificate);
             result.write(x509Certificate.getEncoded());
-
         }
 
         return result.toByteArray();
