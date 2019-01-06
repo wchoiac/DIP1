@@ -240,7 +240,7 @@ public class ValidatorRestClient {
      * 3. patient sign the hash with "NONEwithECDSA" ("NONE" because signing with hash)
      *
      * Also, simply using Signature.sign(..) gives out DER encoded signature.
-     * So, if you are using it, set isSignatureDER as true.
+     * So, if the patient app uses it, set isSignatureDER as true.
      * --------------------------------------------------------------------------------------------
      *
      *
