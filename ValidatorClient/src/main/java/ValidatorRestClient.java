@@ -53,7 +53,8 @@ public class ValidatorRestClient {
 
 
     /*
-     *  If successful, secure token
+     *  If successful, secure token is set
+     *  Else, throws exception
      */
 
     public void login(String name, char[] password) throws InvalidUserInfo {
@@ -76,7 +77,8 @@ public class ValidatorRestClient {
     }
 
     /*
-     * return list of authority information
+     * If successful, returns list of authority information
+     * Else, throws exception
      *
      * @SecuredRootLevel
      */
@@ -99,7 +101,8 @@ public class ValidatorRestClient {
 
 
     /*
-     * return list of votes that to be processed (votes that are in the vote pool of validator)
+     * If successful, returns list of votes that to be processed (votes that are in the vote pool of validator)
+     * Else, throws exception
      *
      * @SecuredRootLevel
      */
@@ -120,8 +123,8 @@ public class ValidatorRestClient {
     }
 
     /*
-     * return list of on-going votings
-     *
+     * If successful, returns list of on-going votings
+     * Else, throws exception
      * @SecuredRootLevel
      */
     public VotingPojo[] getOnGoingVotingList() throws UnAuthorized, BadRequest, NotFound, ServerError {
@@ -144,8 +147,9 @@ public class ValidatorRestClient {
     /*
      * For voting for adding a new authority or removing an existing authority
      *
+     * If unsuccessful, throws Unsuccessful exception with status code or other exceptions
+     *
      * return status code:
-     * 0: successful
      * 1: being processed
      * 2: cannot be processed (e.g. already voted)
      *
@@ -173,8 +177,8 @@ public class ValidatorRestClient {
     }
 
     /*
-     * return list of short information of the patient
-     *
+     * If successful, return list of short information of the patient
+     * Else, throws exception
      * @SecuredUserLevel
      */
 
@@ -196,8 +200,8 @@ public class ValidatorRestClient {
     }
 
     /*
-     * return list of the requested patient information contents
-     *
+     * If successful, returns list of the requested patient information contents
+     * Else, throws exception
      * @SecuredUserLevel
      */
     public PatientInfoContentPojo[] getPatientContentList(LocationPojo[] locationPojos) throws UnAuthorized, BadRequest, NotFound, ServerError {
@@ -220,15 +224,15 @@ public class ValidatorRestClient {
     /*
      * For registering patient information
      *
-     * return status code:
-     * 0: successful
+     * If unsuccessful, throws Unsuccessful exception with status code or other exceptions
+     *
      * 1: being processed
      * 2: already exists
      *
      * Information for patient mobile application and registration software -----------------------
      * signature = signature( timeStamp  | encryptedInfo ) , "|" means concatenate.
      * (You may use GeneralHelper.longToBytes(timestamp) for converting long to byte arrays
-     * and GeneralHelper.merge mergeByteArrays(...))
+     * and GeneralHelper.merge mergeByteArrays(...) for merging byte arrays)
      *
      * For the steps,
      * 1. patient gives timestamp and AES key from pseudo random function with input of the timestamp
@@ -267,8 +271,8 @@ public class ValidatorRestClient {
     }
 
     /*
-     *return status code:
-     * 0: successful
+     * If unsuccessful, throws Unsuccessful exception with status code or other exceptions
+     *
      * 1: being processed
      * 2: patient doesn't exist
      * 3: already updated
@@ -300,8 +304,9 @@ public class ValidatorRestClient {
     }
     /*
      * For revoking authorization given to a medical organization
-     * return status code:
-     * 0: successful
+     *
+     * If unsuccessful, throws Unsuccessful exception with status code or other exceptions
+     *
      * 1: being processed
      * 2: authorized by another authority
      *
@@ -330,9 +335,10 @@ public class ValidatorRestClient {
     /*
      * For authorizing medical organizations
      *
-     * return status code(1 byte) + DER encoded certificate(if success):
+     * If successful, returns certificate
+     * Else, throws Unsuccessful exception with status code or other exceptions
+     *
      * status code:
-     * 0: successful
      * 1: being processed
      * 2: already exists
      *
@@ -372,7 +378,8 @@ public class ValidatorRestClient {
     }
 
     /*
-     * return list of short information of medical organizations authorized by this authority
+     * If successful, returns list of short information of medical organizations authorized by this authority
+     * Else, throws exception
      *
      * @SecuredUserLevel
      */
@@ -396,7 +403,8 @@ public class ValidatorRestClient {
 
 
     /*
-     * return the corresponding DER encoded X509 certificate
+     * If successful, returns the corresponding DER encoded X509 certificate
+     * Else, throws exception
      *
      * @SecuredUserLevel
      */
@@ -423,9 +431,10 @@ public class ValidatorRestClient {
     }
 
     /*
-     * return status code(1 byte) + encoded certificate:
+     * If successful, returns certificate
+     * Else, throws Unsuccessful exception with status code or other exceptions
+     *
      * status code:
-     * 0: successful
      * 1: not authorized
      * 2: not authorized by this authority
      *
@@ -440,7 +449,7 @@ public class ValidatorRestClient {
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
 
 
-        CertificateRenewRequestPojo certificateRenewRequestPojo = new CertificateRenewRequestPojo(medicalOrgIdentifier,noAfter);
+        CertificateRenewRequestPojo certificateRenewRequestPojo = new CertificateRenewRequestPojo(medicalOrgIdentifier, noAfter);
 
         Response response = invocationBuilder.put(Entity.json(certificateRenewRequestPojo));
 

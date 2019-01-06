@@ -1,3 +1,4 @@
+import blockchain.BlockChainSecurityHelper;
 import config.Configuration;
 import general.security.SecurityHelper;
 import pojo.LocationPojo;
@@ -86,7 +87,7 @@ public class TestMain {
 
     private static void testAuthorize(ValidatorRestClient validatorRestClient) throws Exception {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-        X509Certificate certificate = validatorRestClient.authorize("med0", (ECPublicKey) SecurityHelper.getPublicKeyFromPEM("spb0.pem", "EC"), format.parse("2037-7-7"));
+        X509Certificate certificate = validatorRestClient.authorizeMedicalOrg("med0", (ECPublicKey) SecurityHelper.getPublicKeyFromPEM("spb0.pem", "EC"), format.parse("2037-7-7"));
         SecurityHelper.writeX509ToDER(certificate, new File("med0.cer"));
     }
 
@@ -106,7 +107,7 @@ public class TestMain {
         byte[] signature = SecurityHelper.createECDSASignatureWithContent(ecPrivateKey, signatureCoverage, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
 
 
-        System.out.println(validatorRestClient.register(timestamp, ecPublicKey, patientInfo, signature));
+        validatorRestClient.registerPatientInfo(timestamp, ecPublicKey, patientInfo, signature,false);
 
 
     }
@@ -138,7 +139,7 @@ public class TestMain {
             byte[] signature = SecurityHelper.createECDSASignatureWithContent((ECPrivateKey) testPatientKeyPair.getPrivate(), signatureCoverage, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
 
 
-            System.out.println(validatorRestClient.register(timestamp, (ECPublicKey) testPatientKeyPair.getPublic(), patientInfo, signature));
+            validatorRestClient.registerPatientInfo(timestamp, (ECPublicKey) testPatientKeyPair.getPublic(), patientInfo, signature,false);
 
         } else {
             System.out.println("not correctly saved");
