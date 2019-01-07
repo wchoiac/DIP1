@@ -57,15 +57,16 @@ public class TestMain {
 //
 //        System.out.println(new String(result));
 
-        InetAddress inetAddress = InetAddress.getByName("25.44.56.7");
-        ValidatorRestClient validatorRestClient = new ValidatorRestClient(inetAddress, SecurityHelper.getX509FromDER(new File("dip1_signing.cer")));
+        InetAddress inetAddress = InetAddress.getByName("25.30.118.78");
+        ValidatorRestClient validatorRestClient = new ValidatorRestClient(inetAddress, SecurityHelper.getX509FromDER(new File("auth0.cer")));
 
         validatorRestClient.login("root", "1234".toCharArray());
-
+        System.out.println(validatorRestClient.getOverallAuthorityShortInfoList().length);
+        System.out.println(validatorRestClient.getOverallAuthorityShortInfoList().length);
         //testAuthorize(validatorRestClient);
-
-        testRegister2(validatorRestClient,"patient1/testPatientPublicKey.pem","patient1/testPatientPrivateKey.pem","patient1/testPatientInfoEncryptionKey","Test patient1 info");
-        testRegister2(validatorRestClient,"patient2/testPatientPublicKey.pem","patient2/testPatientPrivateKey.pem","patient2/testPatientInfoEncryptionKey","Test patient2 info");
+//
+//        testRegister2(validatorRestClient,"patient1/testPatientPublicKey.pem","patient1/testPatientPrivateKey.pem","patient1/testPatientInfoEncryptionKey","Test patient1 info");
+//        testRegister2(validatorRestClient,"patient2/testPatientPublicKey.pem","patient2/testPatientPrivateKey.pem","patient2/testPatientInfoEncryptionKey","Test patient2 info");
 
 
         //  testRegister(validatorRestClient,SecurityHelper.generateECKeyPair(Configuration.ELIPTIC_CURVE),SecurityHelper.generateAESKey(),"Test patient2 info");

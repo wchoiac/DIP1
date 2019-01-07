@@ -282,7 +282,7 @@ public class ValidatorInitializer {
 
             X509Certificate apiCert = SecurityHelper.issueCertificate(apiPublicKey, signingPublicKey, signingPrivateKey, noAfter
                     , subjectName, issuerName,null, BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(signingPublicKey),
-                    null, Configuration.API_CERTIFICATE_SIGNATURE_ALGORITHM, false);
+                    apiServerAddress, Configuration.API_CERTIFICATE_SIGNATURE_ALGORITHM, false);
             apiKeyStore.setKeyEntry(Configuration.API_KEYSTORE_ALIAS, apiPrivateKey, apiKeyStorePassword, new Certificate[]{apiCert, signingCert});
             apiKeyStore.store(new FileOutputStream(Configuration.API_KEYSTORE_FILE), apiKeyStorePassword);
             System.out.println("Successful: API keyStore created.");
