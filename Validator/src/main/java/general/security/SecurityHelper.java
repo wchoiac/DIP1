@@ -78,6 +78,7 @@ public class SecurityHelper {
         pemWriter.close();
     }
 
+    //referece: https://www.programcreek.com/java-api-examples/?api=org.bouncycastle.util.io.pem.PemReader
     public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
         FileReader reader = new FileReader(fileName);
         PemReader pemReader = new PemReader(reader);
@@ -110,7 +111,6 @@ public class SecurityHelper {
         fos.close();
     }
 
-    //referece: https://www.programcreek.com/java-api-examples/?api=org.bouncycastle.util.io.pem.PemReader
     public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException, NoSuchProviderException {
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X509");
         FileInputStream fis = new FileInputStream(file);
