@@ -23,7 +23,7 @@ public class TestMain {
 
     public static void main(String[] args) throws Exception {
 //        InetAddress inetAddress = InetAddress.getByName("25.44.56.7");
-//        ValidatorRestClient validatorRestClient = new ValidatorRestClient(inetAddress, general.security.SecurityHelper.getX509FromDER(new File("dip1_signing.cer")));
+//        ValidatorRestClient validatorRestClient = new ValidatorRestClient(inetAddress, general.security.SecurityHelper.getX509FromDER(new File("auth2.cer")));
 //
 //        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 //
@@ -57,12 +57,12 @@ public class TestMain {
 //
 //        System.out.println(new String(result));
 
-        InetAddress inetAddress = InetAddress.getByName("25.30.118.78");
-        ValidatorRestClient validatorRestClient = new ValidatorRestClient(inetAddress, SecurityHelper.getX509FromDER(new File("auth0.cer")));
+        InetAddress inetAddress = InetAddress.getByName("25.44.56.7");
+        ValidatorRestClient validatorRestClient = new ValidatorRestClient(inetAddress, SecurityHelper.getX509FromDER(new File("auth2.cer")));
 
         validatorRestClient.login("root", "1234".toCharArray());
-        System.out.println(validatorRestClient.getOverallAuthorityShortInfoList().length);
-        System.out.println(validatorRestClient.getOverallAuthorityShortInfoList().length);
+        System.out.println(testGetPatientShortInfo(validatorRestClient).length);
+//        System.out.println(validatorRestClient.getOverallAuthorityShortInfoList().length);
         //testAuthorize(validatorRestClient);
 //
 //        testRegister2(validatorRestClient,"patient1/testPatientPublicKey.pem","patient1/testPatientPrivateKey.pem","patient1/testPatientInfoEncryptionKey","Test patient1 info");
@@ -83,6 +83,7 @@ public class TestMain {
 
         ECPublicKey publicKey = (ECPublicKey) SecurityHelper.getPublicKeyFromPEM("testPatientPublicKey.pem", "EC");
 
+        System.out.println(BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(publicKey).length);
         return validatorRestClient.getPatientShortInfoList(BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(publicKey));
     }
 

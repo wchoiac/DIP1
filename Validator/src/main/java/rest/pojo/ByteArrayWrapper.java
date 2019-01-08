@@ -4,6 +4,8 @@ public class ByteArrayWrapper {
 
     byte[] content;
 
+    public ByteArrayWrapper() {
+    }
     public ByteArrayWrapper(byte[] content) {
         this.content = content;
     }

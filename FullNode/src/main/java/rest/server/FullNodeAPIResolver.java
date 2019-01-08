@@ -202,7 +202,8 @@ public class FullNodeAPIResolver { // change to full node
 
 
     public boolean isValidUserLevelToken(String token) throws IOException {
-        return SessionManager.isValidLevelToken(token,Configuration.USER_LEVEL);
+        return SessionManager.isValidLevelToken(token, Configuration.USER_LEVEL)
+                || SessionManager.isValidLevelToken(token, Configuration.ROOT_USER_LEVEL);
     }
 
     public boolean isValidRootLevelToken(String token) throws IOException {
