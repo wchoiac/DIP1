@@ -1,5 +1,8 @@
 package config;
 
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
+
 import java.io.File;
 
 public class Configuration {
@@ -61,6 +64,7 @@ public class Configuration {
     public static final byte IN_ORDER = 2;
     public static final byte OUT_ORDER = 1;
     public static final String ELIPTIC_CURVE="secp256k1";
+    public static final ASN1ObjectIdentifier ELIPTIC_CURVE_OID= SECObjectIdentifiers.secp256k1;
     public static final String BLOCKCHAIN_SIGNATURE_ALGORITHM ="SHA256withECDSA";
     public static final String BLOCKCHAIN_HASH_ALGORITHM ="SHA-256";
     public static final int ELIPTIC_CURVE_COORDINATE_LENGTH=32;

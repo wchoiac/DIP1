@@ -7,19 +7,19 @@ public class PatientInfoPojo {
     private byte[] ecPublicKey;
     private byte[] encryptedInfo;
     private byte[] signature;
-    private boolean isKeyDEREncoded; // true if DER encoded, false if raw (To not, simple calling getEncoded() gives DER encoded key)
-    private boolean isSignatureDEREncoded; // true if DER encoded, false if raw (To not, simple calling getEncoded() gives DER encoded signature)
+    private boolean keyDEREncoded; // true if DER encoded, false if raw (To not, simple calling getEncoded() gives DER encoded key)
+    private boolean signatureDEREncoded; // true if DER encoded, false if raw (To not, simple calling getEncoded() gives DER encoded signature)
 
     public PatientInfoPojo() {
     }
 
-    public PatientInfoPojo(long timestamp, byte[] ecPublicKey, byte[] encryptedInfo, byte[] signature, boolean isKeyDEREncoded, boolean isSignatureDEREncoded) {
+    public PatientInfoPojo(long timestamp, byte[] ecPublicKey, byte[] encryptedInfo, byte[] signature, boolean keyDEREncoded, boolean signatureDEREncoded) {
         this.timestamp = timestamp;
         this.ecPublicKey = ecPublicKey;
         this.encryptedInfo = encryptedInfo;
         this.signature = signature;
-        this.isKeyDEREncoded = isKeyDEREncoded;
-        this.isSignatureDEREncoded = isSignatureDEREncoded;
+        this.keyDEREncoded = keyDEREncoded;
+        this.signatureDEREncoded = signatureDEREncoded;
     }
 
     public long getTimestamp() {
@@ -55,18 +55,18 @@ public class PatientInfoPojo {
     }
 
     public boolean isKeyDEREncoded() {
-        return isKeyDEREncoded;
+        return keyDEREncoded;
     }
 
     public void setKeyDEREncoded(boolean keyDEREncoded) {
-        isKeyDEREncoded = keyDEREncoded;
+        this.keyDEREncoded = keyDEREncoded;
     }
 
     public boolean isSignatureDEREncoded() {
-        return isSignatureDEREncoded;
+        return signatureDEREncoded;
     }
 
     public void setSignatureDEREncoded(boolean signatureDEREncoded) {
-        isSignatureDEREncoded = signatureDEREncoded;
+        this.signatureDEREncoded = signatureDEREncoded;
     }
 }

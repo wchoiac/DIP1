@@ -4,15 +4,15 @@ public class AuthorityInfoPojo {
 
     private String name;
     private byte[] ecPublicKey;
-    private boolean isKeyDEREncoded; // true if DER encoded, false if raw (To not, simple calling getEncoded() gives DER encoded key)
+    private boolean keyDEREncoded; // true if DER encoded, false if raw (To not, simple calling getEncoded() gives DER encoded key)
 
     public AuthorityInfoPojo() {
     }
 
-    public AuthorityInfoPojo(String name, byte[] ecPublicKey, boolean isKeyDEREncoded) {
+    public AuthorityInfoPojo(String name, byte[] ecPublicKey, boolean keyDEREncoded) {
         this.name = name;
         this.ecPublicKey = ecPublicKey;
-        this.isKeyDEREncoded = isKeyDEREncoded;
+        this.keyDEREncoded = keyDEREncoded;
     }
 
     public String getName() {
@@ -32,10 +32,10 @@ public class AuthorityInfoPojo {
     }
 
     public boolean isKeyDEREncoded() {
-        return isKeyDEREncoded;
+        return keyDEREncoded;
     }
 
     public void setKeyDEREncoded(boolean keyDEREncoded) {
-        isKeyDEREncoded = keyDEREncoded;
+        this.keyDEREncoded = keyDEREncoded;
     }
 }
