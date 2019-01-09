@@ -11,12 +11,12 @@ public class TransactionPojo {
     public TransactionPojo() {
     }
 
-    public TransactionPojo(long timestamp, byte[] encryptedRecord, byte[] patientSignature, byte[] patientIdentifier, boolean ignatureDEREncoded) {
+    public TransactionPojo(long timestamp, byte[] encryptedRecord, byte[] patientSignature, byte[] patientIdentifier, boolean signatureDEREncoded) {
         this.timestamp = timestamp;
         this.encryptedRecord = encryptedRecord;
         this.patientSignature = patientSignature;
         this.patientIdentifier = patientIdentifier;
-        this.signatureDEREncoded = ignatureDEREncoded;
+        this.signatureDEREncoded = signatureDEREncoded;
     }
 
     public long getTimestamp() {
@@ -55,7 +55,7 @@ public class TransactionPojo {
         return signatureDEREncoded;
     }
 
-    public void setIgnatureDEREncoded(boolean ignatureDEREncoded) {
-        this.signatureDEREncoded = ignatureDEREncoded;
+    public void setIgnatureDEREncoded(boolean signatureDEREncoded) {
+        this.signatureDEREncoded = signatureDEREncoded;
     }
 }
