@@ -1,13 +1,22 @@
 import blockchain.BlockChainSecurityHelper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import config.Configuration;
 import general.security.SecurityHelper;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.jcajce.provider.symmetric.SEED;
+import org.glassfish.jersey.message.internal.EntityInputStream;
 import pojo.LocationPojo;
 import pojo.PatientInfoContentPojo;
+import pojo.PatientInfoPojo;
 import pojo.PatientShortInfoPojo;
 import general.utility.Utility;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import javax.ws.rs.client.Entity;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -57,11 +66,11 @@ public class TestMain {
 //
 //        System.out.println(new String(result));
 
-        InetAddress inetAddress = InetAddress.getByName("25.44.56.7");
-        ValidatorRestClient validatorRestClient = new ValidatorRestClient(inetAddress, SecurityHelper.getX509FromDER(new File("auth2.cer")));
-
-        validatorRestClient.login("root", "1234".toCharArray());
-        System.out.println(testGetPatientShortInfo(validatorRestClient).length);
+//        InetAddress inetAddress = InetAddress.getByName("25.44.56.7");
+//        ValidatorRestClient validatorRestClient = new ValidatorRestClient(inetAddress, SecurityHelper.getX509FromDER(new File("auth2.cer")));
+//
+//        validatorRestClient.login("root", "1234".toCharArray());
+//        System.out.println(testGetPatientShortInfo(validatorRestClient).length);
 //        System.out.println(validatorRestClient.getOverallAuthorityShortInfoList().length);
         //testAuthorize(validatorRestClient);
 //
@@ -70,6 +79,21 @@ public class TestMain {
 
 
         //  testRegister(validatorRestClient,SecurityHelper.generateECKeyPair(Configuration.ELIPTIC_CURVE),SecurityHelper.generateAESKey(),"Test patient2 info");
+
+        PatientInfoPojo patientInfoPojo = new PatientInfoPojo();
+        patientInfoPojo.setTimestamp(System.currentTimeMillis());
+        patientInfoPojo.setSignature(new byte[5]);
+        patientInfoPojo.setEncryptedInfo(new byte[5]);
+        patientInfoPojo.getEcPublicKey();
+        patientInfoPojo.setKeyDEREncoded(true);
+        patientInfoPojo.setSignatureDEREncoded(true);
+        ObjectMapper mapper = new ObjectMapper();
+        System.out.println(mapper.writeValueAsString(patientInfoPojo));
+
+        PublicKey publicKey =SecurityHelper.getPublicKeyFromPEM("testPatientPublicKey.pem", "EC");
+        SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(ASN1Sequence.getInstance(publicKey.getEncoded()));
+        ASN1ObjectIdentifier oid = (ASN1ObjectIdentifier) subjectPublicKeyInfo.getAlgorithm().getParameters();
+        System.out.println(oid.equals(SECObjectIdentifiers.secp256k1));
 
     }
 

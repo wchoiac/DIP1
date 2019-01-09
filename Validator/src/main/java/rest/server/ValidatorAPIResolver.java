@@ -10,6 +10,8 @@ import exception.BlockChainObjectParsingException;
 import exception.FileCorruptionException;
 import general.utility.GeneralHelper;
 import node.validator.Validator;
+import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
+import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.operator.OperatorCreationException;
 import rest.pojo.*;
 import rest.server.exception.BadRequest;
@@ -29,6 +31,7 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 
@@ -162,6 +165,12 @@ public class ValidatorAPIResolver {
         || patientInfoPojo.getTimestamp()>System.currentTimeMillis())
             throw new BadRequest("Bad data");
 
+        if(patientInfoPojo.isKeyDEREncoded())
+        {
+            if(!SecurityHelper.checkCurve(patientInfoPojo.getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))
+                throw new BadRequest("Wrong curve");
+        }
+
         ECPublicKey ecPublicKey = patientInfoPojo.isKeyDEREncoded()
                 ? SecurityHelper.getECPublicKeyFromEncoded(patientInfoPojo.getEcPublicKey()) //check curve
                 : SecurityHelper.getECPublicKeyFromCompressedRaw(patientInfoPojo.getEcPublicKey(), Configuration.ELIPTIC_CURVE);
@@ -185,7 +194,6 @@ public class ValidatorAPIResolver {
 
         PatientInfo patientInfo = new PatientInfo(patientInfoPojo.getTimestamp()
                 , ecPublicKey, patientInfoPojo.getEncryptedInfo(), rawSignature);
-
 
         return validator.addToPatientInfoListForRegistration(patientInfo);
     }

@@ -2,8 +2,11 @@ package general.security;
 
 import config.Configuration;
 import general.utility.GeneralHelper;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERSequence;
+import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -140,7 +143,7 @@ public class SecurityHelper {
     public static X509Certificate getX509FromBytes(byte[] bytes) throws IOException, CertificateException {
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X509");
         ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-        X509Certificate cert = (X509Certificate)certificateFactory.generateCertificate(bis);
+        X509Certificate cert = (X509Certificate) certificateFactory.generateCertificate(bis);
         bis.close();
 
         return cert;
@@ -274,6 +277,12 @@ public class SecurityHelper {
         return (ECPublicKey) keyFactory.generatePublic(new X509EncodedKeySpec(encoded));
     }
 
+    public static boolean checkCurve(byte[] ecPublicKeyEncoded, ASN1ObjectIdentifier curveOID) {
+        SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(ASN1Sequence.getInstance(ecPublicKeyEncoded));
+        ASN1ObjectIdentifier oid = (ASN1ObjectIdentifier) subjectPublicKeyInfo.getAlgorithm().getParameters();
+        return oid.equals(curveOID);
+    }
+
     //----------------------------------------------for key end------------------------------------------------
 
     //----------------------------------------------for signature start------------------------------------------------
@@ -404,7 +413,6 @@ public class SecurityHelper {
     }
 
 
-
     //test reference:https://stackoverflow.com/questions/49825455/ecdsa-signature-java-vs-go
     public static byte[] getRawFromDERECDSASignature(byte[] signature, int coordinateLength) {
 
@@ -468,38 +476,45 @@ public class SecurityHelper {
 
     public static void main(String[] args) throws Exception {
 
+//        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
+//        ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
+//        byte[] hash = hash(new byte[]{0}, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
+//        byte[] sig = createRawECDSASignatureWithHash(privateKey, hash, Configuration.ELIPTIC_CURVE, Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
+//        byte[] sig2 = createRawECDSASignatureWithContent(privateKey, new byte[]{0}, "SHA256", Configuration.ELIPTIC_CURVE, Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
+//        byte[] sig3 = createDEREncodedSignature(privateKey, new byte[]{0}, "SHA256withECDSA");
+//        byte[] sig4 = createDEREncodedSignature(privateKey, hash, "NONEWithECDSA"); // <= client-side hashing
+//        System.out.println(GeneralHelper.bytesToStringHex(sig));
+//        System.out.println(GeneralHelper.bytesToStringHex(sig2));
+//        System.out.println(GeneralHelper.bytesToStringHex(sig3));
+//        System.out.println(GeneralHelper.bytesToStringHex(sig4));
+//
+//        byte[] extractedSig = getRawFromDERECDSASignature(sig3, Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
+//        System.out.println(GeneralHelper.bytesToStringHex(extractedSig));
+//
+//
+//        System.out.println(verifyRawECDSASignatureWithContent((ECPublicKey) keyPair.getPublic(), new byte[]{0}, sig, "SHA256", Configuration.ELIPTIC_CURVE));
+//        System.out.println(verifyRawECDSASignatureWithContent((ECPublicKey) keyPair.getPublic(), new byte[]{0}, extractedSig, "SHA256", Configuration.ELIPTIC_CURVE));
+//        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig3, new byte[]{0}, "SHA256withECDSA"));
+//        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig4, new byte[]{0}, "SHA256withECDSA"));
+//
+//
+//        byte[] derSig3 = rawToDERECDSASignature(extractedSig);
+//        System.out.println(GeneralHelper.bytesToStringHex(derSig3));
+//        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), derSig3, new byte[]{0}, "SHA256withECDSA"));
+//        // SHA256withECDSA for EC & SHA256withRSA for RSA
+//        //For now, just convert the byte values of the content into string (May be changed later)
+//
+//        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//        System.out.println(GeneralHelper.bytesToStringHex(byteArrayOutputStream.toByteArray()));
+//        byte[] hash2 = hash(byteArrayOutputStream.toByteArray(), Configuration.BLOCKCHAIN_HASH_ALGORITHM);
+//        System.out.println((byte) ((1 << Configuration.INITIAL_AUTHORITIES_BIT_POSITION)));
+
         KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
         ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
-        byte[] hash = hash(new byte[]{0}, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
-        byte[] sig = createRawECDSASignatureWithHash(privateKey, hash, Configuration.ELIPTIC_CURVE, Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
-        byte[] sig2 = createRawECDSASignatureWithContent(privateKey, new byte[]{0}, "SHA256", Configuration.ELIPTIC_CURVE, Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
-        byte[] sig3 = createDEREncodedSignature(privateKey, new byte[]{0}, "SHA256withECDSA");
-        byte[] sig4 = createDEREncodedSignature(privateKey, hash, "NONEWithECDSA"); // <= client-side hashing
-        System.out.println(GeneralHelper.bytesToStringHex(sig));
-        System.out.println(GeneralHelper.bytesToStringHex(sig2));
-        System.out.println(GeneralHelper.bytesToStringHex(sig3));
-        System.out.println(GeneralHelper.bytesToStringHex(sig4));
-
-        byte[] extractedSig = getRawFromDERECDSASignature(sig3, Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
-        System.out.println(GeneralHelper.bytesToStringHex(extractedSig));
-
-
-        System.out.println(verifyRawECDSASignatureWithContent((ECPublicKey) keyPair.getPublic(), new byte[]{0}, sig, "SHA256", Configuration.ELIPTIC_CURVE));
-        System.out.println(verifyRawECDSASignatureWithContent((ECPublicKey) keyPair.getPublic(), new byte[]{0}, extractedSig, "SHA256", Configuration.ELIPTIC_CURVE));
-        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig3, new byte[]{0}, "SHA256withECDSA"));
-        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig4, new byte[]{0}, "SHA256withECDSA"));
-
-
-        byte[] derSig3 = rawToDERECDSASignature(extractedSig);
-        System.out.println(GeneralHelper.bytesToStringHex(derSig3));
-        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), derSig3, new byte[]{0}, "SHA256withECDSA"));
-        // SHA256withECDSA for EC & SHA256withRSA for RSA
-        //For now, just convert the byte values of the content into string (May be changed later)
-
-        ByteArrayOutputStream byteArrayOutputStream =new ByteArrayOutputStream();
-        System.out.println(GeneralHelper.bytesToStringHex(byteArrayOutputStream.toByteArray()));
-        byte[] hash2 = hash(byteArrayOutputStream.toByteArray(), Configuration.BLOCKCHAIN_HASH_ALGORITHM);
-        System.out.println((byte)((1 << Configuration.INITIAL_AUTHORITIES_BIT_POSITION)));
+        byte[] content =new byte[]{1,2,3,4};
+        byte[] hash = hash(new byte[]{1,2,3,4}, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
+        byte[] sig = createDEREncodedSignature(privateKey, hash, "NONEWithECDSA"); // <= client-side hashing
+        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig, content, "SHA256withECDSA"));
 
     }
 
