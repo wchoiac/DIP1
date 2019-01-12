@@ -117,12 +117,8 @@ public class MedicalOrgInfoManager {
                         throw new BlockChainObjectParsingException();
                     byte[] processingBlockHash = Arrays.copyOfRange(authorizationReadArray, 0, Configuration.HASH_LENGTH);
                     byte[] processingMedicalOrgIdentifier = Arrays.copyOfRange(authorizationReadArray, Configuration.HASH_LENGTH, revocationReadArray.length - 1);
-                    byte[] processingMedicalOrgNameBytes = new byte[authorizationReadArray[authorizationReadArray.length - 1]];
-                    if (bis.read(processingMedicalOrgNameBytes) != processingMedicalOrgNameBytes.length)
-                        throw new BlockChainObjectParsingException();
-                    String processingMedicalOrgName = new String(processingMedicalOrgNameBytes);
 
-                    MedicalOrgShortInfo processingMedicalOrgShortInfo = new MedicalOrgShortInfo(processingMedicalOrgName, processingMedicalOrgIdentifier);
+                    MedicalOrgShortInfo processingMedicalOrgShortInfo = new MedicalOrgShortInfo("", processingMedicalOrgIdentifier);
 
                     if (medicalOrgShortInfos.contains(processingMedicalOrgShortInfo) && BlockChainManager.isThisBlockOnTheChain(blockHash, processingBlockHash)) {
                         medicalOrgShortInfos.remove(processingMedicalOrgShortInfo);

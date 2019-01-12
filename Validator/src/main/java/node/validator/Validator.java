@@ -1836,7 +1836,7 @@ public class Validator {
         } else {
             if (medicalOrgRevocationList.contains(identifier)) {
                 result = 1;
-            } else if (Arrays.equals(myMainChain.getMedicalOrgInfoForInternal(identifier).getAuthorityIdentifier(), myIdentifier)) {
+            } else if (!Arrays.equals(myMainChain.getMedicalOrgInfoForInternal(identifier).getAuthorityIdentifier(), myIdentifier)) {
                 result = 2;
             }
 
