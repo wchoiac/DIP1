@@ -51,11 +51,11 @@ public class TransactionPojo {
         this.patientIdentifier = patientIdentifier;
     }
 
-    public boolean isIgnatureDEREncoded() {
+    public boolean isSignatureDEREncoded() {
         return signatureDEREncoded;
     }
 
-    public void setIgnatureDEREncoded(boolean signatureDEREncoded) {
+    public void setSignatureDEREncoded(boolean signatureDEREncoded) {
         this.signatureDEREncoded = signatureDEREncoded;
     }
 }
