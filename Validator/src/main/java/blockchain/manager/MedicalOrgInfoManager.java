@@ -4,7 +4,6 @@ import blockchain.block.Block;
 import exception.BlockChainObjectParsingException;
 import blockchain.internal.AuthorityInfoForInternal;
 import blockchain.internal.MedicalOrgInfoForInternal;
-import blockchain.block.BlockContent;
 import blockchain.block.MedicalOrgInfo;
 import blockchain.manager.datastructure.MedicalOrgShortInfo;
 import config.Configuration;
@@ -13,8 +12,6 @@ import general.utility.GeneralHelper;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -187,8 +184,8 @@ public class MedicalOrgInfoManager {
                 AuthorityInfoForInternal infoForInternal = AuthorityInfoManager.load(blockHash, authorityIdentifier);
                 if (infoForInternal == null)
                     throw new FileCorruptionException();
-                else if (infoForInternal.getRevokedBlock() != null) {
-                    MedicalOrgInfoManager.revoke(infoForInternal.getRevokedBlock(), medicalOrgIdentifier);
+                else if (infoForInternal.getUntrustedBlock() != null) {
+                    MedicalOrgInfoManager.revoke(infoForInternal.getUntrustedBlock(), medicalOrgIdentifier);
                     return null;
                 }
                 Block curBlock = BlockManager.loadBlock(authorizedBlockHash);

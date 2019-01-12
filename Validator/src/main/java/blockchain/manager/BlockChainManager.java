@@ -321,11 +321,11 @@ public class BlockChainManager {
 
         if (vote.isAdd()) // return false if authorizing a validator but already in the validator list
         {
-            if(validatorInfoForInternal != null)
+            if(validatorInfoForInternal != null) // even if untrusted
                 return false;
         } else // return false if deauthorizing a validator but not in the validator list
         {
-            if(validatorInfoForInternal == null) // even if revoked - change public key
+            if(validatorInfoForInternal == null||validatorInfoForInternal.getUntrustedBlock()!=null) // if not exists ( never trusted or untrusted)
                 return false;
         }
         // this ensures that only one voting about one beneficiary to exist

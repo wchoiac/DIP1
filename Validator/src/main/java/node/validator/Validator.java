@@ -1723,7 +1723,7 @@ public class Validator {
 
         if (myVotes.contains(v)) {
             result = 1;
-        } else if (!myMainChain.checkVote(myIdentifier, v)) {
+        } else if (!myMainChain.checkVote(myIdentifier, v)) { // already exists, existed or duplicate, ...
             result = 2;
         }
         if (result == 0)

@@ -130,7 +130,7 @@ public class BlockChain {
             return cachedCurrentAuthorityList.get(identifier).getAuthorityInfo();
         else {
             AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
-            if (internalInfo == null || internalInfo.getRevokedBlock() != null)
+            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)
                 return null;
             else {
                 cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);
@@ -145,7 +145,7 @@ public class BlockChain {
             return cachedCurrentAuthorityList.get(identifier);
         else {
             AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
-            if (internalInfo == null || internalInfo.getRevokedBlock() != null)
+            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)
                 return null;
             else {
                 cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);
@@ -167,12 +167,25 @@ public class BlockChain {
             return true;
         else {
             AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
-            if (internalInfo == null || internalInfo.getRevokedBlock() != null)
+            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)
                 return false;
             else {
                 cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);
                 return true;
             }
+        }
+
+    }
+
+    public boolean isAuthorityUntrusted(byte[] identifier) throws IOException, BlockChainObjectParsingException {
+        if (hasAuthority(identifier))
+            return false;
+        else {
+            AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
+            if (internalInfo == null)
+                return false;
+            else //if(internalInfo.getUntrustedBlock()!= null)
+                return true;
         }
 
     }
@@ -631,7 +644,7 @@ public class BlockChain {
         byte[] beneficiaryIdentifier = vote.getBeneficiary().getIdentifier();
         if (vote.isAdd()) // return false if authorizing a validator but already in the validator list
         {
-            if (hasAuthority(beneficiaryIdentifier))
+            if (hasAuthority(beneficiaryIdentifier)||isAuthorityUntrusted(beneficiaryIdentifier)) // if untrusted => change public key
                 return false;
         } else // return false if deauthorizing a validator but not in the validator list
         {
