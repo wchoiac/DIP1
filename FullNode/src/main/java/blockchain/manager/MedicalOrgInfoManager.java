@@ -184,8 +184,8 @@ public class MedicalOrgInfoManager {
                 AuthorityInfoForInternal infoForInternal = AuthorityInfoManager.load(blockHash, authorityIdentifier);
                 if (infoForInternal == null)
                     throw new FileCorruptionException();
-                else if (infoForInternal.getRevokedBlock() != null) {
-                    MedicalOrgInfoManager.revoke(infoForInternal.getRevokedBlock(), medicalOrgIdentifier);
+                else if (infoForInternal.getUntrustedBlock() != null) {
+                    MedicalOrgInfoManager.revoke(infoForInternal.getUntrustedBlock(), medicalOrgIdentifier);
                     return null;
                 }
                 Block curBlock = BlockManager.loadBlock(authorizedBlockHash);

@@ -8,12 +8,12 @@ import java.util.Objects;
 public class AuthorityInfoForInternal{
     private AuthorityInfo authorityInfo;
     private int lastSignedBlockNumber; // if -1, it is at most current number -((current Authority number)/2 +1) from now
-    private byte[] revokedBlock;
-    public AuthorityInfoForInternal(AuthorityInfo info, int lastSignedBlockHeight, byte[] revokedBlock)
+    private byte[] untrustedBlock;
+    public AuthorityInfoForInternal(AuthorityInfo info, int lastSignedBlockHeight, byte[] untrustedBlock)
     {
         this.setAuthorityInfo(info);
         this.setLastSignedBlockNumber(lastSignedBlockHeight);
-        this.setRevokedBlock(revokedBlock);
+        this.setUntrustedBlock(untrustedBlock);
     }
     public boolean canSign(int currentBlockNumber, int totalAuthorities)
     {
@@ -62,11 +62,11 @@ public class AuthorityInfoForInternal{
         this.lastSignedBlockNumber = lastSignedBlockNumber;
     }
 
-    public byte[] getRevokedBlock() {
-        return revokedBlock;
+    public byte[] getUntrustedBlock() {
+        return untrustedBlock;
     }
 
-    public void setRevokedBlock(byte[] revokedBlock) {
-        this.revokedBlock = revokedBlock;
+    public void setUntrustedBlock(byte[] untrustedBlock) {
+        this.untrustedBlock = untrustedBlock;
     }
 }
