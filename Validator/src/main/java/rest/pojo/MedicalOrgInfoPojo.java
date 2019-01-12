@@ -6,6 +6,9 @@ public class MedicalOrgInfoPojo {
     private byte[] ecPublicKey;
     private boolean keyDEREncoded; // true if DER encoded, false if raw (To not, simple calling getEncoded() gives DER encoded key)
 
+    public MedicalOrgInfoPojo() {
+    }
+
     public MedicalOrgInfoPojo(String name, byte[] ecPublicKey, boolean keyDEREncoded) {
         this.name = name;
         this.ecPublicKey = ecPublicKey;
