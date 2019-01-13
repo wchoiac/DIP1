@@ -1,0 +1,86 @@
+package viewmodel
+
+import javafx.scene.Scene
+import javafx.scene.image.Image
+import javafx.stage.Stage
+import viewmodel.panes.*
+
+object SceneManager {
+    private val logInScene = Scene(LogInPane, Config.WIDTH / 2, Config.HEIGHT / 2)
+    private val mainMenuScene = Scene(MainMenuPane, Config.WIDTH, Config.HEIGHT)
+    private val scanScene = Scene(ScanPane, Config.WIDTH, Config.HEIGHT)
+    private val qrScene = Scene(QRCodePane, Config.WIDTH, Config.HEIGHT)
+    private val hospitalScene = Scene(ViewHospitalsPane, Config.WIDTH, Config.HEIGHT)
+    private val addHospitalScene = Scene(AddHospitalPane, Config.WIDTH / 2, Config.HEIGHT / 2)
+    private var stage: Stage? = null
+    private var lastPatientInfoScene : Scene? = null
+    var lastPateintPane : PatientInfoPane? = null
+
+    init {
+        val scenes = arrayOf(logInScene, mainMenuScene, scanScene, qrScene, hospitalScene, addHospitalScene)
+        addStylesheets(*scenes)
+    }
+
+    private fun addStylesheets(vararg scenes: Scene) {
+        for (scene in scenes) {
+            scene.stylesheets.add(Config.CSS_STYLES)
+        }
+    }
+
+    fun getStage() : Stage {
+        return stage!!
+    }
+
+    fun setStage(stage: Stage) {
+        this.stage = stage
+        this.stage!!.title = "MediRec"
+        this.stage!!.icons.add(Image(Config.IMAGES["icon"]))
+        stage.setOnCloseRequest {
+            println("Exiting...")
+            (scanScene.root as ScanPane).disposeWebCamCamera()
+        }
+    }
+
+    private fun showScene(scene: Scene) {
+        if (stage == null)
+            return
+
+        stage!!.hide()
+        stage!!.scene = scene
+        stage!!.show()
+    }
+
+    fun showLogInScene() {
+        showScene(logInScene)
+    }
+
+    fun showMainMenuScene() {
+        showScene(mainMenuScene)
+    }
+
+    fun showScanScene(type: ScanPane.TYPE) {
+        showScene(scanScene)
+        (scanScene.root as ScanPane).startWebCam()
+        (scanScene.root as ScanPane).type = type
+    }
+
+    fun showQRScene() {
+        showScene(qrScene)
+    }
+
+    fun showPatientInfoScene(infoPane: PatientInfoPane) {
+        val scene = Scene(infoPane, Config.WIDTH, Config.HEIGHT)
+        lastPateintPane = infoPane
+        lastPatientInfoScene = scene
+        addStylesheets(scene)
+        showScene(scene)
+    }
+
+    fun showHospitalViewScene() {
+        showScene(hospitalScene)
+    }
+
+    fun showAddHospitalScene() {
+        showScene(addHospitalScene)
+    }
+}

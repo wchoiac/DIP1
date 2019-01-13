@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.net.InetAddress;
+import java.nio.file.Files;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPrivateKey;
@@ -147,9 +148,11 @@ public class TestMain {
         fos.close();
 
 
-        FileInputStream fis = new FileInputStream(new File("testPatientInfoEncryptionKey"));
-        byte[] encoded = fis.readAllBytes();
-        fis.close();
+//        FileInputStream fis = new FileInputStream(new File("testPatientInfoEncryptionKey"));
+//        byte[] encoded = fis.readAllBytes();
+
+        byte[] encoded = Files.readAllBytes(new File("testPatientInfoEncryptionKey").toPath());
+//        fis.close();
         SecretKey compareKey = new SecretKeySpec(encoded, "AES");
 
         if (compareKey.equals(testPatientInfoEncryptionKey)) {
