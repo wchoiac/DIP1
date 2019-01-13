@@ -345,8 +345,9 @@ public class SecurityHelper {
 
     public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException, NoSuchProviderException {
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X509");
-        FileInputStream fis = new FileInputStream(file);
-        ByteArrayInputStream bis = new ByteArrayInputStream(fis.readAllBytes());
+//        FileInputStream fis = new FileInputStream(file);
+//        ByteArrayInputStream bis = new ByteArrayInputStream(fis.read()); JAVA 9 AND ABOVE
+        ByteArrayInputStream bis = new ByteArrayInputStream(Files.readAllBytes(file.toPath()));
         X509Certificate cert = (X509Certificate) certificateFactory.generateCertificate(bis);
 
         bis.close();
