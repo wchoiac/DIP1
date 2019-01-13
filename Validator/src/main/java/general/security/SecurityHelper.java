@@ -33,8 +33,11 @@ import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.bouncycastle.util.io.pem.PemWriter;
 
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.math.BigInteger;
 import java.net.InetAddress;
@@ -61,10 +64,26 @@ public class SecurityHelper {
     ;
     static final Random random = new SecureRandom();
 
+    //----------------------------------------------for pseudo random function start------------------------------------------------
+
+    // use HmacSHA256 for algo
+    // key - randomly generated master key , content - timestamp
+    public static SecretKey aesKeyWithHMACPRF(byte[] key, byte[] content, String hmacAlgo) throws NoSuchAlgorithmException, InvalidKeyException, InvalidKeySpecException {
+        SecretKeySpec secretKeySpecForHMACPRF = new SecretKeySpec(key,hmacAlgo); // it means key would be used for such algorithm (i.e. HmacSHA256 in this case)
+        Mac mac = Mac.getInstance(hmacAlgo); // it means MAC algorithm is algo (i.e. HmacSHA256 in this case)
+        mac.init(secretKeySpecForHMACPRF);
+        SecretKeySpec aesKeySpec = new SecretKeySpec(mac.doFinal(content),"AES");
+
+        return SecretKeyFactory.getInstance("AES").generateSecret(aesKeySpec);
+
+    }
+
+    //----------------------------------------------for pseudo random function end------------------------------------------------
+
+
 
     //----------------------------------------------for hash start------------------------------------------------
 
-    //reference https://medium.com/programmers-blockchain/create-simple-blockchain-java-tutorial-from-scratch-6eeed3cb03fa
     public static byte[] hash(byte[] data, String algo) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance(algo);
         return digest.digest(data);
@@ -509,12 +528,16 @@ public class SecurityHelper {
 //        byte[] hash2 = hash(byteArrayOutputStream.toByteArray(), Configuration.BLOCKCHAIN_HASH_ALGORITHM);
 //        System.out.println((byte) ((1 << Configuration.INITIAL_AUTHORITIES_BIT_POSITION)));
 
-        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
-        ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
-        byte[] content =new byte[]{1,2,3,4};
-        byte[] hash = hash(new byte[]{1,2,3,4}, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
-        byte[] sig = createDEREncodedSignature(privateKey, hash, "NONEWithECDSA"); // <= client-side hashing
-        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig, content, "SHA256withECDSA"));
+//        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
+//        ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
+//        byte[] content =new byte[]{1,2,3,4};
+//        byte[] hash = hash(new byte[]{1,2,3,4}, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
+//        byte[] sig = createDEREncodedSignature(privateKey, hash, "NONEWithECDSA"); // <= client-side hashing
+//        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig, content, "SHA256withECDSA"));
+
+
+        System.out.println(GeneralHelper.bytesToStringHex(aesKeyWithHMACPRF("patient Master Key - it should be long enough for example 256 bit".getBytes()
+                ,GeneralHelper.longToBytes(System.currentTimeMillis()),"HmacSHA256").getEncoded()));
 
     }
 
