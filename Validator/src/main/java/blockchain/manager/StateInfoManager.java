@@ -12,7 +12,7 @@ import java.nio.file.Files;
 
 public class StateInfoManager {
 
-    public static void save(Block block, boolean authorityChange) throws BlockChainObjectParsingException, IOException {
+    public static void save(Block block, boolean authorityListChanged, boolean votingListChanged) throws BlockChainObjectParsingException, IOException {
 
         String blockHashString = GeneralHelper.bytesToStringHex(block.calculateHash());
         String prevBlockHashString = GeneralHelper.bytesToStringHex(block.getHeader().getPrevHash());
@@ -33,11 +33,10 @@ public class StateInfoManager {
         byte[] prevStateInfoAllBytes = Files.readAllBytes(prevBlockStateInfoFile.toPath());
         StateInfo prevBlockStateInfo = StateInfo.parse(prevStateInfoAllBytes);
 
-        boolean votingChange = block.getHeader().getVote() != null;
-        byte[] latestVotingListBlockHash = votingChange ? block.calculateHash() : prevBlockStateInfo.getLatestVotingListBlockHash();
-        byte[] latestAuthorityListBlockHash = authorityChange ? block.calculateHash() : prevBlockStateInfo.getLatestAuthorityListBlockHash();
+        byte[] latestVotingListBlockHash = votingListChanged ? block.calculateHash() : prevBlockStateInfo.getLatestVotingListBlockHash();
+        byte[] latestAuthorityListBlockHash = authorityListChanged ? block.calculateHash() : prevBlockStateInfo.getLatestAuthorityListBlockHash();
         int totalScore = prevBlockStateInfo.getTotalScore() + block.getHeader().getScore();
-        int totalAuthority = prevBlockStateInfo.getTotalAuthorities() + (authorityChange ? (block.getHeader().getVote().isAdd() ? 1 : 0) : 0);
+        int totalAuthority = prevBlockStateInfo.getTotalAuthorities() + (authorityListChanged ? (block.getHeader().getVote().isAdd() ? 1 : 0) : 0);
 
         StateInfo blockStateInfo = new StateInfo(latestVotingListBlockHash, latestAuthorityListBlockHash, totalScore, totalAuthority);
         try (FileOutputStream os = new FileOutputStream(stateInfoFile)) {

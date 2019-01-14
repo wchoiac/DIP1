@@ -1,5 +1,8 @@
 package config;
 
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
+
 import java.io.File;
 
 public class Configuration {
@@ -61,9 +64,11 @@ public class Configuration {
     public static final byte IN_ORDER = 2;
     public static final byte OUT_ORDER = 1;
     public static final String ELIPTIC_CURVE="secp256k1";
+    public static final ASN1ObjectIdentifier ELIPTIC_CURVE_OID= SECObjectIdentifiers.secp256k1;
     public static final String BLOCKCHAIN_SIGNATURE_ALGORITHM ="SHA256withECDSA";
     public static final String BLOCKCHAIN_HASH_ALGORITHM ="SHA-256";
     public static final int ELIPTIC_CURVE_COORDINATE_LENGTH=32;
+    public static final int CHECK_POINT_BLOCK_INTERVAL =30000;
     ;
     //block setting
     public static final int MAX_RECORD = 5000;
@@ -78,13 +83,12 @@ public class Configuration {
     public static final int IDENTIFIER_LENGTH=20;
     public static final int RAW_PUBLICKEY_LENGTH=33;
 
-        // patient info setting
-        public static final byte INITIAL_AUTHORITIES_BIT_POSITION=0;
-        public static final byte VOTE_BIT_POSITION=1;
-        public static final byte AUTHORIZATION_BIT_POSITION=2;
-        public static final byte REVOCATION_BIT_POSITION=3;
-        public static final byte PATIENT_REGISTRATION_BIT_POSITION=4;
-        public static final byte TRANSACTION_BIT_POSITION=5;
+    public static final byte INITIAL_AUTHORITIES_BIT_POSITION=0;
+    public static final byte VOTE_BIT_POSITION=1;
+    public static final byte AUTHORIZATION_BIT_POSITION=2;
+    public static final byte REVOCATION_BIT_POSITION=3;
+    public static final byte PATIENT_REGISTRATION_BIT_POSITION=4;
+    public static final byte TRANSACTION_BIT_POSITION=5;
 
     //node setting
     public static final int MAX_OUT_BOUND_CONNECTION= 5;

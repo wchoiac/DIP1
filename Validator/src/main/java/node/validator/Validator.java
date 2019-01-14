@@ -462,7 +462,7 @@ public class Validator {
                 boolean isConfirmed;
                 if (!(isAuthorizedMedicalOrg || isAuthority)) {
                     isConfirmed = false;
-                    if (System.currentTimeMillis() - myMainChain.getLatestBlockTimeStamp() < Configuration.SYNC_PERIOD) {
+                    if (System.currentTimeMillis() - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) < Configuration.SYNC_PERIOD) {
                         GeneralHelper.unLockForMe(usingLockList);
                         newConnection.close();
                         blockChainLogger.info(newConnection.getInetAddress().getHostAddress() + ": Neither authorized medical org nor trusted authority");
@@ -620,9 +620,8 @@ public class Validator {
 
             while (!isTerminated) {
 
-                if (!Arrays.equals(myIdentifier, myMainChain.getLatestBlock().getHeader().getValidatorIdentifier())
-                        && !connectionManager.isConfirmed()
-                        && System.currentTimeMillis() - myMainChain.getLatestBlockTimeStamp() < Configuration.SYNC_PERIOD)
+                if (!connectionManager.isConfirmed()
+                        && System.currentTimeMillis() - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) < Configuration.SYNC_PERIOD)
                     break;
 
                 Message message = connectionManager.read();
@@ -1260,7 +1259,7 @@ public class Validator {
 
                             GeneralHelper.lockForMe(usingLockList, readMyChainLock);
                             long currentTime = System.currentTimeMillis();
-                            if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && System.currentTimeMillis() - myMainChain.getLatestBlockTimeStamp() > Configuration.SYNC_PERIOD) {
+                            if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && System.currentTimeMillis() - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) > Configuration.SYNC_PERIOD) {
                                 lastBroadCastHeadersRequestTime = currentTime;
                                 broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()), null);
                             }
@@ -1304,7 +1303,7 @@ public class Validator {
                             GeneralHelper.lockForMe(usingLockList, writeTransactionLock, readConnectionLock, writeVoteLock, writeRegistrationLock, writeAuthorizationLock, writeRevocationLock);
 
                             Vote vote = null;
-                            if (myVotes.size() > 0) {
+                            if (myVotes.size() > 0 && myMainChain.getCurrentLatestBlockNumber()+1%Configuration.CHECK_POINT_BLOCK_INTERVAL!=0) {
                                 vote = myVotes.get(0);
                             }
                             Block block = signBlock(vote, Configuration.IN_ORDER, myMainChain.getCurrentLatestBlockNumber() + 1, myMainChain.getLatestBlockHash());
@@ -1355,7 +1354,7 @@ public class Validator {
                                 GeneralHelper.lockForMe(usingLockList, writeTransactionLock, readConnectionLock, writeVoteLock, writeRegistrationLock, writeAuthorizationLock, writeRevocationLock);
 
                                 Vote vote = null;
-                                if (myVotes.size() > 0) {
+                                if (myVotes.size() > 0 &&myMainChain.getCurrentLatestBlockNumber()+1%Configuration.CHECK_POINT_BLOCK_INTERVAL!=0) {
                                     vote = myVotes.get(0);
                                 }
 
