@@ -119,13 +119,15 @@ object MainMenuPane : BorderPane() {
     private fun validatorCallbacks() {
         validatorButtons[0].setOnAction {
             //ADD VALIDATOR -> Get New Validator username, password,
+            SceneManager.showAddRemoveValidatorScene()
         }
         validatorButtons[1].setOnAction {
             //VOTE VALIDATOR -> Show
+            SceneManager.showVoteValidatorsScene()
         }
         validatorButtons[2].setOnAction {
             //VIEW VALIDATORS
-
+            SceneManager.showViewValidatorsScene()
         }
     }
 }
