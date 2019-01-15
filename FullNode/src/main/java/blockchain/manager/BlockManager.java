@@ -97,9 +97,10 @@ public class BlockManager {
     public static Block loadBlock(byte[] blockHash) throws BlockChainObjectParsingException, IOException {
 
         BlockHeader header = loadBlockHeader(blockHash);
+        if (header == null)
+            return null;
         BlockContent content = loadBlockContent(header.getStructureIndicator(),blockHash);
-
-        if (header == null || content == null)
+        if ( content == null)
             return null;
 
         Block block = new Block();

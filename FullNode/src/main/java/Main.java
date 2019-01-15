@@ -120,8 +120,10 @@ FullNodeRestServer restServer= FullNodeRestServer.create(apiKeyStore,apiKeyStore
         Runtime.getRuntime().addShutdownHook(new Thread(()-> { {
 
             try {
+                System.out.println("shutdown from main start");
                 fullNode.shutdown();
                 restServer.shutdown();
+                System.out.println("shutdown from main end");
             } catch (Exception e) {
                 e.printStackTrace();
             }

@@ -172,10 +172,12 @@ public class FullNode {
 
     public boolean shutdown() {
         if (runningFullNode == this) {
+            System.out.println("shutdown from full node start");
             ReadLock readMyChainLock = myChainLock.readLock();
             readMyChainLock.lock();
             isTerminated = true;
             readMyChainLock.unlock();
+            System.out.println("shutdown from full node end");
             runningFullNode = null;
             return true;
         } else {
@@ -688,19 +690,35 @@ public class FullNode {
                         break;
 
                     case Configuration.MESSAGE_PEER_NODE_LIST: //peer node list
-                        InetAddress[] nodes = (InetAddress[])(content);
+                        InetAddress[] receivedAddresses = (InetAddress[])(content);
+                        ArrayList<String> newPotentialAddressStrings = new ArrayList<>();
 
-                        blockChainLogger.info(peerAddressString + ": Received peer node list of size" + nodes.length);
-
-                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
-                        potentialPeerPool.addAll(Arrays.asList(nodes));
-
-                        for (ConnectionManager tempConnectionManager : inBoundConnectionList.values()) {
-                            potentialPeerPool.remove(tempConnectionManager.getSocket().getInetAddress());
+                        for(InetAddress receivedAddress: receivedAddresses)
+                        {
+                            newPotentialAddressStrings.add(receivedAddress.getHostAddress());
                         }
 
-                        for (ConnectionManager tempConnectionManager : outBoundConnectionList.values()) {
-                            potentialPeerPool.remove(tempConnectionManager.getSocket().getInetAddress());
+                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
+
+                        for (ConnectionManager inboundConnectionManager : inBoundConnectionList.values()) {
+                            newPotentialAddressStrings.remove(inboundConnectionManager.getSocket().getInetAddress().getHostAddress());
+                        }
+
+                        for (ConnectionManager outboundConnectionManager : outBoundConnectionList.values()) {
+                            newPotentialAddressStrings.remove(outboundConnectionManager.getSocket().getInetAddress().getHostAddress());
+                        }
+
+                        for (InetAddress potentialPeerAddress : potentialPeerPool) {
+                            newPotentialAddressStrings.remove(potentialPeerAddress.getHostAddress());
+                        }
+
+                        if(!newPotentialAddressStrings.isEmpty()) {
+
+                            for(String receivedAddressString: newPotentialAddressStrings)
+                            {
+                                potentialPeerPool.add(InetAddress.getByName(receivedAddressString));
+                            }
+                            blockChainLogger.info(peerAddressString + ": Added peer node list of size" + newPotentialAddressStrings.size());
                         }
 
                         GeneralHelper.unLockForMe(usingLockList);
@@ -1149,8 +1167,6 @@ public class FullNode {
 
                     GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
 
-                    System.out.println("startRequestingConnection entered"); //debug
-
                     int diff = Configuration.MAX_OUT_BOUND_CONNECTION - outBoundConnectionList.size();
                     int max = potentialPeerPool.size();
                     InetAddress[] potentialPeer = potentialPeerPool.subList(0, diff > max ? max : diff).toArray(new InetAddress[0]);
@@ -1163,7 +1179,7 @@ public class FullNode {
 
                     connectWithPeers(potentialPeer); //## for debug
 
-                    Thread.sleep(60000);
+                    Thread.sleep(20000);
 
                 }
             } catch (Exception e) {
@@ -1269,17 +1285,16 @@ public class FullNode {
         }).start();
     }
 
+
     // includes unconfirmed connection since genrally used for requests
     private int unicastMessage(Message message, int index) {
 
         int newIndex = -1;
+        int inBoundSize = inBoundConnectionList.size();
+        int outBoundSize = outBoundConnectionList.size();
+        int totalSize = inBoundSize + outBoundSize;
+        ConnectionManager connectionManager = null;
         try {
-
-            int inBoundSize = inBoundConnectionList.size();
-            int outBoundSize = outBoundConnectionList.size();
-            int totalSize = inBoundSize + outBoundSize;
-            ConnectionManager connectionManager = null;
-
             if (totalSize != 0) {
                 newIndex = index % totalSize;
 
@@ -1310,7 +1325,9 @@ public class FullNode {
                 System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number); //#debug
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
+            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message\"+ message.number+\" but failed due to IOException. So, closing the connection"); //#debug
+            connectionManager.close();
         }
 
 
@@ -1319,13 +1336,11 @@ public class FullNode {
 
     private int randomUnicastMessage(Message message) {
         int random = -1;
+        int inBoundSize = inBoundConnectionList.size();
+        int outBoundSize = outBoundConnectionList.size();
+        int totalSize = inBoundSize + outBoundSize;
+        ConnectionManager connectionManager = null;
         try {
-
-            int inBoundSize = inBoundConnectionList.size();
-            int outBoundSize = outBoundConnectionList.size();
-            int totalSize = inBoundSize + outBoundSize;
-            ConnectionManager connectionManager = null;
-
             if (totalSize != 0) {
                 random = rand.nextInt(totalSize);
 
@@ -1356,7 +1371,9 @@ public class FullNode {
                 System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number); //#debug
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
+            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message\"+ message.number+\" but failed due to IOException. So, closing the connection"); //#debug
+            connectionManager.close();
         }
 
         return random;
@@ -1367,36 +1384,41 @@ public class FullNode {
 
         int totalSize = 0;
 
+
         for (PeerInfo peerInfo : inBoundConnectionList.keySet()) {
+            if (peerInfo.equals(except))
+                continue;
+
+            ConnectionManager connectionManager = inBoundConnectionList.get(peerInfo);
+            if (!connectionManager.isConfirmed())
+                continue;
+
             try {
-                if (peerInfo.equals(except))
-                    continue;
-
-                ConnectionManager connectionManager = inBoundConnectionList.get(peerInfo);
-                if (!connectionManager.isConfirmed())
-                    continue;
-
                 connectionManager.write(message);
                 ++totalSize;
             } catch (IOException e) {
-                e.printStackTrace();
+                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
+                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message\"+ message.number+\" but failed due to IOException. So, closing the connection"); //#debug
+                connectionManager.close();
             }
-
         }
 
         for (PeerInfo peerInfo : outBoundConnectionList.keySet()) {
+
+            if (peerInfo.equals(except))
+                continue;
+
+            ConnectionManager connectionManager = outBoundConnectionList.get(peerInfo);
+            if (!connectionManager.isConfirmed())
+                continue;
+
             try {
-                if (peerInfo.equals(except))
-                    continue;
-
-                ConnectionManager connectionManager = outBoundConnectionList.get(peerInfo);
-                if (!connectionManager.isConfirmed())
-                    continue;
-
                 connectionManager.write(message);
                 ++totalSize;
             } catch (IOException e) {
-                e.printStackTrace();
+                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
+                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message\"+ message.number+\" but failed due to IOException. So, closing the connection"); //#debug
+                connectionManager.close();
             }
         }
 

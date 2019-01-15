@@ -137,8 +137,20 @@ public class ValidatorAPIResolver {
                 && votePojo.getBeneficiary().getEcPublicKey().length != Configuration.RAW_PUBLICKEY_LENGTH))
             throw new BadRequest();
 
-        AuthorityInfo tempAuthorityInfo = new AuthorityInfo(votePojo.getBeneficiary().getName()
-                , SecurityHelper.getECPublicKeyFromCompressedRaw(votePojo.getBeneficiary().getEcPublicKey(), Configuration.ELIPTIC_CURVE));
+
+        if(votePojo.getBeneficiary().isKeyDEREncoded())
+        {
+            if(!SecurityHelper.checkCurve(votePojo.getBeneficiary().getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))
+                throw new BadRequest("Wrong curve");
+        }
+
+        ECPublicKey ecPublicKey = votePojo.getBeneficiary().isKeyDEREncoded()
+                ? SecurityHelper.getECPublicKeyFromEncoded(votePojo.getBeneficiary().getEcPublicKey()) //check curve
+                : SecurityHelper.getECPublicKeyFromCompressedRaw(votePojo.getBeneficiary().getEcPublicKey(), Configuration.ELIPTIC_CURVE);
+
+        AuthorityInfo tempAuthorityInfo = new AuthorityInfo(votePojo.getBeneficiary().getName(),ecPublicKey);
+
+
         Vote vote = new Vote(tempAuthorityInfo, votePojo.isAdd(), votePojo.isAgree());
 
         return validator.castVote(vote);
@@ -218,6 +230,12 @@ public class ValidatorAPIResolver {
                 || patientInfoPojo.getTimestamp()>System.currentTimeMillis())
             throw new BadRequest("Bad data");
 
+        if(patientInfoPojo.isKeyDEREncoded())
+        {
+            if(!SecurityHelper.checkCurve(patientInfoPojo.getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))
+                throw new BadRequest("Wrong curve");
+        }
+
         ECPublicKey ecPublicKey = patientInfoPojo.isKeyDEREncoded()
                 ? SecurityHelper.getECPublicKeyFromEncoded(patientInfoPojo.getEcPublicKey()) //check curve
                 : SecurityHelper.getECPublicKeyFromCompressedRaw(patientInfoPojo.getEcPublicKey(), Configuration.ELIPTIC_CURVE);
@@ -278,6 +296,13 @@ public class ValidatorAPIResolver {
                 || authorizationRequestPojo.getNoAfter() == null
                 || authorizationRequestPojo.getNoAfter().getTime() <= System.currentTimeMillis())
             throw new BadRequest("Bad data");
+
+
+        if(authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded())
+        {
+            if(!SecurityHelper.checkCurve(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))
+                throw new BadRequest("Wrong curve");
+        }
 
 
         ECPublicKey ecPublicKey = authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded()

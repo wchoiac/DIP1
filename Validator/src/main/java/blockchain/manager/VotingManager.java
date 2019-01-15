@@ -30,8 +30,17 @@ public class VotingManager implements Serializable {
                 os.write(voting.getRaw());
             }
         }
+    }
+    public static void saveCheckPoint(byte[] blockHash) throws IOException {
+        String blockHashString = GeneralHelper.bytesToStringHex(blockHash);
 
+        File blockFolder = new File(Configuration.BLOCK_FOLDER, blockHashString.charAt(0) + "/" + blockHashString.charAt(1) + "/"
+                + blockHashString.charAt(2) + "/" + blockHashString.charAt(3) + "/" + blockHashString.charAt(4) + "/" + blockHashString + "/");
+        File votingListFile = new File(blockFolder, "voting");
 
+        if (!blockFolder.exists())
+            blockFolder.mkdirs();
+        votingListFile.createNewFile();
     }
 
     public static ArrayList<Voting> load(byte[] blockHash) throws IOException, BlockChainObjectParsingException {

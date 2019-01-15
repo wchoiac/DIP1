@@ -86,7 +86,9 @@ public class BlockChainManager {
                 //check vote
 
                 Voting changedAuthorityVoting= null;
-                Voting votingToBeRemoved= null;
+
+                if(header.getBlockNumber()%Configuration.CHECK_POINT_BLOCK_INTERVAL==0)
+                    return -1;
 
                 if (header.getVote().isAdd()) // return false if authorizing a validator but already in the validator list
                 {
@@ -139,16 +141,13 @@ public class BlockChainManager {
                         tempOverallAuthorityList.remove(GeneralHelper.getIndexFromArrayList(changedAuthorityVoting.getBeneficiary().getIdentifier(),tempOverallAuthorityList));
                         tempAuthorityList.remove(changedAuthorityVoting.getBeneficiary().getIdentifier());
                     }
-                    votingToBeRemoved=changedAuthorityVoting;
+                    tempVotingList.remove(changedAuthorityVoting);
                 }
-                else if(changedAuthorityVoting.getNumDisagree() >= tempValidationInterval)
+                else if(changedAuthorityVoting.getNumDisagree() > tempOverallAuthorityList.size()- tempValidationInterval)
                 {
-                    votingToBeRemoved=changedAuthorityVoting;
+                    tempVotingList.remove(changedAuthorityVoting);
                 }
 
-                if(votingToBeRemoved!=null) {
-                    tempVotingList.remove(votingToBeRemoved);
-                }
             }
 
             tempTotalScore+=expectedScore;
@@ -191,8 +190,14 @@ public class BlockChainManager {
         if(block.getHeader().getTimestamp() - prevBlockHeader.getTimestamp() <(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
             return false;
 
-        if(block.getHeader().getVote() !=null&&!checkVote(block.getHeader().getPrevHash(), validatorInfoForInternal.getAuthorityInfo(), block.getHeader().getVote()))
-            return false;
+        if(block.getHeader().getVote() !=null) {
+
+            if(block.getHeader().getBlockNumber()%Configuration.CHECK_POINT_BLOCK_INTERVAL==0) // check point cannot have vote
+                return false;
+
+            if (!checkVote(block.getHeader().getPrevHash(), validatorInfoForInternal.getAuthorityInfo(), block.getHeader().getVote()))
+                return false;
+        }
 
         //*****header check end
 
@@ -353,13 +358,8 @@ public class BlockChainManager {
 
         BlockManager.saveBlock(block);
 
-        boolean changedAuthorityList = false;
-
-        if(block.getHeader().getVote() !=null) {
-            changedAuthorityList = processVote(blockHash, block.getHeader().getPrevHash(), block.getHeader().getValidatorIdentifier(),
-                    block.getHeader().getVote(), prevBlockStateInfo.getTotalAuthorities());
-        }
-
+        boolean authorityListChanged = false;
+        boolean votingListChanged =false;
 
 
         if(block.getContent().getMedicalOrgAuthorizationList() !=null)
@@ -372,8 +372,21 @@ public class BlockChainManager {
             processTransactions(blockHash, block.getContent().getTransactions());
 
 
-        StateInfoManager.save(block,changedAuthorityList);
+        if(block.getHeader().getVote() !=null) {
+            votingListChanged=true;
+            authorityListChanged = processVote(blockHash, block.getHeader().getPrevHash(), block.getHeader().getValidatorIdentifier(),
+                    block.getHeader().getVote(), prevBlockStateInfo.getTotalAuthorities());
+        } else if(block.getHeader().getBlockNumber()%Configuration.CHECK_POINT_BLOCK_INTERVAL==0)
+        {
+            votingListChanged=true;
+            VotingManager.saveCheckPoint(blockHash);
+        }
+
+
+
+        StateInfoManager.save(block,authorityListChanged,votingListChanged);
         ChainInfoManager.save(block);
+
 
         int newTotalScore = prevBlockStateInfo.getTotalScore() + block.getHeader().getScore();
 
@@ -423,6 +436,8 @@ public class BlockChainManager {
         }
     }
 
+    // return true if the vote is processed( more than half agreed )
+    // Also, store the changed voting list
     private static boolean processVote(byte[] blockHash, byte[] prevBlockHash,byte[] voterIdentifier, Vote vote, int prevTotalAuthorities) throws IOException, BlockChainObjectParsingException {
 
         int validationInterval= (prevTotalAuthorities/2) +1;
@@ -430,7 +445,6 @@ public class BlockChainManager {
 
         boolean isForNewVoting = true;
         Voting changedAuthorityVoting= null;
-        Voting votingToBeRemoved= null;
 
         for (Voting voting : votingList) // if voting about the beneficiary already exists cast a vote
         {
@@ -455,27 +469,31 @@ public class BlockChainManager {
 
         }
 
-        if (changedAuthorityVoting.getNumAgree() >= validationInterval) {
+
+        boolean isVotingProcessed= changedAuthorityVoting.getNumAgree() >= validationInterval;
+        if (isVotingProcessed) {
+            votingList.remove(changedAuthorityVoting);
             if(changedAuthorityVoting.isAdd()) {
                 AuthorityInfoManager.trust(blockHash, prevBlockHash, vote.getBeneficiary());
             }
             else
             {
                 AuthorityInfoManager.untrust(blockHash,prevBlockHash, vote.getBeneficiary());
+                for(Voting voting: votingList)
+                {
+                    voting.removeDisagree(vote.getBeneficiary().getIdentifier());
+                    voting.removeAgree(vote.getBeneficiary().getIdentifier());
+                }
             }
-            votingToBeRemoved=changedAuthorityVoting;
         }
-        else if(changedAuthorityVoting.getNumDisagree() >= validationInterval)
+        else if(changedAuthorityVoting.getNumDisagree() > prevTotalAuthorities-validationInterval)
         {
-            votingToBeRemoved=changedAuthorityVoting;
+            votingList.remove(changedAuthorityVoting);
         }
 
+        VotingManager.save(blockHash,votingList);
 
-        votingList.remove(votingToBeRemoved);
-
-
-
-        return votingToBeRemoved != null;
+        return isVotingProcessed;
     }
 
     public static boolean hasBlock(byte[] blockHash) throws BlockChainObjectParsingException, IOException {
