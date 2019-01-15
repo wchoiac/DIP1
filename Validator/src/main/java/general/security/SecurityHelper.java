@@ -541,8 +541,8 @@ public class SecurityHelper {
         // =============================== PREPARATION END=========================
 
         //==================================== STORE START===================================
-        // create empty JCEKS keystore
-        KeyStore keyStore = KeyStore.getInstance("JCEKS");
+        // create empty pkcs12 keystore
+        KeyStore keyStore = KeyStore.getInstance("pkcs12");
         keyStore.load(null);
 
         // store keypair
@@ -563,9 +563,9 @@ public class SecurityHelper {
         //==================================== STORE END===================================
 
         //==================================== LOAD START===================================
-        // JCEKS keystore from byte array
+        // pkcs12 keystore from byte array
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(keyStoreFileByteArray);
-        KeyStore loadedKeyStore = KeyStore.getInstance("JCEKS");
+        KeyStore loadedKeyStore = KeyStore.getInstance("pkcs12");
         loadedKeyStore.load(byteArrayInputStream, keyStorePassword);
 
         // load keypair
@@ -641,8 +641,8 @@ public class SecurityHelper {
 //        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
 //        System.out.println(DerivePubKeyFromPrivKey((ECPrivateKey) keyPair.getPrivate()).equals(keyPair.getPublic()));
 
-
         keyStoreTest();
+        System.out.println(KeyStore.getDefaultType());
 
     }
 

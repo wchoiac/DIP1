@@ -7,6 +7,9 @@ import java.io.File;
 
 public class Configuration {
 
+
+    public static final String KEYSTORE_TYPE = "pkcs12"; // default of java
+
     public static final File AUTHENTICATION_FOLDER =new File("auth");
 
     public static final File SIGNING_KEYSTORE_FILE = new File(AUTHENTICATION_FOLDER,"signingKeyStore.keystore"); // for validating blocks and issuing other certs

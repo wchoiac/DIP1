@@ -40,7 +40,7 @@ public class FullNodeRestServer {
             System.out.println("Please use initializer before running node");
             return;
         }
-        KeyStore keyStore= KeyStore.getInstance("JKS");
+        KeyStore keyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
         char[] password;
         Scanner sc = new Scanner(System.in);
         Console console = System.console();

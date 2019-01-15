@@ -111,7 +111,7 @@ public class FullNodeInitializer {
 
             Console console = System.console();
 
-            KeyStore signingKeyStore= KeyStore.getInstance("JKS");
+            KeyStore signingKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             signingKeyStore.load(null);
             char[] signingKeyStorePassword;
 
@@ -172,7 +172,7 @@ public class FullNodeInitializer {
             Console console = System.console();
 
 
-            KeyStore signingKeyStore= KeyStore.getInstance("JKS");
+            KeyStore signingKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             char[] signingKeyStorePassword;
 
             ECPublicKey signingPublicKey;
@@ -205,7 +205,7 @@ public class FullNodeInitializer {
 
 
 
-            KeyStore apiKeyStore = KeyStore.getInstance("JKS");
+            KeyStore apiKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             apiKeyStore.load(null);
             char[] apiKeyStorePassword;
 
@@ -293,7 +293,7 @@ public class FullNodeInitializer {
             Console console = System.console();
 
 
-            KeyStore signingKeyStore= KeyStore.getInstance("JKS");
+            KeyStore signingKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             char[] signingKeyStorePassword;
 
             ECPublicKey signingPublicKey;
@@ -325,7 +325,7 @@ public class FullNodeInitializer {
             }
 
 
-            KeyStore connectionKeyStore = KeyStore.getInstance("JKS");
+            KeyStore connectionKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             connectionKeyStore.load(null);
             char[] connectionKeyStorePassword;
 
