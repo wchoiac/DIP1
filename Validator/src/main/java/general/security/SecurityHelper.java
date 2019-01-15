@@ -541,7 +541,7 @@ public class SecurityHelper {
         // =============================== PREPARATION END=========================
 
         //==================================== STORE START===================================
-        // create empty keystore
+        // create empty JCEKS keystore
         KeyStore keyStore = KeyStore.getInstance("JCEKS");
         keyStore.load(null);
 
@@ -554,6 +554,7 @@ public class SecurityHelper {
         KeyStore.ProtectionParameter protParam = new KeyStore.PasswordProtection(masterKeyEntryPassword);
         keyStore.setEntry(masterKeyAlias,masterKeyEntry,protParam);
 
+        //store keystore as byte array
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         keyStore.store(byteArrayOutputStream, keyStorePassword); // for storing keystore
         byte[] keyStoreFileByteArray = byteArrayOutputStream.toByteArray();
@@ -562,10 +563,12 @@ public class SecurityHelper {
         //==================================== STORE END===================================
 
         //==================================== LOAD START===================================
-        // load keypair
+        // JCEKS keystore from byte array
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(keyStoreFileByteArray);
         KeyStore loadedKeyStore = KeyStore.getInstance("JCEKS");
         loadedKeyStore.load(byteArrayInputStream, keyStorePassword);
+
+        // load keypair
         KeyStore.PrivateKeyEntry keyPairEntry = (KeyStore.PrivateKeyEntry) loadedKeyStore.getEntry(keyPairAlias, new KeyStore.PasswordProtection(keyPairEntryPassword));
 
         ECPublicKey loadedECPublicKey = (ECPublicKey) keyPairEntry.getCertificate().getPublicKey();
