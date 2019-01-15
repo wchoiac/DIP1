@@ -627,7 +627,8 @@ public class BlockChain {
                     iterator.remove();
                 }
             }
-            MyVoteDropManager.checkPointDrop(block.calculateHash(), myIdentifier, droppedVotes);
+            if(!droppedVotes.isEmpty())
+                MyVoteDropManager.checkPointDrop(block.calculateHash(), myIdentifier, droppedVotes);
             currentVotingList.clear();
         }
 

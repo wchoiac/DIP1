@@ -47,13 +47,16 @@ public class ConnectionManager {
     }
 
     public void close(){
-        if(!socket.isClosed()) {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+
+       if(!isClosed())
+       {
+           try {
+               socket.close();
+           } catch (IOException e) {
+               e.printStackTrace();
+           }
+
+       }
     }
 
     public boolean isClosed()

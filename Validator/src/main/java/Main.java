@@ -126,8 +126,10 @@ public class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(()-> { {
 
             try {
+                System.out.println("shutdown from main start");
                 validator.shutdown();
                 restServer.shutdown();
+                System.out.println("shutdown from main end");
             } catch (Exception e) {
                 e.printStackTrace();
             }
