@@ -170,7 +170,7 @@ object ScanPane : BorderPane() {
                                 val secretTime = Helper.deserialize(decode) as SecretTime
                                 this.resultAES = SecretKeySpec(secretTime.secretKeyEncoded, "AES")
                                 this.resultTimestamp = secretTime.timestamp
-                                val pane = SceneManager.lastPateintPane!!
+                                val pane = SceneManager.lastPatientPane!!
                                 resultPatientInfo =
                                     SecurityHelper.encryptAES(pane.info!!.toByteArray(), resultAES!!, ByteArray(16))
                                 val mergedBytes = Helper.mergeByteArrays(Helper.longToBytes(secretTime.timestamp), resultPatientInfo!!)
@@ -187,7 +187,7 @@ object ScanPane : BorderPane() {
                                     val publicKey = this.resultKeyTime!!.pubKeyEncoded
                                     this.resultSignature = signature
                                     val response =
-                                        "${Config.BASE_URL}/patient/${if (SceneManager.lastPateintPane!!.allRecordsRaw == null) "register" else "update"}"
+                                        "${Config.BASE_URL}/patient/${if (SceneManager.lastPatientPane!!.allRecordsRaw == null) "register" else "update"}"
                                             .httpPut()
                                             .header(
                                                 mapOf(
