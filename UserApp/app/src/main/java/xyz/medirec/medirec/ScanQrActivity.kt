@@ -7,17 +7,17 @@ import android.content.Intent
 import com.google.zxing.integration.android.IntentIntegrator
 import kotlinx.android.synthetic.main.activity_scan_qr.*
 import java.lang.IllegalArgumentException
-import java.security.KeyPair
 import java.security.interfaces.ECPrivateKey
 
 
 class ScanQrActivity : AppCompatActivity() {
+    private var privateKey: ECPrivateKey? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scan_qr)
         startQRScanner()
-//        updateText("ebea26d1b8b98398ef8365802ea1154ca0e3015c9783961965733bb0f71938be")
+        privateKey = intent.getSerializableExtra("privateKey") as ECPrivateKey
         backToMain_scan.setOnClickListener {
             goToMenu()
         }
@@ -42,7 +42,7 @@ class ScanQrActivity : AppCompatActivity() {
                 Toast.makeText(this, "Cancelled", Toast.LENGTH_SHORT).show()
                 goToMenu()
             } else {
-                updateText(result.contents)
+                updateText(result.contents, privateKey!!)
             }
         } else {
             super.onActivityResult(requestCode, resultCode, data)
@@ -56,13 +56,11 @@ class ScanQrActivity : AppCompatActivity() {
      *
      * @param scannedStr string format of QR code
      */
-    private fun updateText(scannedStr: String) {
+    private fun updateText(scannedStr: String, privateKey: ECPrivateKey) {
         try {
             //If it is hash ( check if it is hash or throw exception)
             if(scannedStr.length * 4 != 256 || scannedStr.contains(Regex("[^a-f0-9]+",RegexOption.IGNORE_CASE)))
                 throw IllegalArgumentException("INVALID QR Code. Please re-scan")
-            val temp = getSharedPreferences("UserData", MODE_PRIVATE).getString("keyPair", "")!!
-            val privateKey = (Helper.deserialize(temp) as KeyPair).private as ECPrivateKey
             val signature = Helper.createECDSASignatureWithContent(privateKey, Helper.hexStringToByteArray(scannedStr))
 
             //GENERATE QR CODE

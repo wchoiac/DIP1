@@ -42,6 +42,8 @@ class GenerateKeyActivity : AppCompatActivity() {
         val editor = getSharedPreferences("UserData", MODE_PRIVATE).edit()
         editor.putStringSet("TimeSet", newSet)
         editor.apply()
-        startActivity(Intent(this, ScanQrActivity::class.java))
+        val intent = Intent(this, ScanQrActivity::class.java)
+        intent.putExtra("privateKey", this.intent.getSerializableExtra("privateKey"))
+        startActivity(intent)
     }
 }

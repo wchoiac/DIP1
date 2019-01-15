@@ -3,8 +3,6 @@ package xyz.medirec.medirec
 import android.app.AlertDialog
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
-import android.view.Menu
-import android.view.MenuItem
 import android.widget.Button
 import android.view.Gravity
 import android.widget.LinearLayout
@@ -14,13 +12,16 @@ import android.content.Intent
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
-
+    private var logInHash : String? = null
+    private val pinNumber = mutableListOf<Int>()
+    private var tempString : String = ""
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Helper.logInHash = getSharedPreferences("UserData", MODE_PRIVATE).getString("loginPIN", "")!!
+        logInHash = getSharedPreferences("UserData", MODE_PRIVATE).getString("loginPIN", "")!!
         setContentView(R.layout.activity_main)
         initButtons()
-        if(Helper.logInHash != "") {
+        if(logInHash != "") {
             register_header.text = getString(R.string.PIN)
         }
     }
@@ -33,55 +34,58 @@ class MainActivity : AppCompatActivity() {
             button5, button6, button7, button8, button9
         )
 
-        for (i in 0 until buttonList.size) {
-            buttonList[i].text = randomIndexList[i].toString()
-            buttonList[i].textSize = 28f
-            buttonList[i].setOnClickListener { e ->
-                Helper.list.add((e as Button).text.toString().toInt())
-                when {
-                    Helper.list.isEmpty() -> register_header.text = getString(R.string.PIN)
-                    Helper.list.size == 6 -> {
-                        if(Helper.logInHash != "") {
-                            logInListener()
-                        } else {
-                            registerListener()
-                        }
-                        Helper.list.clear()
+        repeat(buttonList.size) {
+            buttonList[it].text = randomIndexList[it].toString()
+            buttonList[it].textSize = 28f
+            buttonList[it].setOnClickListener { e ->
+                pinNumber.add((e as Button).text.toString().toInt())
+                updateStar()
+                if(pinNumber.size == 6) {
+                    if(logInHash == "") {
+                        registerListener()
+                    } else {
+                        logInListener()
                     }
-                    else -> updateStar()
+                    pinNumber.clear()
                 }
             }
         }
+        
         blankButton1.setOnClickListener {
-            Helper.list.clear()
+            pinNumber.clear()
             register_header.text = getString(R.string.PIN)
         }
 
         blankButton2.setOnClickListener {
-            Helper.list.removeAt(Helper.list.size - 1)
-            when {
-                Helper.list.isEmpty() -> register_header.text = getString(R.string.PIN)
-                else -> updateStar()
-            }
+            pinNumber.removeAt(pinNumber.size - 1)
+            updateStar()
         }
     }
 
     private fun updateStar() {
-        val text = StringBuilder()
-        for (count in 0 until Helper.list.size)
-            text.append("* ")
-        register_header.text = text.toString()
+        when {
+            pinNumber.isEmpty() -> {
+                register_header.text = if(logInHash != "")getString(R.string.PIN)
+                else if(tempString != "") getString(R.string.Retype_PIN)
+                else getString(R.string.main_header)
+            }
+            else -> {
+                val text = StringBuilder()
+                for (count in 0 until pinNumber.size)
+                    text.append("* ")
+                register_header.text = text.toString()
+            }
+        }
     }
 
     private fun listToString(list: List<Int>): String {
         val sb = StringBuilder()
-        for(value in list)
-            sb.append(value)
+        for(value in list) sb.append(value)
         return sb.toString()
     }
 
     private fun logInListener() {
-        if (tryLogIn(Helper.list)) {
+        if (tryLogIn(pinNumber)) {
             register_header.text = getString(R.string.PIN)
             logIn()
         } else {
@@ -92,35 +96,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun registerListener() {
-        if(Helper.temp == ""){
-            Helper.temp = listToString(Helper.list)
+        if(tempString == ""){
+            tempString = listToString(pinNumber)
             register_header.text = getString(R.string.Retype_PIN)
             initButtons()
         } else {
-            register_header.text = if(Helper.temp != listToString(Helper.list)) {
+            register_header.text = if(tempString != listToString(pinNumber)) {
                 alertLogInFail("Mismatch PIN, Re-register PIN")
+                tempString = ""
                 getString(R.string.main_header)
             } else {
-                setLogInHash(Helper.temp)
+                logInHash = setLogInHash(tempString)
                 getString(R.string.PIN)
             }
-            Helper.temp = ""
         }
     }
 
-    private fun setLogInHash (pin : String) {
+    private fun setLogInHash (pin : String): String {
         val hash = Helper.getHash(pin)
-        Helper.logInHash = hash
         val prefs = getSharedPreferences("UserData", Context.MODE_PRIVATE)
         val editor = prefs.edit()
         editor.putString("loginPIN", hash)
         editor.apply()
         initButtons()
+        return hash
     }
 
     private fun logIn() {
         val intent = Intent(this, MenuActivity::class.java)
         intent.putExtra("FROM_ACTIVITY", "MAIN")
+        intent.putExtra("pinNumber", listToString(pinNumber))
         startActivity(intent)
     }
 
@@ -147,22 +152,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun tryLogIn(list: List<Int>): Boolean {
-        return Helper.logInHash == Helper.getHash(listToString(list))
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        return when (item.itemId) {
-            R.id.action_settings -> true
-            else -> super.onOptionsItemSelected(item)
-        }
+        return logInHash == Helper.getHash(listToString(list))
     }
 }

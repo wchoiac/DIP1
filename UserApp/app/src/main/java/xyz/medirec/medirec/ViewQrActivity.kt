@@ -5,36 +5,25 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_view_qr.*
 import xyz.medirec.medirec.pojo.KeyTime
-import java.security.PublicKey
-import javax.crypto.SecretKey
+import java.security.KeyPair
 
 class ViewQrActivity : AppCompatActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_view_qr)
-        val pubKey = intent.getSerializableExtra("pubKey") as PublicKey
-        val hash = intent.getStringExtra("priKeyHash")
+        val keyPair = intent.getSerializableExtra("keyPair") as KeyPair
         val timeList = intent.getLongArrayExtra("timeList")
-
-        createQRcode(pubKey, hash, timeList)
+        val randomStr = intent.getStringExtra("randomString")
+        createQRcode(keyPair, timeList, randomStr)
         GoToMenuButton.setOnClickListener {
             goToMenu()
         }
     }
 
-    private fun createQRcode(pubKey: PublicKey, hash: String, timeList: LongArray) {
-//        pubKey as ECPublicKey
-//        val publicKeyProperties = KeyProperties(pubKey.encoded)
+    private fun createQRcode(keyPair: KeyPair, timeList: LongArray, randomString: String) {
         val secretKeyList = mutableListOf<ByteArray>()
-        timeList.forEach { secretKeyList.add(Helper.generateSecretKey((hash + it).toCharArray()).encoded) }
-        val serialized = Helper.serialize(
-            KeyTime(
-                pubKey.encoded,
-                secretKeyList.toTypedArray(),
-                timeList
-            )
-        )
+        timeList.forEach { secretKeyList.add(Helper.getAESKey(keyPair.private, it.toString(), randomString).encoded) }
+        val serialized = Helper.serialize(KeyTime(keyPair.public.encoded, secretKeyList.toTypedArray(), timeList))
         Helper.drawQRCode(qrCodeView, serialized, windowManager)
     }
 

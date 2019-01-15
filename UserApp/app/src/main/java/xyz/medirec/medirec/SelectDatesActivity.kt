@@ -1,6 +1,5 @@
 package xyz.medirec.medirec
 
-import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -10,7 +9,7 @@ import android.view.Gravity
 import android.widget.CheckBox
 import android.widget.TextView
 import kotlinx.android.synthetic.main.activity_select_dates.*
-import java.security.PublicKey
+import java.security.KeyPair
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,8 +39,8 @@ class SelectDatesActivity : AppCompatActivity() {
                     list.add(timestamp.toLong())
 
             val intent = Intent(this, ViewQrActivity::class.java)
-            intent.putExtra("pubKey", this.intent.getSerializableExtra("pubKey") as PublicKey)
-            intent.putExtra("priKeyHash", this.intent.getStringExtra("priKeyHash"))
+            intent.putExtra("keyPair", this.intent.getSerializableExtra("keyPair") as KeyPair)
+            intent.putExtra("randomString", this.intent.getStringExtra("randomString"))
             intent.putExtra("timeList", list.toLongArray())
             startActivity(intent)
         }
@@ -58,7 +57,7 @@ class SelectDatesActivity : AppCompatActivity() {
         discard.setOnClickListener {
             val builder: AlertDialog.Builder = AlertDialog.Builder(this)
             builder
-                .setMessage("Are you sure to discard selected dates?\n(Discarded dates are irreversible)")
+                .setMessage("Are you sure to discard selected dates?\n(Discarded dates are irreparable)")
                 .setCancelable(false)
                 .setPositiveButton("Yes") { _, _ ->
                     var i = 0
