@@ -52,7 +52,7 @@ public class AuthorityInfoManager {
             authorityFolder.mkdirs();
         }
 
-        try (FileOutputStream os = new FileOutputStream(untrustFile, true);) {
+        try (FileOutputStream os = new FileOutputStream(untrustFile, true)) {
             os.write(blockHash);
         }
 

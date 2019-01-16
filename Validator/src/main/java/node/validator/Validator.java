@@ -249,7 +249,7 @@ public class Validator {
                                 throw new CertificateException("The certificate is for signing");
 
                             GeneralHelper.lockForMe(usingLockList, myChainReadLock);
-                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert((X509Certificate) certs[1]);
+                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);
                             boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);
                             AuthorityInfo issuerInfo = null;
                             if (hasIssuedAuthority)
@@ -304,7 +304,7 @@ public class Validator {
                                 throw new CertificateException("The certificate is for signing");
 
                             GeneralHelper.lockForMe(usingLockList, myChainReadLock);
-                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert((X509Certificate) certs[1]);
+                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);
                             boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);
                             AuthorityInfo issuerInfo = null;
                             if (hasIssuedAuthority)
@@ -354,10 +354,8 @@ public class Validator {
             return;
 
 
-        if (outBoundConnectionTobeRemoved.contains(peerInfo))
-            outBoundConnectionTobeRemoved.remove(peerInfo);
-        if (inBoundConnectionTobeRemoved.contains(peerInfo))
-            inBoundConnectionTobeRemoved.remove(peerInfo);
+        outBoundConnectionTobeRemoved.remove(peerInfo);
+        inBoundConnectionTobeRemoved.remove(peerInfo);
 
         ConnectionManager connectionManager = null;
         if (inBoundConnectionList.containsKey(peerInfo)) {
@@ -1680,9 +1678,7 @@ public class Validator {
 
         if (inBoundConnectionList.containsKey(peerInfo))
             return true;
-        if (outBoundConnectionList.containsKey(peerInfo))
-            return true;
-        return false;
+        return outBoundConnectionList.containsKey(peerInfo);
     }
 
 
@@ -1936,7 +1932,7 @@ public class Validator {
         return result;
     }
 
-    public X509Certificate issueCertificate(MedicalOrgInfo medicalOrgInfo, Date noAfter) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException {
+    public X509Certificate issueCertificate(MedicalOrgInfo medicalOrgInfo, Date noAfter) throws OperatorCreationException, CertificateException, IOException {
         return SecurityHelper.issueCertificate(medicalOrgInfo.getPublicKey(), myPublicKey, myPrivateKey
                 , noAfter, medicalOrgInfo.getName(), myName
                 , BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(medicalOrgInfo.getPublicKey())

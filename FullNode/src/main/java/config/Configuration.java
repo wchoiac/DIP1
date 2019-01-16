@@ -72,7 +72,6 @@ public class Configuration {
     public static final String BLOCKCHAIN_HASH_ALGORITHM ="SHA-256";
     public static final int ELIPTIC_CURVE_COORDINATE_LENGTH=32;
     public static final int CHECK_POINT_BLOCK_INTERVAL =30000;
-    ;
     //block setting
     public static final int MAX_RECORD = 5000;
     public static final int MAX_AUTHORIZATION = 10;

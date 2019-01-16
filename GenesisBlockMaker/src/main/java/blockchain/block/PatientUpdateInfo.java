@@ -72,7 +72,7 @@ public class PatientUpdateInfo implements Raw {
                 , getEncryptedInfo(), getPatientIdentifier(),getSignature());
 
     }
-    public static PatientUpdateInfo parse(ByteArrayReader byteArrayReader) throws BlockChainObjectParsingException {
+    public static PatientUpdateInfo parse(ByteArrayReader byteArrayReader) {
         PatientUpdateInfo patientUpdateInfo = new PatientUpdateInfo();
 
         patientUpdateInfo.setTimestamp(GeneralHelper.bytesToLong(byteArrayReader.readBytes(Long.BYTES)));

@@ -185,7 +185,7 @@ public class FullNodeResource {
     @Produces(MediaType.APPLICATION_JSON) // {"encryptedInfo": <Encrypted patient information - byte array>}
     @Consumes(MediaType.APPLICATION_JSON)
     // [{"location":{"blockHash": <Block hash - byte array>,"targetIdentifier":<Target hash - byte array>},....]
-    @Path("patient/get-patient-info-content-list")
+    @Path("patient/get-patient-info-contents-list")
     public Response getPatientInfoContentsList(ArrayList<LocationPojo> locationPojos) {
 
         try {

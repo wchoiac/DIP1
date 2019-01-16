@@ -94,7 +94,7 @@ public class ValidatorInitializer {
         System.out.println("Successfully initialized");
     }
 
-    public static void createCertAndKeyStoreForSigning(Scanner sc) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, KeyStoreException, CertificateException, OperatorCreationException, NoSuchProviderException {
+    public static void createCertAndKeyStoreForSigning(Scanner sc) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, KeyStoreException, CertificateException, OperatorCreationException {
         if (!Configuration.AUTHENTICATION_FOLDER.exists())
             Configuration.AUTHENTICATION_FOLDER.mkdirs();
 
@@ -173,7 +173,7 @@ public class ValidatorInitializer {
     }
 
 
-    public static void createCertAndKeyStoreForAPI(Scanner sc) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException, NoSuchProviderException {
+    public static void createCertAndKeyStoreForAPI(Scanner sc) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException {
         if (!Configuration.SIGNING_KEYSTORE_FILE.exists()) {
             System.out.println("Error: signingKeyStore file doesn't exist");
             return;
@@ -290,7 +290,7 @@ public class ValidatorInitializer {
     }
 
 
-    public static void createCertAndKeyStoreForConnection(Scanner sc) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException, NoSuchProviderException {
+    public static void createCertAndKeyStoreForConnection(Scanner sc) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException {
         if (!Configuration.SIGNING_KEYSTORE_FILE.exists()) {
             System.out.println("Error: signingKeyStore file doesn't exist");
             return;
@@ -399,7 +399,7 @@ public class ValidatorInitializer {
         }
     }
 
-    public static void genesisLoad() throws IOException, ClassNotFoundException, BlockChainObjectParsingException, FileCorruptionException {
+    public static void genesisLoad() throws IOException, BlockChainObjectParsingException, FileCorruptionException {
         // create index file with the genesisfile
         if (!Configuration.GENESISBLOCK_FILE.exists()) {
 
@@ -448,11 +448,11 @@ public class ValidatorInitializer {
         blockHeaderFile.createNewFile();
         blockContentFile.createNewFile();
 
-        try (FileOutputStream os = new FileOutputStream(blockHeaderFile);) {
+        try (FileOutputStream os = new FileOutputStream(blockHeaderFile)) {
             os.write(block.getHeader().getRaw());
         }
 
-        try (FileOutputStream os = new FileOutputStream(blockContentFile);) {
+        try (FileOutputStream os = new FileOutputStream(blockContentFile)) {
             os.write(block.getContent().getRaw());
 
         }
@@ -495,7 +495,7 @@ public class ValidatorInitializer {
 
         if (!blockFolder.exists())
             blockFolder.mkdirs();
-        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile));) {
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile))) {
             bos.write(block.getHeader().getPrevHash());
             bos.write(1); //true
         }
@@ -507,7 +507,7 @@ public class ValidatorInitializer {
         if (!Configuration.BLOCKCHAIN_DATA_FOLDER.exists()) {
             Configuration.BLOCKCHAIN_DATA_FOLDER.mkdirs();
         }
-        try (FileOutputStream os = new FileOutputStream(Configuration.BEST_CHAIN_FILE);) {
+        try (FileOutputStream os = new FileOutputStream(Configuration.BEST_CHAIN_FILE)) {
             os.write(status.getRaw());
         }
     }
