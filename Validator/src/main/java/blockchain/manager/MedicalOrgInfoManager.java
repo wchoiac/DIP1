@@ -35,7 +35,7 @@ public class MedicalOrgInfoManager {
         }
 
         try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(authorizationFile, true));
-             BufferedOutputStream bos2 = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true));) {
+             BufferedOutputStream bos2 = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true))) {
 
             //write to authorize
             bos.write(blockHash);
@@ -63,7 +63,7 @@ public class MedicalOrgInfoManager {
                 + medicalOrgIdentifierString.charAt(2) + "/" + medicalOrgIdentifierString.charAt(3) + "/" + medicalOrgIdentifierString.charAt(4) + "/" + medicalOrgIdentifierString + "/revocation");
 
         try (FileOutputStream os = new FileOutputStream(revocationFile, true);
-             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true));) {
+             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true))) {
             //write to revocation file
             os.write(blockHash);
 

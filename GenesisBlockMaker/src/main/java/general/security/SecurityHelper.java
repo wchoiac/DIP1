@@ -55,7 +55,6 @@ public class SecurityHelper {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    ;
     static final Random random = new SecureRandom();
 
 
@@ -72,7 +71,7 @@ public class SecurityHelper {
 
     //----------------------------------------------for file handling start------------------------------------------------
 
-    public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+    public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         FileReader reader = new FileReader(fileName);
         PemReader pemReader = new PemReader(reader);
         KeyFactory keyFactory = KeyFactory.getInstance(algo);
@@ -86,7 +85,7 @@ public class SecurityHelper {
 
     //----------------------------------------------for key start------------------------------------------------
 
-    public static KeyPair generateECKeyPair(String curve) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+    public static KeyPair generateECKeyPair(String curve) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         Security.addProvider(new BouncyCastleProvider());
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
         keyGen.initialize(new ECGenParameterSpec(curve), new SecureRandom());

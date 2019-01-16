@@ -343,16 +343,13 @@ public class BlockChainManager {
                 isForNewVoting = false;
             }
 
-        if (isForNewVoting && !vote.isAgree()) // the voting starter cannot disagree on what he started(not make sense)
-            return false;
-
-        return true;
+        return !isForNewVoting || vote.isAgree();
 
     }
 
 
     // block should be checked beforehand
-    public static int storeBlock(Block block) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+    public static int storeBlock(Block block) throws IOException, BlockChainObjectParsingException {
         byte[] blockHash = block.calculateHash();
         StateInfo prevBlockStateInfo=StateInfoManager.load(block.getHeader().getPrevHash());
 

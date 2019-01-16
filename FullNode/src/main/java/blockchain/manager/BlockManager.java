@@ -25,7 +25,7 @@ public class BlockManager {
         if (!processingBlockFolder.exists())
             processingBlockFolder.mkdirs();
 
-        try (FileOutputStream os = new FileOutputStream(blockContentFile);) {
+        try (FileOutputStream os = new FileOutputStream(blockContentFile)) {
             os.write(blockContent.getRaw());
 
         }
@@ -59,7 +59,7 @@ public class BlockManager {
         if (!processingBlockFolder.exists())
             processingBlockFolder.mkdirs();
 
-        try (FileOutputStream os = new FileOutputStream(blockHeaderFile);) {
+        try (FileOutputStream os = new FileOutputStream(blockHeaderFile)) {
             os.write(blockHeader.getRaw());
         }
 

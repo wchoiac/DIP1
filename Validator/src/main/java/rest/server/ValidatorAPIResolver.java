@@ -217,7 +217,7 @@ public class ValidatorAPIResolver {
      * 2: patient doesn't exist
      * 3: already updated
      */
-    public byte update(PatientInfoPojo patientInfoPojo) throws InvalidKeySpecException, IOException, BlockChainObjectParsingException, BadRequest, InvalidKeyException, SignatureException, ServerError {
+    public byte update(PatientInfoPojo patientInfoPojo) throws InvalidKeySpecException, IOException, BlockChainObjectParsingException, BadRequest, ServerError {
 
         if (patientInfoPojo == null
                 || patientInfoPojo.getEncryptedInfo() == null
@@ -336,7 +336,7 @@ public class ValidatorAPIResolver {
      * 1: not authorized
      * 2: not authorized by me
      */
-    public byte[] renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, BlockChainObjectParsingException, InvalidKeySpecException, BadRequest, FileCorruptionException, ServerError {
+    public byte[] renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, BlockChainObjectParsingException, BadRequest, FileCorruptionException {
 
         if (certificateRenewRequestPojo==null
         ||certificateRenewRequestPojo.getIdentifier() == null || certificateRenewRequestPojo.getIdentifier().length!=Configuration.IDENTIFIER_LENGTH

@@ -6,7 +6,6 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -44,8 +43,8 @@ import java.io.*;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.*;
-import java.security.cert.*;
 import java.security.cert.Certificate;
+import java.security.cert.*;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.*;
@@ -64,7 +63,6 @@ public class SecurityHelper {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    ;
     static final Random random = new SecureRandom();
 
     //----------------------------------------------for pseudo random function start------------------------------------------------
@@ -103,7 +101,7 @@ public class SecurityHelper {
     }
 
     //referece: https://www.programcreek.com/java-api-examples/?api=org.bouncycastle.util.io.pem.PemReader
-    public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+    public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         FileReader reader = new FileReader(fileName);
         PemReader pemReader = new PemReader(reader);
         KeyFactory keyFactory = KeyFactory.getInstance(algo);
@@ -120,7 +118,7 @@ public class SecurityHelper {
         pemWriter.close();
     }
 
-    public static PrivateKey getPrivateFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+    public static PrivateKey getPrivateFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         FileReader reader = new FileReader(fileName);
         PemReader pemReader = new PemReader(reader);
         KeyFactory keyFactory = KeyFactory.getInstance(algo);
@@ -135,7 +133,7 @@ public class SecurityHelper {
         fos.close();
     }
 
-    public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException, NoSuchProviderException {
+    public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException {
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X509");
         FileInputStream fis = new FileInputStream(file);
         ByteArrayInputStream bis = new ByteArrayInputStream(fis.readAllBytes());
@@ -245,7 +243,7 @@ public class SecurityHelper {
 
     //----------------------------------------------for key start------------------------------------------------
 
-    public static KeyPair generateECKeyPair(String curve) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+    public static KeyPair generateECKeyPair(String curve) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         Security.addProvider(new BouncyCastleProvider());
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
         keyGen.initialize(new ECGenParameterSpec(curve), new SecureRandom());
@@ -254,7 +252,7 @@ public class SecurityHelper {
     }
 
     //reference: https://stackoverflow.com/questions/5127379/how-to-generate-a-rsa-keypair-with-a-privatekey-encrypted-with-password
-    public static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+    public static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(2048);
         KeyPair pair = keyGen.generateKeyPair();
@@ -397,7 +395,7 @@ public class SecurityHelper {
 
     // NONEwithECDSA implementation
     // input "hash" not the content
-    public static byte[] createRawECDSASignatureWithHash(ECPrivateKey signerPrivateKey, byte[] hash, String curveName, int coordinateLength) throws IOException {
+    public static byte[] createRawECDSASignatureWithHash(ECPrivateKey signerPrivateKey, byte[] hash, String curveName, int coordinateLength) {
 
         ECParameterSpec ecParameterSpec = ECNamedCurveTable.getParameterSpec(curveName);
         ECCurve curve = ecParameterSpec.getCurve();
@@ -495,7 +493,7 @@ public class SecurityHelper {
     //----------------------------------------------for signature end------------------------------------------------
 
     //reference: https://stackoverflow.com/questions/16412315/creating-custom-x509-v3-extensions-in-java-with-bouncy-castle
-    public static X509Certificate selfSignCertOnlyForPatientKeyStore(PublicKey selfPublicKey, PrivateKey selfPrivateKey, String algo) throws CertificateException, OperatorCreationException, IOException, ParseException {
+    public static X509Certificate selfSignCertOnlyForPatientKeyStore(PublicKey selfPublicKey, PrivateKey selfPrivateKey, String algo) throws CertificateException, OperatorCreationException, ParseException {
         DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
 
         X509v3CertificateBuilder builder = new X509v3CertificateBuilder(
@@ -642,7 +640,6 @@ public class SecurityHelper {
 //        System.out.println(DerivePubKeyFromPrivKey((ECPrivateKey) keyPair.getPrivate()).equals(keyPair.getPublic()));
 
         keyStoreTest();
-        System.out.println(KeyStore.getDefaultType());
 
     }
 

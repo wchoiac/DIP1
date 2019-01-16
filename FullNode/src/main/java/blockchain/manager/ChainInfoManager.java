@@ -25,7 +25,7 @@ public class ChainInfoManager {
 
         if (!processingBlockFolder.exists())
             processingBlockFolder.mkdirs();
-        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile));) {
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile))) {
             bos.write(block.getHeader().getPrevHash());
             bos.write(0);
         }
@@ -57,7 +57,7 @@ public class ChainInfoManager {
         byte[] chainInfoAllBytes = Files.readAllBytes(chainInfoFile.toPath());
         byte[] prevBlockHash = Arrays.copyOfRange(chainInfoAllBytes, 0, Configuration.HASH_LENGTH);
 
-        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile));) {
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile))) {
             bos.write(prevBlockHash);
             bos.write(isBestChain ? 1 : 0);
             if (successorBlockHash != null)

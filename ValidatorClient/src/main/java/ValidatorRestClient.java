@@ -32,8 +32,6 @@ public class ValidatorRestClient {
         );
     }
 
-    ;
-
     private Client client;
     private WebTarget base;
     private String token = null;
@@ -409,7 +407,7 @@ public class ValidatorRestClient {
      * @SecuredUserLevel
      */
 
-    public X509Certificate getIssuedMedicalOrgCertificate(byte[] medicalOrgIdentifier) throws UnAuthorized, BadRequest, NotFound, ServerError, IOException, Unsuccessful {
+    public X509Certificate getIssuedMedicalOrgCertificate(byte[] medicalOrgIdentifier) throws UnAuthorized, BadRequest, NotFound, ServerError, IOException {
 
 
         WebTarget webTarget = base.path("medical-org/get-certificate");

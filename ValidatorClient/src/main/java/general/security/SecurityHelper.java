@@ -60,7 +60,6 @@ public class SecurityHelper {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    ;
     static final Random random = new SecureRandom();
 
 
@@ -191,7 +190,7 @@ public class SecurityHelper {
 
     }
 
-    public static SecretKey getAESKeyFromFile(String fileName) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+    public static SecretKey getAESKeyFromFile(String fileName) throws IOException {
 
         SecretKey aesKey = new SecretKeySpec(Files.readAllBytes(new File(fileName).toPath()), "AES");
         return aesKey;
@@ -232,7 +231,7 @@ public class SecurityHelper {
         return cipher.doFinal(content);
     }
 
-    public static KeyPair generateECKeyPair(String curve) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+    public static KeyPair generateECKeyPair(String curve) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         Security.addProvider(new BouncyCastleProvider());
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
         keyGen.initialize(new ECGenParameterSpec(curve), new SecureRandom());
@@ -240,7 +239,7 @@ public class SecurityHelper {
         return pair;
     }
     //reference: https://stackoverflow.com/questions/5127379/how-to-generate-a-rsa-keypair-with-a-privatekey-encrypted-with-password
-    public static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+    public static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(2048);
         KeyPair pair = keyGen.generateKeyPair();
@@ -311,7 +310,7 @@ public class SecurityHelper {
     }
 
     //referece: https://www.programcreek.com/java-api-examples/?api=org.bouncycastle.util.io.pem.PemReader
-    public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+    public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         FileReader reader = new FileReader(fileName);
         PemReader pemReader = new PemReader(reader);
         KeyFactory keyFactory = KeyFactory.getInstance(algo);
@@ -328,7 +327,7 @@ public class SecurityHelper {
         pemWriter.close();
     }
 
-    public static PrivateKey getPrivateFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+    public static PrivateKey getPrivateFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         FileReader reader = new FileReader(fileName);
         PemReader pemReader = new PemReader(reader);
         KeyFactory keyFactory = KeyFactory.getInstance(algo);
@@ -343,7 +342,7 @@ public class SecurityHelper {
         fos.close();
     }
 
-    public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException, NoSuchProviderException {
+    public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException {
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X509");
 //        FileInputStream fis = new FileInputStream(file);
 //        ByteArrayInputStream bis = new ByteArrayInputStream(fis.read()); JAVA 9 AND ABOVE

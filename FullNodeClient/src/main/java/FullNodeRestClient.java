@@ -36,8 +36,6 @@ public class FullNodeRestClient {
         );
     }
 
-    ;
-
     private Client client;
     private WebTarget base;
     private String token = null;
@@ -104,7 +102,7 @@ public class FullNodeRestClient {
 
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
 
-        TransactionPojo transactionPojo = new TransactionPojo(timeStamp, encryptedRecord, isSignatureDEREncoded, patientSignature, patientIdentifier);
+        TransactionPojo transactionPojo = new TransactionPojo(timeStamp, encryptedRecord, patientSignature, patientIdentifier,isSignatureDEREncoded);
         Response response = invocationBuilder.put(Entity.json(transactionPojo));
 
         checkException(response);

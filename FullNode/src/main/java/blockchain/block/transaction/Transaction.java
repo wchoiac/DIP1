@@ -90,12 +90,9 @@ public class Transaction {
 			if(!SecurityHelper.verifyRawECDSASignatureWithContent( patientPublicKey, getPatientSignatureCoverage(),getPatientSignature(),Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE))
 				return false;
 
-			if(!SecurityHelper.verifyRawECDSASignatureWithContent( medicalOrgPublicKey, getMedicalOrgSignatureCoverage(),getMedicalOrgSignature(),Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE))
-				return false;
+            return SecurityHelper.verifyRawECDSASignatureWithContent(medicalOrgPublicKey, getMedicalOrgSignatureCoverage(), getMedicalOrgSignature(), Configuration.BLOCKCHAIN_HASH_ALGORITHM, Configuration.ELIPTIC_CURVE);
 
-			return true;
-
-		} catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
 		}
 

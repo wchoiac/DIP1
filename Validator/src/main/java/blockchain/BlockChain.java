@@ -178,9 +178,7 @@ public class BlockChain {
 
 
     public boolean hasBlock(Block block) {
-        if (cachedCurrentChain.contains(block))
-            return true;
-        return false;
+        return cachedCurrentChain.contains(block);
     }
 
     public boolean hasAuthority(byte[] identifier) throws IOException, BlockChainObjectParsingException {
@@ -203,10 +201,7 @@ public class BlockChain {
             return false;
         else {
             AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
-            if (internalInfo == null)
-                return false;
-            else //if(internalInfo.getUntrustedBlock()!= null)
-                return true;
+            return internalInfo != null;
         }
 
     }
@@ -295,10 +290,7 @@ public class BlockChain {
             return false;
         }
 
-        if (!Arrays.equals(blockheader.calculateHash(), getLatestBlockHash())) {
-            return false;
-        }
-        return true;
+        return Arrays.equals(blockheader.calculateHash(), getLatestBlockHash());
     }
 
     public boolean isNextBlock(Block block) {
@@ -311,10 +303,7 @@ public class BlockChain {
             return false;
         }
 
-        if (!Arrays.equals(block.getHeader().getPrevHash(), getLatestBlockHash())) {
-            return false;
-        }
-        return true;
+        return Arrays.equals(block.getHeader().getPrevHash(), getLatestBlockHash());
     }
 
 
@@ -699,10 +688,7 @@ public class BlockChain {
                 isForNewVoting = false;
             }
 
-        if (isForNewVoting && !vote.isAgree()) // the voting starter cannot disagree on what he started(not make sense)
-            return false;
-
-        return true;
+        return !isForNewVoting || vote.isAgree();
 
     }
 

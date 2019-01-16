@@ -61,7 +61,7 @@ public class FullNode {
 
     private static FullNode runningFullNode =null;
 
-    private Logger blockChainLogger=Logger.getLogger(FullNode.class.getName());;
+    private Logger blockChainLogger=Logger.getLogger(FullNode.class.getName());
 
     //for any full node
     private SSLServerSocketFactory  sslServerSocketFactory;
@@ -244,7 +244,7 @@ public class FullNode {
                                 throw new CertificateException("The certificate is for signing");
 
                             GeneralHelper.lockForMe(usingLockList, myChainReadLock);
-                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert((X509Certificate) certs[1]);
+                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);
                             boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);
                             AuthorityInfo issuerInfo = null;
                             if (hasIssuedAuthority)
@@ -304,7 +304,7 @@ public class FullNode {
                                 throw new CertificateException("The certificate is for signing");
 
                             GeneralHelper.lockForMe(usingLockList, myChainReadLock);
-                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert((X509Certificate) certs[1]);
+                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);
                             boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);
                             AuthorityInfo issuerInfo = null;
                             if (hasIssuedAuthority)
@@ -354,10 +354,8 @@ public class FullNode {
             return;
 
 
-        if(outBoundConnectionTobeRemoved.contains(peerInfo))
-            outBoundConnectionTobeRemoved.remove(peerInfo);
-        if(inBoundConnectionTobeRemoved.contains(peerInfo))
-            inBoundConnectionTobeRemoved.remove(peerInfo);
+        outBoundConnectionTobeRemoved.remove(peerInfo);
+        inBoundConnectionTobeRemoved.remove(peerInfo);
 
         ConnectionManager connectionManager=null;
         if(inBoundConnectionList.containsKey(peerInfo)) {
@@ -1492,9 +1490,7 @@ public class FullNode {
 
         if (inBoundConnectionList.containsKey(peerInfo))
             return true;
-        if (outBoundConnectionList.containsKey(peerInfo))
-            return true;
-        return false;
+        return outBoundConnectionList.containsKey(peerInfo);
     }
 
 
