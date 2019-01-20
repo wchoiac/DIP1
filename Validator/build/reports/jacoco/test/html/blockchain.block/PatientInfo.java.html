@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PatientInfo.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">blockchain.block</a> &gt; <span class="el_source">PatientInfo.java</span></div><h1>PatientInfo.java</h1><pre class="source lang-java linenums">package blockchain.block;
+
+import blockchain.interfaces.Raw;
+import blockchain.utility.BlockChainSecurityHelper;
+import blockchain.utility.ByteArrayReader;
+import config.Configuration;
+import exception.BlockChainObjectParsingException;
+import general.utility.GeneralHelper;
+import general.security.SecurityHelper;
+
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
+import java.util.Objects;
+
+public class PatientInfo implements Raw {
+
+    private long timestamp; //8 bytes
+    //&lt;= encryptedinfo length (4 bytes)
+    private byte[] encryptedInfo; // variable length
+    private ECPublicKey publicKey; // 33 bytes
+    private byte[] signature; // 64 bytes
+
+    public PatientInfo(long timestamp, ECPublicKey patientPublicKey, byte[] encryptedInfo, byte[] signature)
+<span class="nc" id="L26">    {</span>
+<span class="nc" id="L27">        this.setTimestamp(timestamp);</span>
+<span class="nc" id="L28">        this.setEncryptedInfo(encryptedInfo);</span>
+<span class="nc" id="L29">        this.setPublicKey(patientPublicKey);</span>
+<span class="nc" id="L30">        this.setSignature(signature);</span>
+
+<span class="nc" id="L32">    }</span>
+
+    public PatientInfo()
+<span class="nc" id="L35">    {</span>
+<span class="nc" id="L36">    }</span>
+
+    public byte[] getPatientIdentifier()
+    {
+<span class="nc" id="L40">        return BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(publicKey);</span>
+    }
+
+    public long getTimestamp() {
+<span class="nc" id="L44">        return timestamp;</span>
+    }
+
+    public void setTimestamp(long timestamp) {
+<span class="nc" id="L48">        this.timestamp = timestamp;</span>
+<span class="nc" id="L49">    }</span>
+
+    public ECPublicKey getPublicKey() {
+<span class="nc" id="L52">        return publicKey;</span>
+    }
+
+    public void setPublicKey(ECPublicKey publicKey) {
+<span class="nc" id="L56">        this.publicKey = publicKey;</span>
+<span class="nc" id="L57">    }</span>
+
+    public byte[] getEncryptedInfo() {
+<span class="nc" id="L60">        return encryptedInfo;</span>
+    }
+
+    public void setEncryptedInfo(byte[] encryptedInfo) {
+<span class="nc" id="L64">        this.encryptedInfo = encryptedInfo;</span>
+<span class="nc" id="L65">    }</span>
+
+    public byte[] getSignature() {
+<span class="nc" id="L68">        return signature;</span>
+    }
+
+    public void setSignature(byte[] signature) {
+<span class="nc" id="L72">        this.signature = signature;</span>
+<span class="nc" id="L73">    }</span>
+
+    public byte[] getRaw()
+    {
+<span class="nc" id="L77">        return GeneralHelper.mergeByteArrays(GeneralHelper.longToBytes(timestamp),GeneralHelper.intToBytes(getEncryptedInfo().length)</span>
+<span class="nc" id="L78">                , getEncryptedInfo(), SecurityHelper.getCompressedRawECPublicKey( getPublicKey(),Configuration.ELIPTIC_CURVE),getSignature());</span>
+
+    }
+    public static PatientInfo parse(ByteArrayReader byteArrayReader) throws BlockChainObjectParsingException {
+<span class="nc" id="L82">        PatientInfo patientInfo = new PatientInfo();</span>
+
+<span class="nc" id="L84">        patientInfo.setTimestamp(GeneralHelper.bytesToLong(byteArrayReader.readBytes(Long.BYTES)));</span>
+
+<span class="nc" id="L86">        int encryptedInfoLength = GeneralHelper.bytesToInt(byteArrayReader.readBytes(Integer.BYTES));</span>
+<span class="nc" id="L87">        patientInfo.setEncryptedInfo(byteArrayReader.readBytes(encryptedInfoLength));</span>
+        try {
+<span class="nc" id="L89">            patientInfo.setPublicKey(SecurityHelper.getECPublicKeyFromCompressedRaw(byteArrayReader.readBytes(Configuration.RAW_PUBLICKEY_LENGTH),Configuration.ELIPTIC_CURVE));</span>
+<span class="nc" id="L90">        } catch (InvalidKeySpecException e) {</span>
+<span class="nc" id="L91">            e.printStackTrace();</span>
+<span class="nc" id="L92">            throw new BlockChainObjectParsingException();</span>
+<span class="nc" id="L93">        }</span>
+<span class="nc" id="L94">        patientInfo.setSignature(byteArrayReader.readBytes(Configuration.SIGNATURE_LENGTH));</span>
+
+<span class="nc" id="L96">        return patientInfo;</span>
+    }
+
+    public byte[] calculateInfoHash()
+    {
+        try {
+<span class="nc" id="L102">            return SecurityHelper.hash(encryptedInfo, Configuration.BLOCKCHAIN_HASH_ALGORITHM);</span>
+<span class="nc" id="L103">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L104">            e.printStackTrace();</span>
+        }
+<span class="nc" id="L106">        return null;// not expected</span>
+    }
+
+    public byte[] getSignatureCoverage()
+    {
+<span class="nc" id="L111">        return GeneralHelper.mergeByteArrays(GeneralHelper.longToBytes(timestamp),getEncryptedInfo());</span>
+    }
+
+
+
+    public boolean verify()
+    {
+        try {
+<span class="nc" id="L119">            return SecurityHelper.verifyRawECDSASignatureWithContent(publicKey,getSignatureCoverage(),signature,Configuration.BLOCKCHAIN_HASH_ALGORITHM, Configuration.ELIPTIC_CURVE);</span>
+<span class="nc" id="L120">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L121">            e.printStackTrace();</span>
+        }
+<span class="nc" id="L123">        return false;// not expected</span>
+    }
+
+
+    @Override
+    public boolean equals(Object o) {
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (this == o) return true;</span>
+<span class="nc bnc" id="L130" title="All 4 branches missed.">        if (o == null || getClass() != o.getClass()) return false;</span>
+<span class="nc" id="L131">        PatientInfo that = (PatientInfo) o;</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        return timestamp == that.timestamp &amp;&amp;</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                Objects.equals(publicKey, that.publicKey) &amp;&amp;</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                Arrays.equals(encryptedInfo, that.encryptedInfo) &amp;&amp;</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                Arrays.equals(signature, that.signature);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L140">        int result = Objects.hash(timestamp, publicKey);</span>
+<span class="nc" id="L141">        result = 31 * result + Arrays.hashCode(encryptedInfo);</span>
+<span class="nc" id="L142">        result = 31 * result + Arrays.hashCode(signature);</span>
+<span class="nc" id="L143">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

@@ -160,6 +160,17 @@ public class Voting implements Raw{
 		return voting;
 	}
 
+	public static Voting parse(byte[] raw) throws BlockChainObjectParsingException {
+		ByteArrayReader byteArrayReader = new ByteArrayReader();
+		byteArrayReader.set(raw);
+		Voting voting = parse(byteArrayReader);
+
+		if(!byteArrayReader.isFinished())
+			throw new BlockChainObjectParsingException();
+
+		return voting;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;

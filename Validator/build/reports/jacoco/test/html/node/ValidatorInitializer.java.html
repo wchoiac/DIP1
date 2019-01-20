@@ -1,0 +1,556 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ValidatorInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">node</a> &gt; <span class="el_source">ValidatorInitializer.java</span></div><h1>ValidatorInitializer.java</h1><pre class="source lang-java linenums">package node;
+
+import blockchain.block.BlockContent;
+import blockchain.block.BlockHeader;
+import blockchain.internal.StateInfo;
+import blockchain.Status;
+import blockchain.block.AuthorityInfo;
+import blockchain.block.Block;
+import blockchain.utility.BlockChainSecurityHelper;
+import blockchain.utility.ByteArrayReader;
+import config.Configuration;
+import exception.BlockChainObjectParsingException;
+import exception.FileCorruptionException;
+import general.utility.GeneralHelper;
+import org.bouncycastle.operator.OperatorCreationException;
+import general.security.SecurityHelper;
+
+import java.io.*;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.security.*;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Scanner;
+
+
+/**
+ * get key file and produce a keystore with certificate and private key
+ */
+<span class="nc" id="L40">public class ValidatorInitializer {</span>
+    public static void main(String[] args) throws IOException, ClassNotFoundException, KeyStoreException, CertificateException, NoSuchAlgorithmException, OperatorCreationException, InvalidKeySpecException, NoSuchProviderException, FileCorruptionException, BlockChainObjectParsingException {
+
+
+<span class="nc" id="L44">        Scanner sc = new Scanner(System.in);</span>
+
+
+<span class="nc" id="L47">        int selection = 0;</span>
+<span class="nc bnc" id="L48" title="All 4 branches missed.">        while (selection &lt; 5 &amp;&amp; selection &gt;= 0) {</span>
+<span class="nc" id="L49">            System.out.println(&quot;0. Load genesis block&quot;);</span>
+<span class="nc" id="L50">            System.out.println(&quot;1. Initialize for API&quot;);</span>
+<span class="nc" id="L51">            System.out.println(&quot;2. Generate certificate and keystore for signing&quot;);</span>
+<span class="nc" id="L52">            System.out.println(&quot;3. Generate certificate and keystore for Blockchain platform connection&quot;);</span>
+<span class="nc" id="L53">            System.out.println(&quot;4. Generate certificate and keystore for Rest API server&quot;);</span>
+<span class="nc" id="L54">            System.out.println(&quot;5. Quit&quot;);</span>
+
+<span class="nc" id="L56">            System.out.println(&quot;Choose your action:&quot;);</span>
+<span class="nc" id="L57">            selection = sc.nextInt();</span>
+
+<span class="nc bnc" id="L59" title="All 6 branches missed.">            switch (selection) {</span>
+                case 0:
+<span class="nc" id="L61">                    genesisLoad();</span>
+<span class="nc" id="L62">                    break;</span>
+                case 1:
+<span class="nc" id="L64">                    initializeForAPI();</span>
+<span class="nc" id="L65">                    break;</span>
+                case 2:
+<span class="nc" id="L67">                    createCertAndKeyStoreForSigning(sc);</span>
+<span class="nc" id="L68">                    break;</span>
+                case 3:
+<span class="nc" id="L70">                    createCertAndKeyStoreForConnection(sc);</span>
+<span class="nc" id="L71">                    break;</span>
+                case 4:
+<span class="nc" id="L73">                    createCertAndKeyStoreForAPI(sc);</span>
+<span class="nc" id="L74">                    break;</span>
+                default:
+<span class="nc" id="L76">                    break;</span>
+
+            }
+            // create index file with the genesisBlock
+
+        }
+<span class="nc" id="L82">        sc.close();</span>
+<span class="nc" id="L83">    }</span>
+
+    public static void initializeForAPI() {
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        if (!Configuration.SESSION_FOLDER.exists()) {</span>
+<span class="nc" id="L87">            Configuration.SESSION_FOLDER.mkdirs();</span>
+        }
+
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (!Configuration.USERINFO_FOLDER.exists()) {</span>
+<span class="nc" id="L91">            Configuration.USERINFO_FOLDER.mkdirs();</span>
+        }
+
+<span class="nc" id="L94">        System.out.println(&quot;Successfully initialized&quot;);</span>
+<span class="nc" id="L95">    }</span>
+
+    public static void createCertAndKeyStoreForSigning(Scanner sc) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException, KeyStoreException, CertificateException, OperatorCreationException {
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (!Configuration.AUTHENTICATION_FOLDER.exists())</span>
+<span class="nc" id="L99">            Configuration.AUTHENTICATION_FOLDER.mkdirs();</span>
+
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (Configuration.SIGNING_KEYSTORE_FILE.exists()) {</span>
+<span class="nc" id="L102">            System.out.println(&quot;Error: signingKeyStore file already exists&quot;);</span>
+        } else {
+
+
+<span class="nc" id="L106">            Console console = System.console();</span>
+
+<span class="nc" id="L108">            KeyStore signingKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);</span>
+<span class="nc" id="L109">            signingKeyStore.load(null);</span>
+            char[] signingKeyStorePassword;
+
+            ECPublicKey signingPublicKey;
+            ECPrivateKey signingPrivateKey;
+            X509Certificate signingCert;
+
+<span class="nc" id="L116">            System.out.print(&quot;Please enter your signing public key file name: &quot;);</span>
+<span class="nc" id="L117">            String signingPubString = sc.next();</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">            while (!new File(signingPubString).exists()) {</span>
+<span class="nc" id="L119">                System.out.print(&quot;File doesn't exist, please enter again: &quot;);</span>
+<span class="nc" id="L120">                signingPubString = sc.next();</span>
+            }
+<span class="nc" id="L122">            signingPublicKey = (ECPublicKey) SecurityHelper.getPublicKeyFromPEM(signingPubString, &quot;EC&quot;);</span>
+
+<span class="nc" id="L124">            System.out.print(&quot;Please enter your signing private key file name: &quot;);</span>
+<span class="nc" id="L125">            String signingPrivString = sc.next();</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            while (!new File(signingPrivString).exists()) {</span>
+<span class="nc" id="L127">                System.out.print(&quot;File doesn't exist, please enter again: &quot;);</span>
+<span class="nc" id="L128">                signingPrivString = sc.next();</span>
+            }
+<span class="nc" id="L130">            signingPrivateKey = (ECPrivateKey)SecurityHelper.getPrivateFromPEM(signingPrivString, &quot;EC&quot;);</span>
+
+
+            Date noAfter;
+            String name;
+<span class="nc" id="L135">            DateFormat formatter = new SimpleDateFormat(&quot;yyyy-MM-dd&quot;);</span>
+
+            while (true) {
+                try {
+<span class="nc" id="L139">                    System.out.print(&quot;Please enter expiry date in yyyy-MM-dd format: &quot;);</span>
+<span class="nc" id="L140">                    noAfter = formatter.parse(sc.next());</span>
+<span class="nc" id="L141">                } catch (ParseException e) {</span>
+<span class="nc" id="L142">                    System.out.println(&quot;Wrong Format&quot;);</span>
+<span class="nc" id="L143">                    continue;</span>
+<span class="nc" id="L144">                }</span>
+                break;
+            }
+
+<span class="nc" id="L148">            System.out.print(&quot;Please enter name: &quot;);</span>
+<span class="nc" id="L149">            name = sc.next();</span>
+
+<span class="nc bnc" id="L151" title="All 2 branches missed.">            if (console != null) {</span>
+                do {
+<span class="nc" id="L153">                    signingKeyStorePassword = console.readPassword(&quot;Please enter keystore password: &quot;);</span>
+                }
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                while (!Arrays.equals(signingKeyStorePassword, console.readPassword(&quot;Please re-enter keystore password: &quot;)));</span>
+            } else {
+                do {
+<span class="nc" id="L158">                    System.out.print(&quot;Please enter keystore password: &quot;);</span>
+<span class="nc" id="L159">                    signingKeyStorePassword = sc.next().toCharArray();</span>
+<span class="nc" id="L160">                    System.out.print(&quot;Please re-enter keystore password: &quot;);</span>
+                }
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                while (!Arrays.equals(signingKeyStorePassword, sc.next().toCharArray()));</span>
+            }
+
+<span class="nc" id="L165">            signingCert = SecurityHelper.issueCertificate(signingPublicKey, signingPublicKey</span>
+<span class="nc" id="L166">                    , signingPrivateKey, noAfter, name, name, BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(signingPublicKey)</span>
+<span class="nc" id="L167">                    ,BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(signingPublicKey), null, Configuration.SIGNING_CERTIFICATE_SIGNATURE_ALGORITHM</span>
+                    , true);
+<span class="nc" id="L169">            signingKeyStore.setKeyEntry(Configuration.SIGNING_KEYSTORE_ALIAS, signingPrivateKey, signingKeyStorePassword, new Certificate[]{signingCert});</span>
+<span class="nc" id="L170">            signingKeyStore.store(new FileOutputStream(Configuration.SIGNING_KEYSTORE_FILE), signingKeyStorePassword);</span>
+<span class="nc" id="L171">            System.out.println(&quot;Successful: Signing keyStore created.&quot;);</span>
+        }
+<span class="nc" id="L173">    }</span>
+
+
+    public static void createCertAndKeyStoreForAPI(Scanner sc) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException {
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        if (!Configuration.SIGNING_KEYSTORE_FILE.exists()) {</span>
+<span class="nc" id="L178">            System.out.println(&quot;Error: signingKeyStore file doesn't exist&quot;);</span>
+<span class="nc" id="L179">            return;</span>
+        }
+
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        if (Configuration.API_KEYSTORE_FILE.exists()) {</span>
+<span class="nc" id="L183">            System.out.println(&quot;Error: apiKeystore file already exists&quot;);</span>
+        } else {
+
+
+<span class="nc" id="L187">            Console console = System.console();</span>
+
+
+<span class="nc" id="L190">            KeyStore signingKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);</span>
+            char[] signingKeyStorePassword;
+
+            ECPublicKey signingPublicKey;
+            ECPrivateKey signingPrivateKey;
+            String issuerName;
+            X509Certificate signingCert;
+            while (true) {
+                try {
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                    if (console != null) {</span>
+<span class="nc" id="L200">                        signingKeyStorePassword = console.readPassword(&quot;Please enter signing keystore password: &quot;);</span>
+                    } else {
+<span class="nc" id="L202">                        System.out.print(&quot;Please enter signing keystore password: &quot;);</span>
+<span class="nc" id="L203">                        signingKeyStorePassword = sc.next().toCharArray();</span>
+
+                    }
+<span class="nc" id="L206">                    signingKeyStore.load(new FileInputStream(Configuration.SIGNING_KEYSTORE_FILE), signingKeyStorePassword);</span>
+<span class="nc" id="L207">                    KeyStore.PrivateKeyEntry entry = (KeyStore.PrivateKeyEntry) signingKeyStore.getEntry(Configuration.SIGNING_KEYSTORE_ALIAS, new KeyStore.PasswordProtection(signingKeyStorePassword));</span>
+<span class="nc" id="L208">                    signingPublicKey = (ECPublicKey) entry.getCertificateChain()[0].getPublicKey();</span>
+<span class="nc" id="L209">                    signingPrivateKey = (ECPrivateKey) entry.getPrivateKey();</span>
+<span class="nc" id="L210">                    signingCert = (X509Certificate) entry.getCertificateChain()[0];</span>
+<span class="nc" id="L211">                    issuerName = SecurityHelper.getSubjectCNFromX509Certificate(signingCert);</span>
+<span class="nc" id="L212">                    break;</span>
+<span class="nc" id="L213">                } catch (Exception e) {</span>
+<span class="nc" id="L214">                    System.out.println(&quot;Wrong Password&quot;);</span>
+<span class="nc" id="L215">                    continue;</span>
+                }
+            }
+
+
+<span class="nc" id="L220">            KeyStore apiKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);</span>
+<span class="nc" id="L221">            apiKeyStore.load(null);</span>
+            char[] apiKeyStorePassword;
+
+<span class="nc" id="L224">            System.out.print(&quot;Please enter your api public key file name: &quot;);</span>
+<span class="nc" id="L225">            String apiPubString = sc.next();</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">            while (!new File(apiPubString).exists()) {</span>
+<span class="nc" id="L227">                System.out.print(&quot;File doesn't exist, please enter again: &quot;);</span>
+<span class="nc" id="L228">                apiPubString = sc.next();</span>
+            }
+<span class="nc" id="L230">            PublicKey apiPublicKey = SecurityHelper.getPublicKeyFromPEM(apiPubString, &quot;RSA&quot;);</span>
+
+<span class="nc" id="L232">            System.out.print(&quot;Please enter your api private key file name: &quot;);</span>
+<span class="nc" id="L233">            String apiPrivString = sc.next();</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            while (!new File(apiPrivString).exists()) {</span>
+<span class="nc" id="L235">                System.out.print(&quot;File doesn't exist, please enter again: &quot;);</span>
+<span class="nc" id="L236">                apiPrivString = sc.next();</span>
+            }
+<span class="nc" id="L238">            PrivateKey apiPrivateKey = SecurityHelper.getPrivateFromPEM(apiPrivString, &quot;RSA&quot;);</span>
+
+            Date noAfter;
+            String subjectName;
+<span class="nc" id="L242">            DateFormat formatter = new SimpleDateFormat(&quot;yyyy-MM-dd&quot;);</span>
+
+            while (true) {
+                try {
+<span class="nc" id="L246">                    System.out.print(&quot;Please enter expiry date in yyyy-MM-dd format: &quot;);</span>
+<span class="nc" id="L247">                    noAfter = formatter.parse(sc.next());</span>
+<span class="nc" id="L248">                } catch (ParseException e) {</span>
+<span class="nc" id="L249">                    System.out.println(&quot;Wrong Format&quot;);</span>
+<span class="nc" id="L250">                    continue;</span>
+<span class="nc" id="L251">                }</span>
+                break;
+            }
+
+<span class="nc" id="L255">            System.out.print(&quot;Please enter subject name: &quot;);</span>
+<span class="nc" id="L256">            subjectName = sc.next();</span>
+
+            InetAddress apiServerAddress;
+            while (true) {
+<span class="nc" id="L260">                System.out.print(&quot;Enter server's ip address:&quot;); //## for debug</span>
+                try {
+<span class="nc" id="L262">                    apiServerAddress = InetAddress.getByName(sc.next());</span>
+<span class="nc" id="L263">                    break;</span>
+<span class="nc" id="L264">                } catch (UnknownHostException e) {</span>
+<span class="nc" id="L265">                    System.out.println(&quot;Not appropriate input&quot;);</span>
+<span class="nc" id="L266">                }</span>
+            }
+
+<span class="nc bnc" id="L269" title="All 2 branches missed.">            if (console != null) {</span>
+                do {
+<span class="nc" id="L271">                    apiKeyStorePassword = console.readPassword(&quot;Please enter keystore password: &quot;);</span>
+                }
+<span class="nc bnc" id="L273" title="All 2 branches missed.">                while (!Arrays.equals(apiKeyStorePassword, console.readPassword(&quot;Please re-enter keystore password: &quot;)));</span>
+            } else {
+                do {
+<span class="nc" id="L276">                    System.out.print(&quot;Please enter keystore password: &quot;);</span>
+<span class="nc" id="L277">                    apiKeyStorePassword = sc.next().toCharArray();</span>
+<span class="nc" id="L278">                    System.out.print(&quot;Please re-enter keystore password: &quot;);</span>
+                }
+<span class="nc bnc" id="L280" title="All 2 branches missed.">                while (!Arrays.equals(apiKeyStorePassword, sc.next().toCharArray()));</span>
+            }
+
+<span class="nc" id="L283">            X509Certificate apiCert = SecurityHelper.issueCertificate(apiPublicKey, signingPublicKey, signingPrivateKey, noAfter</span>
+<span class="nc" id="L284">                    , subjectName, issuerName,null, BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(signingPublicKey),</span>
+                    apiServerAddress, Configuration.API_CERTIFICATE_SIGNATURE_ALGORITHM, false);
+<span class="nc" id="L286">            apiKeyStore.setKeyEntry(Configuration.API_KEYSTORE_ALIAS, apiPrivateKey, apiKeyStorePassword, new Certificate[]{apiCert, signingCert});</span>
+<span class="nc" id="L287">            apiKeyStore.store(new FileOutputStream(Configuration.API_KEYSTORE_FILE), apiKeyStorePassword);</span>
+<span class="nc" id="L288">            System.out.println(&quot;Successful: API keyStore created.&quot;);</span>
+        }
+<span class="nc" id="L290">    }</span>
+
+
+    public static void createCertAndKeyStoreForConnection(Scanner sc) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, InvalidKeySpecException, KeyStoreException {
+<span class="nc bnc" id="L294" title="All 2 branches missed.">        if (!Configuration.SIGNING_KEYSTORE_FILE.exists()) {</span>
+<span class="nc" id="L295">            System.out.println(&quot;Error: signingKeyStore file doesn't exist&quot;);</span>
+<span class="nc" id="L296">            return;</span>
+        }
+
+<span class="nc bnc" id="L299" title="All 2 branches missed.">        if (Configuration.CONNECTION_KEYSTORE_FILE.exists()) {</span>
+<span class="nc" id="L300">            System.out.println(&quot;Step2 Error: blockChainKeystore file already exists&quot;);</span>
+        } else {
+
+<span class="nc" id="L303">            Console console = System.console();</span>
+
+
+<span class="nc" id="L306">            KeyStore signingKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);</span>
+            char[] signingKeyStorePassword;
+
+            ECPublicKey signingPublicKey;
+            ECPrivateKey signingPrivateKey;
+            String issuerName;
+            X509Certificate signingCert;
+            while (true) {
+                try {
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                    if (console != null) {</span>
+<span class="nc" id="L316">                        signingKeyStorePassword = console.readPassword(&quot;Please enter signing keystore password: &quot;);</span>
+                    } else {
+<span class="nc" id="L318">                        System.out.print(&quot;Please enter signing keystore password: &quot;);</span>
+<span class="nc" id="L319">                        signingKeyStorePassword = sc.next().toCharArray();</span>
+
+                    }
+<span class="nc" id="L322">                    signingKeyStore.load(new FileInputStream(Configuration.SIGNING_KEYSTORE_FILE), signingKeyStorePassword);</span>
+<span class="nc" id="L323">                    KeyStore.PrivateKeyEntry entry = (KeyStore.PrivateKeyEntry) signingKeyStore.getEntry(Configuration.SIGNING_KEYSTORE_ALIAS, new KeyStore.PasswordProtection(signingKeyStorePassword));</span>
+<span class="nc" id="L324">                    signingPublicKey = (ECPublicKey) entry.getCertificateChain()[0].getPublicKey();</span>
+<span class="nc" id="L325">                    signingPrivateKey = (ECPrivateKey) entry.getPrivateKey();</span>
+
+<span class="nc" id="L327">                    signingCert = (X509Certificate) entry.getCertificateChain()[0];</span>
+<span class="nc" id="L328">                    issuerName = SecurityHelper.getSubjectCNFromX509Certificate(signingCert);</span>
+<span class="nc" id="L329">                    break;</span>
+<span class="nc" id="L330">                } catch (Exception e) {</span>
+<span class="nc" id="L331">                    System.out.println(&quot;Wrong Password&quot;);</span>
+<span class="nc" id="L332">                    continue;</span>
+                }
+            }
+
+
+<span class="nc" id="L337">            KeyStore connectionKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);</span>
+<span class="nc" id="L338">            connectionKeyStore.load(null);</span>
+            char[] connectionKeyStorePassword;
+
+
+<span class="nc" id="L342">            System.out.print(&quot;Please enter your blockchain connection public key file name: &quot;);</span>
+<span class="nc" id="L343">            String blockPubString = sc.next();</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">            while (!new File(blockPubString).exists()) {</span>
+<span class="nc" id="L345">                System.out.print(&quot;File doesn't exist, please enter again: &quot;);</span>
+<span class="nc" id="L346">                blockPubString = sc.next();</span>
+            }
+<span class="nc" id="L348">            PublicKey connectionPublickey = SecurityHelper.getPublicKeyFromPEM(blockPubString, &quot;RSA&quot;);</span>
+
+<span class="nc" id="L350">            System.out.print(&quot;Please enter your blockchain connection private key file name: &quot;);</span>
+<span class="nc" id="L351">            String blockPrivString = sc.next();</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">            while (!new File(blockPrivString).exists()) {</span>
+<span class="nc" id="L353">                System.out.print(&quot;File doesn't exist, please enter again: &quot;);</span>
+<span class="nc" id="L354">                blockPrivString = sc.next();</span>
+            }
+
+<span class="nc" id="L357">            PrivateKey connectionPrivateKey = SecurityHelper.getPrivateFromPEM(blockPrivString, &quot;RSA&quot;);</span>
+
+            Date noAfter;
+            String subjectName;
+<span class="nc" id="L361">            DateFormat formatter = new SimpleDateFormat(&quot;yyyy-MM-dd&quot;);</span>
+
+            while (true) {
+                try {
+<span class="nc" id="L365">                    System.out.print(&quot;Please enter expiry date in yyyy-MM-dd format: &quot;);</span>
+<span class="nc" id="L366">                    noAfter = formatter.parse(sc.next());</span>
+<span class="nc" id="L367">                } catch (ParseException e) {</span>
+<span class="nc" id="L368">                    System.out.println(&quot;Wrong Format&quot;);</span>
+<span class="nc" id="L369">                    continue;</span>
+<span class="nc" id="L370">                }</span>
+                break;
+            }
+
+<span class="nc" id="L374">            System.out.print(&quot;Please enter subject name: &quot;);</span>
+<span class="nc" id="L375">            subjectName = sc.next();</span>
+
+
+<span class="nc bnc" id="L378" title="All 2 branches missed.">            if (console != null) {</span>
+                do {
+<span class="nc" id="L380">                    connectionKeyStorePassword = console.readPassword(&quot;Please enter keystore password: &quot;);</span>
+                }
+<span class="nc bnc" id="L382" title="All 2 branches missed.">                while (!Arrays.equals(connectionKeyStorePassword, console.readPassword(&quot;Please re-enter keystore password: &quot;)));</span>
+            } else {
+                do {
+<span class="nc" id="L385">                    System.out.print(&quot;Please enter keystore password: &quot;);</span>
+<span class="nc" id="L386">                    connectionKeyStorePassword = sc.next().toCharArray();</span>
+<span class="nc" id="L387">                    System.out.print(&quot;Please re-enter keystore password: &quot;);</span>
+                }
+<span class="nc bnc" id="L389" title="All 2 branches missed.">                while (!Arrays.equals(connectionKeyStorePassword, sc.next().toCharArray()));</span>
+            }
+
+
+<span class="nc" id="L393">            X509Certificate blockCert = SecurityHelper.issueCertificate(connectionPublickey, signingPublicKey, signingPrivateKey</span>
+<span class="nc" id="L394">                    , noAfter, subjectName, issuerName,null, BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(signingPublicKey),</span>
+                    null, Configuration.CONNECTION_CERTIFICATE_SIGNATURE_ALGORITHM, false);
+<span class="nc" id="L396">            connectionKeyStore.setKeyEntry(Configuration.CONNECTION_KEYSTORE_ALIAS, connectionPrivateKey, connectionKeyStorePassword, new Certificate[]{blockCert, signingCert});</span>
+<span class="nc" id="L397">            connectionKeyStore.store(new FileOutputStream(Configuration.CONNECTION_KEYSTORE_FILE), connectionKeyStorePassword);</span>
+<span class="nc" id="L398">            System.out.println(&quot;Successful: Blockchain connection keystore created.&quot;);</span>
+        }
+<span class="nc" id="L400">    }</span>
+
+    public static void genesisLoad() throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+        // create index file with the genesisfile
+<span class="nc bnc" id="L404" title="All 2 branches missed.">        if (!Configuration.GENESISBLOCK_FILE.exists()) {</span>
+
+<span class="nc" id="L406">            System.out.println(&quot;File genesisBlock doesn't exist&quot;);</span>
+<span class="nc" id="L407">            return;</span>
+        }
+<span class="nc" id="L409">        byte[] genesisAllByte = Files.readAllBytes(Configuration.GENESISBLOCK_FILE.toPath());</span>
+<span class="nc" id="L410">        ByteArrayReader byteArrayReader = new ByteArrayReader();</span>
+<span class="nc" id="L411">        byteArrayReader.set(genesisAllByte);</span>
+
+<span class="nc" id="L413">        Block genesisBlock = new Block();</span>
+<span class="nc" id="L414">        genesisBlock.setHeader(BlockHeader.parse(byteArrayReader));</span>
+<span class="nc" id="L415">        genesisBlock.setContent(BlockContent.parse(genesisBlock.getHeader().getStructureIndicator(),byteArrayReader));</span>
+
+<span class="nc bnc" id="L417" title="All 2 branches missed.">        if(!byteArrayReader.isFinished())</span>
+<span class="nc" id="L418">            throw new FileCorruptionException();</span>
+
+
+<span class="nc" id="L421">        byte[] blockHash = genesisBlock.calculateHash();</span>
+
+
+<span class="nc bnc" id="L424" title="All 2 branches missed.">        if (!Configuration.BLOCKCHAIN_DATA_FOLDER.exists()) {</span>
+<span class="nc" id="L425">            genesisBlockSave(genesisBlock);</span>
+<span class="nc" id="L426">            genesisAuthoritySave(blockHash, genesisBlock.getContent().getInitialAuthorities());</span>
+<span class="nc" id="L427">            genesisBestChainSave(new Status(0, blockHash));</span>
+<span class="nc" id="L428">            genesisChainInfoSave(genesisBlock);</span>
+<span class="nc" id="L429">            genesisStateInfoSave(genesisBlock);</span>
+<span class="nc" id="L430">            genesisVotingSave(blockHash);</span>
+<span class="nc" id="L431">            System.out.println(&quot;Successful: Genesis block is processed.&quot;);</span>
+        } else {
+<span class="nc" id="L433">            System.out.println(&quot;Error: Data folder already exists, if genesis block needs to be loaded again, please delete the folder first.&quot;);</span>
+<span class="nc" id="L434">            return;</span>
+        }
+<span class="nc" id="L436">    }</span>
+
+
+    public static void genesisBlockSave(Block block) throws IOException {
+<span class="nc" id="L440">        String blockHashString = GeneralHelper.bytesToStringHex(block.calculateHash());</span>
+
+<span class="nc" id="L442">        File blockFolder = new File(Configuration.BLOCK_FOLDER, blockHashString.charAt(0) + &quot;/&quot; + blockHashString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L443">                + blockHashString.charAt(2) + &quot;/&quot; + blockHashString.charAt(3) + &quot;/&quot; + blockHashString.charAt(4) + &quot;/&quot; + blockHashString + &quot;/&quot;);</span>
+<span class="nc" id="L444">        File blockHeaderFile = new File(blockFolder, &quot;header&quot;);</span>
+<span class="nc" id="L445">        File blockContentFile = new File(blockFolder, &quot;content&quot;);</span>
+
+<span class="nc" id="L447">        blockFolder.mkdirs();</span>
+<span class="nc" id="L448">        blockHeaderFile.createNewFile();</span>
+<span class="nc" id="L449">        blockContentFile.createNewFile();</span>
+
+<span class="nc" id="L451">        try (FileOutputStream os = new FileOutputStream(blockHeaderFile)) {</span>
+<span class="nc" id="L452">            os.write(block.getHeader().getRaw());</span>
+        }
+
+<span class="nc" id="L455">        try (FileOutputStream os = new FileOutputStream(blockContentFile)) {</span>
+<span class="nc" id="L456">            os.write(block.getContent().getRaw());</span>
+
+        }
+<span class="nc" id="L459">    }</span>
+
+
+    public static void genesisVotingSave(byte[] blockHash) throws IOException {
+<span class="nc" id="L463">        String blockHashString = GeneralHelper.bytesToStringHex(blockHash);</span>
+
+<span class="nc" id="L465">        File blockFolder = new File(Configuration.BLOCK_FOLDER, blockHashString.charAt(0) + &quot;/&quot; + blockHashString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L466">                + blockHashString.charAt(2) + &quot;/&quot; + blockHashString.charAt(3) + &quot;/&quot; + blockHashString.charAt(4) + &quot;/&quot; + blockHashString + &quot;/&quot;);</span>
+<span class="nc" id="L467">        File votingListFile = new File(blockFolder, &quot;voting&quot;);</span>
+
+<span class="nc" id="L469">        blockFolder.mkdirs();</span>
+<span class="nc" id="L470">        votingListFile.createNewFile(); //empty file</span>
+<span class="nc" id="L471">    }</span>
+
+    public static void genesisStateInfoSave(Block block) throws IOException {
+
+<span class="nc" id="L475">        String blockHashString = GeneralHelper.bytesToStringHex(block.calculateHash());</span>
+
+<span class="nc" id="L477">        File blockFolder = new File(Configuration.BLOCK_FOLDER, blockHashString.charAt(0) + &quot;/&quot; + blockHashString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L478">                + blockHashString.charAt(2) + &quot;/&quot; + blockHashString.charAt(3) + &quot;/&quot; + blockHashString.charAt(4) + &quot;/&quot; + blockHashString + &quot;/&quot;);</span>
+<span class="nc" id="L479">        File stateInfoFile = new File(blockFolder, &quot;stateInfo&quot;);</span>
+
+<span class="nc bnc" id="L481" title="All 2 branches missed.">        if (!blockFolder.exists())</span>
+<span class="nc" id="L482">            blockFolder.mkdirs();</span>
+<span class="nc" id="L483">        StateInfo blockStateInfo = new StateInfo(block.calculateHash(), block.calculateHash(), 0, block.getContent().getInitialAuthorities().length);</span>
+<span class="nc" id="L484">        try (FileOutputStream os = new FileOutputStream(stateInfoFile)) {</span>
+<span class="nc" id="L485">            os.write(blockStateInfo.getRaw());</span>
+        }
+<span class="nc" id="L487">    }</span>
+
+    private static void genesisChainInfoSave(Block block) throws IOException {
+
+<span class="nc" id="L491">        String blockHashString = GeneralHelper.bytesToStringHex(block.calculateHash());</span>
+<span class="nc" id="L492">        File blockFolder = new File(Configuration.BLOCK_FOLDER, blockHashString.charAt(0) + &quot;/&quot; + blockHashString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L493">                + blockHashString.charAt(2) + &quot;/&quot; + blockHashString.charAt(3) + &quot;/&quot; + blockHashString.charAt(4) + &quot;/&quot; + blockHashString + &quot;/&quot;);</span>
+<span class="nc" id="L494">        File chainInfoFile = new File(blockFolder, &quot;chainInfo&quot;);</span>
+
+<span class="nc bnc" id="L496" title="All 2 branches missed.">        if (!blockFolder.exists())</span>
+<span class="nc" id="L497">            blockFolder.mkdirs();</span>
+<span class="nc" id="L498">        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile))) {</span>
+<span class="nc" id="L499">            bos.write(block.getHeader().getPrevHash());</span>
+<span class="nc" id="L500">            bos.write(1); //true</span>
+        }
+
+<span class="nc" id="L503">    }</span>
+
+    public static void genesisBestChainSave(Status status) throws IOException {
+
+<span class="nc bnc" id="L507" title="All 2 branches missed.">        if (!Configuration.BLOCKCHAIN_DATA_FOLDER.exists()) {</span>
+<span class="nc" id="L508">            Configuration.BLOCKCHAIN_DATA_FOLDER.mkdirs();</span>
+        }
+<span class="nc" id="L510">        try (FileOutputStream os = new FileOutputStream(Configuration.BEST_CHAIN_FILE)) {</span>
+<span class="nc" id="L511">            os.write(status.getRaw());</span>
+        }
+<span class="nc" id="L513">    }</span>
+
+    public static void genesisAuthoritySave(byte[] blockHash, AuthorityInfo[] initialAuthorityInfos) throws IOException {
+
+<span class="nc" id="L517">        String blockHashString = GeneralHelper.bytesToStringHex(blockHash);</span>
+
+<span class="nc" id="L519">        File blockFolder = new File(Configuration.BLOCK_FOLDER, blockHashString.charAt(0) + &quot;/&quot; + blockHashString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L520">                + blockHashString.charAt(2) + &quot;/&quot; + blockHashString.charAt(3) + &quot;/&quot; + blockHashString.charAt(4) + &quot;/&quot; + blockHashString);</span>
+
+<span class="nc" id="L522">        File authoritiesFile = new File(blockFolder, &quot;authorities&quot;);</span>
+
+<span class="nc bnc" id="L524" title="All 2 branches missed.">        if (!blockFolder.exists()) {</span>
+<span class="nc" id="L525">            blockFolder.mkdirs();</span>
+        }
+
+        //write overall list
+<span class="nc" id="L529">        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(authoritiesFile));</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">        for (AuthorityInfo authorityInfo : initialAuthorityInfos) {</span>
+<span class="nc" id="L531">            bos.write(authorityInfo.getIdentifier());</span>
+        }
+<span class="nc" id="L533">        bos.close();</span>
+
+        //process each authority
+<span class="nc bnc" id="L536" title="All 2 branches missed.">        for (AuthorityInfo authorityInfo : initialAuthorityInfos) {</span>
+
+<span class="nc" id="L538">            String authorityIdentifierString = GeneralHelper.bytesToStringHex(authorityInfo.getIdentifier());</span>
+
+<span class="nc" id="L540">            File authorityFolder = new File(Configuration.AUTHORITY_FOLDER, authorityIdentifierString.charAt(0) + &quot;/&quot; + authorityIdentifierString.charAt(1) + &quot;/&quot; + authorityIdentifierString + &quot;/&quot;);</span>
+<span class="nc" id="L541">            File trustFile = new File(authorityFolder, &quot;trust&quot;);</span>
+
+<span class="nc bnc" id="L543" title="All 2 branches missed.">            if (!authorityFolder.exists()) {</span>
+<span class="nc" id="L544">                authorityFolder.mkdirs();</span>
+            }
+<span class="nc" id="L546">            try (FileOutputStream os = new FileOutputStream(trustFile, true)) {</span>
+<span class="nc" id="L547">                os.write(blockHash);</span>
+            }
+        }
+
+
+<span class="nc" id="L552">    }</span>
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

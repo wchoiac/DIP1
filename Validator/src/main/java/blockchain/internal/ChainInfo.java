@@ -5,6 +5,7 @@ import config.Configuration;
 import exception.BlockChainObjectParsingException;
 import general.utility.GeneralHelper;
 import java.util.Arrays;
+import java.util.Objects;
 
 public class ChainInfo implements Raw {
     private byte[] prevBlockHash;
@@ -57,5 +58,23 @@ public class ChainInfo implements Raw {
         byte[] nextBlockHash = isBestChain ? (raw.length == Configuration.HASH_LENGTH + 1 ?
                 null : Arrays.copyOfRange(raw, Configuration.HASH_LENGTH + 1, raw.length)) : null;
         return new ChainInfo(prevBlockHash, isBestChain, nextBlockHash);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ChainInfo chainInfo = (ChainInfo) o;
+        return isBestChain == chainInfo.isBestChain &&
+                Arrays.equals(prevBlockHash, chainInfo.prevBlockHash) &&
+                Arrays.equals(nextBlockHash, chainInfo.nextBlockHash);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(isBestChain);
+        result = 31 * result + Arrays.hashCode(prevBlockHash);
+        result = 31 * result + Arrays.hashCode(nextBlockHash);
+        return result;
     }
 }

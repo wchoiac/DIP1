@@ -335,7 +335,8 @@ public class BlockChain {
             if (expectedScore != header.getScore())
                 return -1;
 
-            if (header.getTimestamp() - prevBlockTimeStemp < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
+            if (header.getTimestamp()> System.currentTimeMillis()||
+                    header.getTimestamp() - prevBlockTimeStemp < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
                 return -1;
 
 
@@ -352,11 +353,11 @@ public class BlockChain {
 
                 if (header.getVote().isAdd()) // return false if authorizing a validator but already in the validator list
                 {
-                    if (GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList) != -1)
+                    if (GeneralHelper.getIndexFromArrayList(header.getVote().getBeneficiary().getIdentifier(), tempOverallAuthorityList) != -1)
                         return -1;
                 } else // return false if rovoke a validator but not in the validator list
                 {
-                    if (GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList) == -1)
+                    if (GeneralHelper.getIndexFromArrayList(header.getVote().getBeneficiary().getIdentifier(), tempOverallAuthorityList) == -1)
                         return -1;
                 }
                 // this ensures that only one voting about one beneficiary to exist
@@ -453,7 +454,8 @@ public class BlockChain {
             return false;
 
 
-        if (block.getHeader().getTimestamp() - getLatestBlockTimeStamp() < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
+        if (block.getHeader().getTimestamp()> System.currentTimeMillis()||
+                block.getHeader().getTimestamp() - getLatestBlockTimeStamp() < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
             return false;
 
         if (block.getHeader().getVote() != null)
@@ -523,6 +525,9 @@ public class BlockChain {
             for (PatientInfo patientInfo : block.getContent().getPatientInfoList()) {
 
 
+                if(patientInfo.getTimestamp()>block.getHeader().getTimestamp())
+                    return false;
+
                 if (!patientInfo.verify())
                     return false;
 
@@ -549,6 +554,11 @@ public class BlockChain {
                 if (!transactionPool.contains(transaction)) {
                     if (!hasMedicalOrg(transaction.getMedicalOrgIdentifier()))
                         return false;
+
+                    if(transaction.getTimestamp()>block.getHeader().getTimestamp())
+                        return false;
+
+
                     if (!TransactionManager.isTransactionUnique(latestBlockHash, transaction.calculateHash(), transaction.getPatientIdentifier()))
                         return false;
 

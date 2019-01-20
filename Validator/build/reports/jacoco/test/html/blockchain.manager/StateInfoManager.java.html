@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StateInfoManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">blockchain.manager</a> &gt; <span class="el_source">StateInfoManager.java</span></div><h1>StateInfoManager.java</h1><pre class="source lang-java linenums">package blockchain.manager;
+
+import blockchain.internal.StateInfo;
+import blockchain.block.Block;
+import config.Configuration;
+import exception.BlockChainObjectParsingException;
+import general.utility.GeneralHelper;
+
+import java.io.*;
+import java.nio.file.Files;
+//String format =  latest changed voting list | latest changed validator list | did medical organization get revoked | total score
+
+<span class="nc" id="L13">public class StateInfoManager {</span>
+
+    public static void save(Block block, boolean authorityListChanged, boolean votingListChanged) throws BlockChainObjectParsingException, IOException {
+
+<span class="nc" id="L17">        String blockHashString = GeneralHelper.bytesToStringHex(block.calculateHash());</span>
+<span class="nc" id="L18">        String prevBlockHashString = GeneralHelper.bytesToStringHex(block.getHeader().getPrevHash());</span>
+
+<span class="nc" id="L20">        File blockFolder = new File(Configuration.BLOCK_FOLDER, blockHashString.charAt(0) + &quot;/&quot; + blockHashString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L21">                + blockHashString.charAt(2) + &quot;/&quot; + blockHashString.charAt(3) + &quot;/&quot; + blockHashString.charAt(4) + &quot;/&quot; + blockHashString + &quot;/&quot;);</span>
+<span class="nc" id="L22">        File stateInfoFile = new File(blockFolder, &quot;stateInfo&quot;);</span>
+
+<span class="nc" id="L24">        File prevBlockStateInfoFile = new File(Configuration.BLOCK_FOLDER, prevBlockHashString.charAt(0) + &quot;/&quot; + prevBlockHashString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L25">                + prevBlockHashString.charAt(2) + &quot;/&quot; + prevBlockHashString.charAt(3) + &quot;/&quot; + prevBlockHashString.charAt(4) + &quot;/&quot; + prevBlockHashString + &quot;/stateInfo&quot;);</span>
+
+<span class="nc bnc" id="L27" title="All 2 branches missed.">        if (!blockFolder.exists())</span>
+<span class="nc" id="L28">            blockFolder.mkdirs();</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        if (!prevBlockStateInfoFile.exists())</span>
+<span class="nc" id="L30">            throw new BlockChainObjectParsingException();</span>
+
+
+<span class="nc" id="L33">        byte[] prevStateInfoAllBytes = Files.readAllBytes(prevBlockStateInfoFile.toPath());</span>
+<span class="nc" id="L34">        StateInfo prevBlockStateInfo = StateInfo.parse(prevStateInfoAllBytes);</span>
+
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        byte[] latestVotingListBlockHash = votingListChanged ? block.calculateHash() : prevBlockStateInfo.getLatestVotingListBlockHash();</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        byte[] latestAuthorityListBlockHash = authorityListChanged ? block.calculateHash() : prevBlockStateInfo.getLatestAuthorityListBlockHash();</span>
+<span class="nc" id="L38">        int totalScore = prevBlockStateInfo.getTotalScore() + block.getHeader().getScore();</span>
+<span class="nc bnc" id="L39" title="All 4 branches missed.">        int totalAuthority = prevBlockStateInfo.getTotalAuthorities() + (authorityListChanged ? (block.getHeader().getVote().isAdd() ? 1 : 0) : 0);</span>
+
+<span class="nc" id="L41">        StateInfo blockStateInfo = new StateInfo(latestVotingListBlockHash, latestAuthorityListBlockHash, totalScore, totalAuthority);</span>
+<span class="nc" id="L42">        try (FileOutputStream os = new FileOutputStream(stateInfoFile)) {</span>
+<span class="nc" id="L43">            os.write(blockStateInfo.getRaw());</span>
+        }
+<span class="nc" id="L45">    }</span>
+
+    public static StateInfo load(byte[] blockHash) throws IOException {
+<span class="nc" id="L48">        String blockHashString = GeneralHelper.bytesToStringHex(blockHash);</span>
+<span class="nc" id="L49">        File stateInfoFile = new File(Configuration.BLOCK_FOLDER, blockHashString.charAt(0) + &quot;/&quot; + blockHashString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L50">                + blockHashString.charAt(2) + &quot;/&quot; + blockHashString.charAt(3) + &quot;/&quot; + blockHashString.charAt(4) + &quot;/&quot; + blockHashString + &quot;/stateInfo&quot;);</span>
+
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (!stateInfoFile.exists())</span>
+<span class="nc" id="L53">            return null;</span>
+
+<span class="nc" id="L55">        byte[] stateInfoAllBytes = Files.readAllBytes(stateInfoFile.toPath());</span>
+<span class="nc" id="L56">        return StateInfo.parse(stateInfoAllBytes);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

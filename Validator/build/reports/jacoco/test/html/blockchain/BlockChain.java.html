@@ -1,0 +1,1012 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BlockChain.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">blockchain</a> &gt; <span class="el_source">BlockChain.java</span></div><h1>BlockChain.java</h1><pre class="source lang-java linenums">package blockchain;
+
+import blockchain.block.*;
+import blockchain.block.transaction.Transaction;
+import blockchain.internal.AuthorityInfoForInternal;
+import blockchain.internal.ChainInfo;
+import blockchain.internal.MedicalOrgInfoForInternal;
+import blockchain.internal.Voting;
+import blockchain.manager.*;
+import config.Configuration;
+import exception.BlockChainObjectParsingException;
+import exception.FileCorruptionException;
+import general.security.SecurityHelper;
+import general.utility.GeneralHelper;
+import node.validator.Validator;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
+
+// better blockchain
+// 1. greatest total score
+// 2. faster arrival
+// revocation, authorization, etc are effective after the block containing such data
+
+<span class="nc" id="L28">public class BlockChain {</span>
+
+<span class="nc" id="L30">    private ArrayList&lt;Voting&gt; currentVotingList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L31">    private int totalScore = 0;</span>
+<span class="nc" id="L32">    private ArrayList&lt;byte[]&gt; currentOverallAuthorityIdentifierList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L33">    private ArrayList&lt;Block&gt; cachedCurrentChain = new ArrayList&lt;&gt;(); // always at least one block inside</span>
+<span class="nc" id="L34">    private TreeMap&lt;byte[], MedicalOrgInfoForInternal&gt; cachedCurrentMedicalOrgList = new TreeMap&lt;&gt;(new GeneralHelper.byteArrayComparator()); // ## periodically drop some medical orgs</span>
+<span class="nc" id="L35">    private TreeMap&lt;byte[], AuthorityInfoForInternal&gt; cachedCurrentAuthorityList = new TreeMap&lt;&gt;(new GeneralHelper.byteArrayComparator());</span>
+
+
+    public Block getLatestBlock() {
+
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        if (cachedCurrentChain.isEmpty())</span>
+<span class="nc" id="L41">            return null;</span>
+
+<span class="nc" id="L43">        return cachedCurrentChain.get(cachedCurrentChain.size() - 1);</span>
+    }
+
+    public byte[] getLatestBlockHash() {
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (cachedCurrentChain.isEmpty())</span>
+<span class="nc" id="L48">            return null;</span>
+
+<span class="nc" id="L50">        return cachedCurrentChain.get(cachedCurrentChain.size() - 1).calculateHash();</span>
+    }
+
+    public int getCurrentLatestBlockNumber() {
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (cachedCurrentChain.isEmpty())</span>
+<span class="nc" id="L55">            return -1;</span>
+<span class="nc" id="L56">        return cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader().getBlockNumber();</span>
+    }
+
+    public long getLatestBlockTimeStamp() {
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (cachedCurrentChain.isEmpty())</span>
+<span class="nc" id="L61">            return -1;</span>
+
+<span class="nc" id="L63">        return cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader().getTimestamp();</span>
+    }
+
+    // because it keeps validating new blocks even if not synced
+    public long getTimeStampForValidatorSyncCheck(byte[] myIdentifier) throws IOException, BlockChainObjectParsingException {
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (cachedCurrentChain.isEmpty())</span>
+<span class="nc" id="L69">            return -1;</span>
+
+
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (Arrays.equals(cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader().getValidatorIdentifier(), myIdentifier)) // obviously not genesis block</span>
+        {
+<span class="nc bnc" id="L74" title="All 2 branches missed.">            if (cachedCurrentChain.size() == 1) {</span>
+<span class="nc" id="L75">                cachedCurrentChain.add(0, BlockManager.loadBlock(cachedCurrentChain.get(0).getHeader().getPrevHash()));</span>
+            }
+
+<span class="nc" id="L78">            return cachedCurrentChain.get(cachedCurrentChain.size() - 2).getHeader().getTimestamp();</span>
+        } else {
+<span class="nc" id="L80">            return cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader().getTimestamp();</span>
+        }
+
+    }
+
+
+    public int getTotalScore() {
+<span class="nc" id="L87">        return totalScore;</span>
+    }
+
+    public byte[] getCurrentChainHashLocator() throws BlockChainObjectParsingException, IOException {
+<span class="nc" id="L91">        BlockHeader latestBlockHeader = cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader();</span>
+
+<span class="nc" id="L93">        int height = latestBlockHeader.getBlockNumber();</span>
+
+<span class="nc" id="L95">        ArrayList&lt;Integer&gt; targets = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L97">        int i = height;</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        while (i &gt;= 0) {</span>
+<span class="nc" id="L99">            targets.add(i);</span>
+
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            if (i &gt; height - 100)</span>
+<span class="nc" id="L102">                --i;</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">            else if (i == 0)</span>
+<span class="nc" id="L104">                break;</span>
+            else
+<span class="nc" id="L106">                i /= 2;</span>
+        }
+
+<span class="nc" id="L109">        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();</span>
+<span class="nc" id="L110">        BlockHeader processingHeader = latestBlockHeader;</span>
+
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        for (int currentTarget : targets) {</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">            while (currentTarget != processingHeader.getBlockNumber())</span>
+<span class="nc" id="L114">                processingHeader = BlockManager.loadBlockHeader(processingHeader.getPrevHash());</span>
+<span class="nc" id="L115">            byteArrayOutputStream.write(processingHeader.calculateHash());</span>
+<span class="nc" id="L116">        }</span>
+
+
+<span class="nc" id="L119">        return byteArrayOutputStream.toByteArray();</span>
+    }
+
+    public Status getCurrentStatus() {
+
+<span class="nc" id="L124">        return new Status(totalScore, getLatestBlockHash());</span>
+    }
+
+    public ArrayList&lt;Voting&gt; getCurrentVotingList() {
+<span class="nc" id="L128">        return currentVotingList;</span>
+    }
+
+    public int getValidationInterval() {
+<span class="nc" id="L132">        return currentOverallAuthorityIdentifierList.size() / 2 + 1;</span>
+    }
+
+    public int getTotalAuthorities() {
+<span class="nc" id="L136">        return currentOverallAuthorityIdentifierList.size();</span>
+    }
+
+    public ArrayList&lt;AuthorityInfo&gt; getCurrentOverallAuthorityInfoList() throws IOException, BlockChainObjectParsingException {
+<span class="nc" id="L140">        ArrayList&lt;AuthorityInfo&gt; currentOverallAuthorityList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        for (byte[] identifier : currentOverallAuthorityIdentifierList) {</span>
+<span class="nc" id="L143">            currentOverallAuthorityList.add(getAuthority(identifier));</span>
+<span class="nc" id="L144">        }</span>
+
+<span class="nc" id="L146">        return currentOverallAuthorityList;</span>
+    }
+
+    public AuthorityInfo getAuthority(byte[] identifier) throws IOException, BlockChainObjectParsingException {
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (cachedCurrentAuthorityList.containsKey(identifier))</span>
+<span class="nc" id="L151">            return cachedCurrentAuthorityList.get(identifier).getAuthorityInfo();</span>
+        else {
+<span class="nc" id="L153">            AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);</span>
+<span class="nc bnc" id="L154" title="All 4 branches missed.">            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)</span>
+<span class="nc" id="L155">                return null;</span>
+            else {
+<span class="nc" id="L157">                cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);</span>
+<span class="nc" id="L158">                return cachedCurrentAuthorityList.get(identifier).getAuthorityInfo();</span>
+            }
+        }
+
+    }
+
+    public AuthorityInfoForInternal getAuthorityInfoForInternal(byte[] identifier) throws IOException, BlockChainObjectParsingException {
+<span class="nc bnc" id="L165" title="All 2 branches missed.">        if (cachedCurrentAuthorityList.containsKey(identifier))</span>
+<span class="nc" id="L166">            return cachedCurrentAuthorityList.get(identifier);</span>
+        else {
+<span class="nc" id="L168">            AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);</span>
+<span class="nc bnc" id="L169" title="All 4 branches missed.">            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)</span>
+<span class="nc" id="L170">                return null;</span>
+            else {
+<span class="nc" id="L172">                cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);</span>
+<span class="nc" id="L173">                return cachedCurrentAuthorityList.get(identifier);</span>
+            }
+        }
+
+    }
+
+
+    public boolean hasBlock(Block block) {
+<span class="nc" id="L181">        return cachedCurrentChain.contains(block);</span>
+    }
+
+    public boolean hasAuthority(byte[] identifier) throws IOException, BlockChainObjectParsingException {
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        if (cachedCurrentAuthorityList.containsKey(identifier))</span>
+<span class="nc" id="L186">            return true;</span>
+        else {
+<span class="nc" id="L188">            AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);</span>
+<span class="nc bnc" id="L189" title="All 4 branches missed.">            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)</span>
+<span class="nc" id="L190">                return false;</span>
+            else {
+<span class="nc" id="L192">                cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);</span>
+<span class="nc" id="L193">                return true;</span>
+            }
+        }
+
+    }
+
+    public boolean isAuthorityUntrusted(byte[] identifier) throws IOException, BlockChainObjectParsingException {
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if (hasAuthority(identifier))</span>
+<span class="nc" id="L201">            return false;</span>
+        else {
+<span class="nc" id="L203">            AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">            return internalInfo != null;</span>
+        }
+
+    }
+
+    public int authorityIndex(byte[] authorityIdentifier) {
+<span class="nc" id="L210">        return GeneralHelper.getIndexFromArrayList(authorityIdentifier, currentOverallAuthorityIdentifierList);</span>
+    }
+
+
+    public MedicalOrgInfoForInternal getMedicalOrgInfoForInternal(byte[] identifier) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+<span class="nc bnc" id="L215" title="All 2 branches missed.">        if (cachedCurrentMedicalOrgList.containsKey(identifier))</span>
+<span class="nc" id="L216">            return cachedCurrentMedicalOrgList.get(identifier);</span>
+        else {
+<span class="nc" id="L218">            MedicalOrgInfoForInternal internalInfo = MedicalOrgInfoManager.load(getLatestBlockHash(), identifier);</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            if (internalInfo == null)</span>
+<span class="nc" id="L220">                return null;</span>
+            else {
+<span class="nc" id="L222">                cachedCurrentMedicalOrgList.put(internalInfo.getMedicalOrgInfo().getIdentifier(), internalInfo);</span>
+<span class="nc" id="L223">                return cachedCurrentMedicalOrgList.get(identifier);</span>
+            }
+        }
+
+    }
+
+    public boolean isMedicalOrgRevoked(byte[] identifier) throws IOException, BlockChainObjectParsingException {
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        if (cachedCurrentMedicalOrgList.containsKey(identifier))</span>
+<span class="nc" id="L231">            return false;</span>
+        else {
+<span class="nc" id="L233">            return MedicalOrgInfoManager.isRevoked(getLatestBlockHash(), identifier);</span>
+        }
+    }
+
+    public boolean hasMedicalOrg(byte[] identifier) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (cachedCurrentMedicalOrgList.containsKey(identifier))</span>
+<span class="nc" id="L239">            return true;</span>
+        else {
+<span class="nc" id="L241">            MedicalOrgInfoForInternal internalInfo = MedicalOrgInfoManager.load(getLatestBlockHash(), identifier);</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">            if (internalInfo == null)</span>
+<span class="nc" id="L243">                return false;</span>
+            else {
+<span class="nc" id="L245">                cachedCurrentMedicalOrgList.put(internalInfo.getAuthorityIdentifier(), internalInfo);</span>
+<span class="nc" id="L246">                return true;</span>
+            }
+        }
+    }
+
+
+    public boolean canSignNext(byte[] identifier) throws IOException, BlockChainObjectParsingException {
+
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        if (!hasAuthority(identifier))</span>
+<span class="nc" id="L255">            return false;</span>
+
+
+<span class="nc" id="L258">        boolean isNextInOrder = isNextBlockInOrder(identifier);</span>
+
+
+<span class="nc bnc" id="L261" title="All 2 branches missed.">        if (isNextInOrder) {</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">            if (System.currentTimeMillis() - getLatestBlockTimeStamp() &lt; Configuration.BLOCK_PERIOD)</span>
+<span class="nc" id="L263">                return false;</span>
+        } else {
+<span class="nc bnc" id="L265" title="All 2 branches missed.">            if (System.currentTimeMillis() - getLatestBlockTimeStamp() &lt; Configuration.MIN_OUT_ORDER_BLOCK_PERIOD)</span>
+<span class="nc" id="L266">                return false;</span>
+        }
+
+
+<span class="nc bnc" id="L270" title="All 4 branches missed.">        return (getAuthorityInfoForInternal(identifier).getLastSignedBlockNumber() == -1 || (getCurrentLatestBlockNumber() + 1) - getAuthorityInfoForInternal(identifier).getLastSignedBlockNumber() &gt;= getValidationInterval());</span>
+
+
+    }
+
+    // checking if next block is inoder for pk
+    public boolean isNextBlockInOrder(byte[] identifier) {
+<span class="nc" id="L277">        int nextHeight = getCurrentLatestBlockNumber() + 1;</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        return nextHeight % getTotalAuthorities() == authorityIndex(identifier);</span>
+    }
+
+
+    public int generateRandomOffset() {
+
+<span class="nc" id="L284">        Random rand = new Random();</span>
+<span class="nc" id="L285">        return (Configuration.MIN_OUT_ORDER_BLOCK_PERIOD - Configuration.BLOCK_PERIOD) + rand.nextInt(500 * getValidationInterval());</span>
+    }
+
+    public boolean isNextBlockHeader(BlockHeader blockheader) {
+<span class="nc bnc" id="L289" title="All 2 branches missed.">        if (blockheader.getBlockNumber() != getCurrentLatestBlockNumber() + 1) {</span>
+<span class="nc" id="L290">            return false;</span>
+        }
+
+<span class="nc" id="L293">        return Arrays.equals(blockheader.calculateHash(), getLatestBlockHash());</span>
+    }
+
+    public boolean isNextBlock(Block block) {
+
+<span class="nc" id="L298">        int latestBlockNumber = getCurrentLatestBlockNumber();</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">        if (latestBlockNumber == -1)</span>
+<span class="nc" id="L300">            return true;</span>
+
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        if (block.getHeader().getBlockNumber() != getCurrentLatestBlockNumber() + 1) {</span>
+<span class="nc" id="L303">            return false;</span>
+        }
+
+<span class="nc" id="L306">        return Arrays.equals(block.getHeader().getPrevHash(), getLatestBlockHash());</span>
+    }
+
+
+    public int checkHeaders(BlockHeader[] headers) throws IOException, BlockChainObjectParsingException {
+
+<span class="nc bnc" id="L312" title="All 4 branches missed.">        if (headers == null || headers.length == 0)</span>
+<span class="nc" id="L313">            return -1;</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        if (!isNextBlockHeader(headers[0])) {</span>
+<span class="nc" id="L315">            return -1;</span>
+        }
+
+<span class="nc" id="L318">        TreeMap&lt;byte[], AuthorityInfoForInternal&gt; tempAuthorityList = (TreeMap&lt;byte[], AuthorityInfoForInternal&gt;) cachedCurrentAuthorityList.clone();</span>
+<span class="nc" id="L319">        ArrayList&lt;byte[]&gt; tempOverallAuthorityList = (ArrayList&lt;byte[]&gt;) currentOverallAuthorityIdentifierList.clone();</span>
+<span class="nc" id="L320">        ArrayList&lt;Voting&gt; tempVotingList = (ArrayList&lt;Voting&gt;) currentVotingList.clone();</span>
+
+<span class="nc" id="L322">        long prevBlockTimeStemp = getLatestBlockTimeStamp();</span>
+<span class="nc" id="L323">        int tempTotalScore = getTotalScore();</span>
+
+<span class="nc bnc" id="L325" title="All 2 branches missed.">        for (BlockHeader header : headers) {</span>
+<span class="nc" id="L326">            int tempValidationInterval = tempAuthorityList.size() / 2 + 1;</span>
+<span class="nc" id="L327">            int index = GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList);</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">            if (index == -1)</span>
+<span class="nc" id="L329">                return -1;</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">            else if (!tempAuthorityList.containsKey(header.getValidatorIdentifier()))</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                if (hasAuthority(header.getValidatorIdentifier())) {</span>
+<span class="nc" id="L332">                    AuthorityInfoForInternal authorityInfoForInternal = getAuthorityInfoForInternal(header.getValidatorIdentifier());</span>
+<span class="nc" id="L333">                    tempAuthorityList.put(header.getValidatorIdentifier(), new AuthorityInfoForInternal(authorityInfoForInternal.getAuthorityInfo(),</span>
+<span class="nc" id="L334">                            authorityInfoForInternal.getLastSignedBlockNumber(), null));</span>
+
+                }
+
+<span class="nc" id="L338">            AuthorityInfoForInternal validatorInfoForInternal = tempAuthorityList.get(header.getValidatorIdentifier());</span>
+
+
+            try {
+<span class="nc bnc" id="L342" title="All 2 branches missed.">                if (!SecurityHelper.verifyRawECDSASignatureWithContent(validatorInfoForInternal.getAuthorityInfo().getPublicKey(), header.getSignatureCoverage(), header.getValidatorSignature(), Configuration.BLOCKCHAIN_HASH_ALGORITHM, Configuration.ELIPTIC_CURVE))</span>
+<span class="nc" id="L343">                    return -1;</span>
+<span class="nc" id="L344">            } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L345">                e.printStackTrace();</span>
+<span class="nc" id="L346">            }</span>
+
+            //=&gt; skip contentHash check
+
+<span class="nc bnc" id="L350" title="All 2 branches missed.">            if (!validatorInfoForInternal.canSign(header.getBlockNumber(), tempAuthorityList.size()))</span>
+<span class="nc" id="L351">                return -1;</span>
+
+<span class="nc" id="L353">            boolean isInOrder = AuthorityInfoForInternal.isInOrder(header.getBlockNumber(), tempAuthorityList.size(), index);</span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">            int expectedScore = isInOrder ? Configuration.IN_ORDER : Configuration.OUT_ORDER;</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">            if (expectedScore != header.getScore())</span>
+<span class="nc" id="L356">                return -1;</span>
+
+<span class="nc bnc" id="L358" title="All 4 branches missed.">            if (header.getTimestamp() - prevBlockTimeStemp &lt; (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))</span>
+<span class="nc" id="L359">                return -1;</span>
+
+
+            //check vote and process vote - could be changed later
+<span class="nc bnc" id="L363" title="All 2 branches missed.">            if (header.getVote() != null) {</span>
+
+                //check vote
+
+<span class="nc" id="L367">                Voting changedAuthorityVoting = null;</span>
+<span class="nc" id="L368">                Voting votingToBeRemoved = null;</span>
+
+<span class="nc bnc" id="L370" title="All 2 branches missed.">                if(header.getBlockNumber()%Configuration.CHECK_POINT_BLOCK_INTERVAL==0) // cannot have vote in a check point block</span>
+<span class="nc" id="L371">                    return -1;</span>
+
+<span class="nc bnc" id="L373" title="All 2 branches missed.">                if (header.getVote().isAdd()) // return false if authorizing a validator but already in the validator list</span>
+                {
+<span class="nc bnc" id="L375" title="All 2 branches missed.">                    if (GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList) != -1)</span>
+<span class="nc" id="L376">                        return -1;</span>
+                } else // return false if rovoke a validator but not in the validator list
+                {
+<span class="nc bnc" id="L379" title="All 2 branches missed.">                    if (GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList) == -1)</span>
+<span class="nc" id="L380">                        return -1;</span>
+                }
+                // this ensures that only one voting about one beneficiary to exist
+
+<span class="nc" id="L384">                boolean isForNewVoting = true;</span>
+<span class="nc bnc" id="L385" title="All 2 branches missed.">                for (Voting v : tempVotingList) // duplicate voting check</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">                    if (v.getBeneficiary().equals(header.getVote().getBeneficiary())) {</span>
+<span class="nc bnc" id="L387" title="All 2 branches missed.">                        if (v.isExistingVoter(header.getValidatorIdentifier()))</span>
+<span class="nc" id="L388">                            return -1;</span>
+
+                        //process vote
+<span class="nc bnc" id="L391" title="All 2 branches missed.">                        if (header.getVote().isAgree())</span>
+<span class="nc" id="L392">                            v.addAgree(header.getValidatorIdentifier());</span>
+                        else
+<span class="nc" id="L394">                            v.addDisagree(header.getValidatorIdentifier());</span>
+<span class="nc" id="L395">                        changedAuthorityVoting = v;</span>
+<span class="nc" id="L396">                        isForNewVoting = false;</span>
+<span class="nc" id="L397">                        break;</span>
+                    }
+
+<span class="nc bnc" id="L400" title="All 2 branches missed.">                if (isForNewVoting) // the voting starter cannot disagree on what he started(not make sense)</span>
+                {
+<span class="nc bnc" id="L402" title="All 2 branches missed.">                    if (!header.getVote().isAgree())</span>
+<span class="nc" id="L403">                        return -1;</span>
+                    else {
+                        //process vote
+<span class="nc" id="L406">                        Voting newVoting = new Voting(header.getVote().getBeneficiary(), header.getVote().isAdd());</span>
+<span class="nc" id="L407">                        newVoting.addAgree(header.getValidatorIdentifier());</span>
+<span class="nc" id="L408">                        tempVotingList.add(newVoting);</span>
+<span class="nc" id="L409">                        changedAuthorityVoting = newVoting;</span>
+                    }
+
+                }
+
+                //process vote
+<span class="nc bnc" id="L415" title="All 2 branches missed.">                if (changedAuthorityVoting.getNumAgree() &gt;= tempValidationInterval) {</span>
+<span class="nc bnc" id="L416" title="All 2 branches missed.">                    if (changedAuthorityVoting.isAdd()) {</span>
+<span class="nc" id="L417">                        tempOverallAuthorityList.add(changedAuthorityVoting.getBeneficiary().getIdentifier());</span>
+                    } else {
+<span class="nc" id="L419">                        tempOverallAuthorityList.remove(GeneralHelper.getIndexFromArrayList(changedAuthorityVoting.getBeneficiary().getIdentifier(), tempOverallAuthorityList));</span>
+<span class="nc" id="L420">                        tempAuthorityList.remove(changedAuthorityVoting.getBeneficiary().getIdentifier());</span>
+                    }
+<span class="nc" id="L422">                    votingToBeRemoved = changedAuthorityVoting;</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">                } else if (changedAuthorityVoting.getNumDisagree() &gt;= tempValidationInterval) {</span>
+<span class="nc" id="L424">                    votingToBeRemoved = changedAuthorityVoting;</span>
+                }
+
+<span class="nc bnc" id="L427" title="All 2 branches missed.">                if (votingToBeRemoved != null) {</span>
+<span class="nc" id="L428">                    tempVotingList.remove(votingToBeRemoved);</span>
+                }
+            }
+
+<span class="nc" id="L432">            tempTotalScore += expectedScore;</span>
+<span class="nc" id="L433">            prevBlockTimeStemp = header.getTimestamp();</span>
+        }
+
+<span class="nc" id="L436">        return tempTotalScore;</span>
+    }
+
+
+    public boolean checkNextBlock(Block block, ArrayList&lt;Transaction&gt; transactionPool) throws BlockChainObjectParsingException, IOException, FileCorruptionException {
+
+<span class="nc bnc" id="L442" title="All 2 branches missed.">        if (block == null)</span>
+<span class="nc" id="L443">            return false;</span>
+
+<span class="nc bnc" id="L445" title="All 2 branches missed.">        if (!isNextBlock(block)) {</span>
+<span class="nc" id="L446">            return false;</span>
+        }
+
+<span class="nc" id="L449">        byte[] latestBlockHash = getLatestBlockHash();</span>
+
+        //*****header check start
+<span class="nc bnc" id="L452" title="All 2 branches missed.">        if (!hasAuthority(block.getHeader().getValidatorIdentifier()))</span>
+<span class="nc" id="L453">            return false;</span>
+
+<span class="nc" id="L455">        AuthorityInfoForInternal validatorInfo = getAuthorityInfoForInternal(block.getHeader().getValidatorIdentifier());</span>
+        try {
+<span class="nc bnc" id="L457" title="All 2 branches missed.">            if (!SecurityHelper.verifyRawECDSASignatureWithContent(validatorInfo.getAuthorityInfo().getPublicKey(), block.getHeader().getSignatureCoverage(), block.getHeader().getValidatorSignature(), Configuration.BLOCKCHAIN_HASH_ALGORITHM, Configuration.ELIPTIC_CURVE))</span>
+<span class="nc" id="L458">                return false;</span>
+<span class="nc" id="L459">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L460">            e.printStackTrace();</span>
+<span class="nc" id="L461">        }</span>
+
+<span class="nc bnc" id="L463" title="All 2 branches missed.">        if (!Arrays.equals(block.getHeader().getContentHash(), block.getContent().calculateHash()))</span>
+<span class="nc" id="L464">            return false;</span>
+
+<span class="nc bnc" id="L466" title="All 2 branches missed.">        if (!validatorInfo.canSign(block.getHeader().getBlockNumber(), getTotalAuthorities()))</span>
+<span class="nc" id="L467">            return false;</span>
+
+<span class="nc" id="L469">        boolean isInOrder = AuthorityInfoForInternal.isInOrder(block.getHeader().getBlockNumber(), getTotalAuthorities(), authorityIndex(block.getHeader().getValidatorIdentifier()));</span>
+<span class="nc bnc" id="L470" title="All 2 branches missed.">        int expectedScore = isInOrder ? Configuration.IN_ORDER : Configuration.OUT_ORDER;</span>
+<span class="nc bnc" id="L471" title="All 2 branches missed.">        if (expectedScore != block.getHeader().getScore())</span>
+<span class="nc" id="L472">            return false;</span>
+
+
+<span class="nc bnc" id="L475" title="All 4 branches missed.">        if (block.getHeader().getTimestamp() - getLatestBlockTimeStamp() &lt; (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))</span>
+<span class="nc" id="L476">            return false;</span>
+
+
+<span class="nc bnc" id="L479" title="All 2 branches missed.">        if (block.getHeader().getVote() != null) {</span>
+
+<span class="nc bnc" id="L481" title="All 2 branches missed.">            if (block.getHeader().getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0) // check point cannot have vote</span>
+<span class="nc" id="L482">                return false;</span>
+
+<span class="nc bnc" id="L484" title="All 2 branches missed.">            if (!checkVote(validatorInfo.getAuthorityInfo().getIdentifier(), block.getHeader().getVote()))</span>
+<span class="nc" id="L485">                return false;</span>
+        }
+
+        //*****header check end
+
+        //*****content check start
+
+        //want to authorize, but already authorized
+<span class="nc bnc" id="L493" title="All 2 branches missed.">        if (block.getContent().getMedicalOrgAuthorizationList() != null) {</span>
+<span class="nc bnc" id="L494" title="All 2 branches missed.">            if (block.getContent().getMedicalOrgAuthorizationList().length &gt; Configuration.MAX_AUTHORIZATION)</span>
+<span class="nc" id="L495">                return false;</span>
+
+<span class="nc" id="L497">            Set&lt;MedicalOrgInfo&gt; set = new HashSet&lt;&gt;(); //for duplicate check</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">            for (MedicalOrgInfo medicalOrgInfo : block.getContent().getMedicalOrgAuthorizationList()) {</span>
+<span class="nc bnc" id="L499" title="All 2 branches missed.">                if (hasMedicalOrg(medicalOrgInfo.getIdentifier()))</span>
+<span class="nc" id="L500">                    return false;</span>
+
+<span class="nc bnc" id="L502" title="All 2 branches missed.">                if (isMedicalOrgRevoked(medicalOrgInfo.getIdentifier()))</span>
+<span class="nc" id="L503">                    return false;</span>
+
+<span class="nc bnc" id="L505" title="All 2 branches missed.">                if (set.contains(medicalOrgInfo))</span>
+<span class="nc" id="L506">                    return false;</span>
+                else {
+<span class="nc" id="L508">                    set.add(medicalOrgInfo);</span>
+                }
+            }
+        }
+
+        //want to addToRevocationList but not issued such key, invalid
+
+<span class="nc bnc" id="L515" title="All 2 branches missed.">        if (block.getContent().getMedicalOrgRevocationList() != null) {</span>
+
+<span class="nc bnc" id="L517" title="All 2 branches missed.">            if (block.getContent().getMedicalOrgRevocationList().length &gt; Configuration.MAX_REVOCATION)</span>
+<span class="nc" id="L518">                return false;</span>
+
+<span class="nc" id="L520">            SortedSet&lt;byte[]&gt; set = new TreeSet&lt;&gt;(new GeneralHelper.byteArrayComparator()); //for duplicate check</span>
+<span class="nc bnc" id="L521" title="All 2 branches missed.">            for (byte[] revokedIdentifier : block.getContent().getMedicalOrgRevocationList()) {</span>
+<span class="nc bnc" id="L522" title="All 2 branches missed.">                if (!hasMedicalOrg(revokedIdentifier))</span>
+<span class="nc" id="L523">                    return false;</span>
+<span class="nc" id="L524">                MedicalOrgInfoForInternal temp = getMedicalOrgInfoForInternal(revokedIdentifier);</span>
+<span class="nc bnc" id="L525" title="All 2 branches missed.">                if (!Arrays.equals(temp.getAuthorityIdentifier(), block.getHeader().getValidatorIdentifier()))</span>
+<span class="nc" id="L526">                    return false;</span>
+<span class="nc bnc" id="L527" title="All 2 branches missed.">                if (set.contains(revokedIdentifier))</span>
+<span class="nc" id="L528">                    return false;</span>
+                else {
+<span class="nc" id="L530">                    set.add(revokedIdentifier);</span>
+                }
+            }
+        }
+
+<span class="nc bnc" id="L535" title="All 2 branches missed.">        if (block.getContent().getPatientInfoList() != null) {</span>
+
+<span class="nc bnc" id="L537" title="All 2 branches missed.">            if (block.getContent().getPatientInfoList().length &gt; Configuration.MAX_PATIENT_INFO)</span>
+<span class="nc" id="L538">                return false;</span>
+
+<span class="nc" id="L540">            Set&lt;PatientInfo&gt; set = new HashSet&lt;&gt;(); //for duplicate check</span>
+
+<span class="nc bnc" id="L542" title="All 2 branches missed.">            for (PatientInfo patientInfo : block.getContent().getPatientInfoList()) {</span>
+
+
+<span class="nc bnc" id="L545" title="All 2 branches missed.">                if (!patientInfo.verify())</span>
+<span class="nc" id="L546">                    return false;</span>
+
+<span class="nc bnc" id="L548" title="All 2 branches missed.">                if (PatientInfoManager.patientInfoExists(latestBlockHash, patientInfo.getPatientIdentifier(), patientInfo.calculateInfoHash()))</span>
+<span class="nc" id="L549">                    return false;</span>
+
+<span class="nc bnc" id="L551" title="All 2 branches missed.">                if (set.contains(patientInfo))</span>
+<span class="nc" id="L552">                    return false;</span>
+                else {
+<span class="nc" id="L554">                    set.add(patientInfo);</span>
+                }
+            }
+        }
+
+<span class="nc bnc" id="L559" title="All 2 branches missed.">        if (block.getContent().getTransactions() != null) {</span>
+
+<span class="nc bnc" id="L561" title="All 2 branches missed.">            if (block.getContent().getTransactions().length &gt; Configuration.MAX_RECORD)</span>
+<span class="nc" id="L562">                return false;</span>
+
+<span class="nc" id="L564">            Set&lt;Transaction&gt; set = new HashSet&lt;&gt;(); //for duplicate check</span>
+
+<span class="nc bnc" id="L566" title="All 2 branches missed.">            for (Transaction transaction : block.getContent().getTransactions()) {</span>
+                // if already in transaction pool, it is already verified =&gt; most case
+<span class="nc bnc" id="L568" title="All 2 branches missed.">                if (!transactionPool.contains(transaction)) {</span>
+<span class="nc bnc" id="L569" title="All 2 branches missed.">                    if (!hasMedicalOrg(transaction.getMedicalOrgIdentifier()))</span>
+<span class="nc" id="L570">                        return false;</span>
+<span class="nc bnc" id="L571" title="All 2 branches missed.">                    if (!TransactionManager.isTransactionUnique(latestBlockHash, transaction.calculateHash(), transaction.getPatientIdentifier()))</span>
+<span class="nc" id="L572">                        return false;</span>
+
+<span class="nc bnc" id="L574" title="All 2 branches missed.">                    if (set.contains(transaction))</span>
+<span class="nc" id="L575">                        return false;</span>
+                    else {
+<span class="nc" id="L577">                        set.add(transaction);</span>
+                    }
+
+<span class="nc" id="L580">                    PatientInfo patientInfo = PatientInfoManager.load(latestBlockHash, transaction.getPatientIdentifier());</span>
+<span class="nc" id="L581">                    MedicalOrgInfoForInternal medicalOrgInfoForInternal = getMedicalOrgInfoForInternal(transaction.getMedicalOrgIdentifier());</span>
+
+<span class="nc bnc" id="L583" title="All 2 branches missed.">                    if (!transaction.verify(patientInfo.getPublicKey(), medicalOrgInfoForInternal.getMedicalOrgInfo().getPublicKey()))</span>
+<span class="nc" id="L584">                        return false;</span>
+                }
+            }
+        }
+
+        //*****content check end
+
+<span class="nc" id="L591">        return true;</span>
+
+    }
+
+
+    // validity check has to be done outside (usig this class's method)
+    //return revoked authority
+    public AuthorityInfo addBlock(Block block, ArrayList&lt;Transaction&gt; transactionPool, ArrayList&lt;Vote&gt; myVotes, ArrayList&lt;MedicalOrgInfo&gt; authorizationList, SortedSet&lt;byte[]&gt; revocationList, ArrayList&lt;PatientInfo&gt; patientInfoList, byte[] myIdentifier) throws IOException, BlockChainObjectParsingException {
+
+<span class="nc bnc" id="L600" title="All 2 branches missed.">        if (!isNextBlock(block))</span>
+<span class="nc" id="L601">            return null;</span>
+
+
+<span class="nc" id="L604">        AuthorityInfo processedAuthority = null;</span>
+<span class="nc bnc" id="L605" title="All 2 branches missed.">        if (block.getHeader().getVote() != null) {</span>
+<span class="nc bnc" id="L606" title="All 2 branches missed.">            if (Arrays.equals(block.getHeader().getValidatorIdentifier(), myIdentifier))</span>
+<span class="nc" id="L607">                myVotes.remove(block.getHeader().getVote()); // my vote processed, so remove</span>
+<span class="nc" id="L608">            processVote(block.getHeader().getValidatorIdentifier(), block.getHeader().getVote(), myVotes, myIdentifier,block.calculateHash());</span>
+<span class="nc bnc" id="L609" title="All 2 branches missed.">        } else if (block.getHeader().getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0) {</span>
+<span class="nc" id="L610">            ArrayList&lt;Vote&gt; droppedVotes = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L611">            Iterator&lt;Vote&gt; iterator = myVotes.iterator();</span>
+<span class="nc bnc" id="L612" title="All 2 branches missed.">            while (iterator.hasNext()) {</span>
+<span class="nc" id="L613">                Vote vote = iterator.next();</span>
+<span class="nc bnc" id="L614" title="All 2 branches missed.">                if (!vote.isAgree()) { // since every voting is removed =&gt; nothing to disagree</span>
+<span class="nc" id="L615">                    droppedVotes.add(vote);</span>
+<span class="nc" id="L616">                    iterator.remove();</span>
+                }
+<span class="nc" id="L618">            }</span>
+<span class="nc bnc" id="L619" title="All 2 branches missed.">            if(!droppedVotes.isEmpty())</span>
+<span class="nc" id="L620">                MyVoteDropManager.checkPointDrop(block.calculateHash(), myIdentifier, droppedVotes);</span>
+<span class="nc" id="L621">            currentVotingList.clear();</span>
+        }
+
+
+<span class="nc bnc" id="L625" title="All 2 branches missed.">        if (block.getContent().getMedicalOrgAuthorizationList() != null)</span>
+<span class="nc" id="L626">            processAuthorization(block.getHeader().getValidatorIdentifier(), block.getContent().getMedicalOrgAuthorizationList());</span>
+<span class="nc bnc" id="L627" title="All 2 branches missed.">        if (block.getContent().getMedicalOrgRevocationList() != null)</span>
+<span class="nc" id="L628">            processRevocation(block.getContent().getMedicalOrgRevocationList(), transactionPool);</span>
+<span class="nc bnc" id="L629" title="All 2 branches missed.">        if (block.getContent().getTransactions() != null)</span>
+<span class="nc" id="L630">            removeFromTransactionPool(block.getContent().getTransactions(), transactionPool);</span>
+
+<span class="nc bnc" id="L632" title="All 2 branches missed.">        if (Arrays.equals(block.getHeader().getValidatorIdentifier(), myIdentifier)) {</span>
+<span class="nc bnc" id="L633" title="All 2 branches missed.">            if (block.getContent().getMedicalOrgAuthorizationList() != null)</span>
+<span class="nc" id="L634">                removeFromAuthorizationList(block.getContent().getMedicalOrgAuthorizationList(), authorizationList);</span>
+<span class="nc bnc" id="L635" title="All 2 branches missed.">            if (block.getContent().getMedicalOrgRevocationList() != null)</span>
+<span class="nc" id="L636">                removeFromRevocationList(block.getContent().getMedicalOrgRevocationList(), revocationList);</span>
+<span class="nc bnc" id="L637" title="All 2 branches missed.">            if (block.getContent().getPatientInfoList() != null)</span>
+<span class="nc" id="L638">                removeFromPatientInfoList(block.getContent().getPatientInfoList(), patientInfoList);</span>
+        } else {
+<span class="nc bnc" id="L640" title="All 2 branches missed.">            if (block.getContent().getMedicalOrgAuthorizationList() != null) {</span>
+<span class="nc bnc" id="L641" title="All 2 branches missed.">                if (removeFromAuthorizationList(block.getContent().getMedicalOrgAuthorizationList(), authorizationList))</span>
+<span class="nc" id="L642">                    Validator.getRunningValidator().getBlockChainLogger()</span>
+<span class="nc" id="L643">                            .info(&quot;In block(&quot; + GeneralHelper.bytesToStringHex(block.calculateHash()) + &quot;), authority(&quot;</span>
+<span class="nc" id="L644">                                    + getAuthority(block.getHeader().getValidatorIdentifier())</span>
+                                    + &quot;) has authorized medical organization(s) who is/are supposed to be authorized by this authority&quot;);
+            }
+        }
+
+
+<span class="nc" id="L650">        cachedCurrentChain.add(block);</span>
+<span class="nc bnc" id="L651" title="All 2 branches missed.">        if (cachedCurrentChain.size() &gt; Configuration.MAX_BLOCK_ON_MEMEORY)</span>
+<span class="nc" id="L652">            cachedCurrentChain.remove(0);</span>
+
+<span class="nc bnc" id="L654" title="All 2 branches missed.">        if (block.getHeader().getValidatorIdentifier() != null) {</span>
+
+<span class="nc" id="L656">            getAuthorityInfoForInternal(block.getHeader().getValidatorIdentifier()).setLastSignedBlockNumber(block.getHeader().getBlockNumber());</span>
+        }
+
+<span class="nc" id="L659">        totalScore += block.getHeader().getScore();</span>
+
+<span class="nc bnc" id="L661" title="All 2 branches missed.">        if (block.getHeader().getVote() == null)</span>
+<span class="nc" id="L662">            return null;</span>
+<span class="nc bnc" id="L663" title="All 2 branches missed.">        return block.getHeader().getVote().isAdd() ? null : processedAuthority;</span>
+    }
+
+    public boolean checkVote(byte[] voterIdentifier, Vote vote) throws IOException, BlockChainObjectParsingException {
+
+<span class="nc bnc" id="L668" title="All 2 branches missed.">        if (vote.getBeneficiary().getName().length() &gt; Configuration.MAX_NAME_LENGTH)</span>
+<span class="nc" id="L669">            return false;</span>
+
+<span class="nc" id="L671">        byte[] beneficiaryIdentifier = vote.getBeneficiary().getIdentifier();</span>
+<span class="nc bnc" id="L672" title="All 2 branches missed.">        if (vote.isAdd()) // return false if authorizing a validator but already in the validator list</span>
+        {
+<span class="nc bnc" id="L674" title="All 4 branches missed.">            if (hasAuthority(beneficiaryIdentifier) || isAuthorityUntrusted(beneficiaryIdentifier)) // if untrusted =&gt; change public key</span>
+<span class="nc" id="L675">                return false;</span>
+        } else // return false if deauthorizing a validator but not in the validator list
+        {
+<span class="nc bnc" id="L678" title="All 2 branches missed.">            if (!hasAuthority(beneficiaryIdentifier))</span>
+<span class="nc" id="L679">                return false;</span>
+        }
+        // this ensures that only one voting about one beneficiary to exist
+
+<span class="nc" id="L683">        boolean isForNewVoting = true;</span>
+<span class="nc bnc" id="L684" title="All 2 branches missed.">        for (Voting v : currentVotingList) // duplicate voting check</span>
+<span class="nc bnc" id="L685" title="All 2 branches missed.">            if (v.getBeneficiary().equals(vote.getBeneficiary())) {</span>
+<span class="nc bnc" id="L686" title="All 2 branches missed.">                if (v.isExistingVoter(voterIdentifier))</span>
+<span class="nc" id="L687">                    return false;</span>
+<span class="nc" id="L688">                isForNewVoting = false;</span>
+            }
+
+<span class="nc bnc" id="L691" title="All 4 branches missed.">        return !isForNewVoting || vote.isAgree();</span>
+
+    }
+
+
+    public boolean checkTransaction(Transaction transaction) throws BlockChainObjectParsingException, IOException, FileCorruptionException {
+<span class="nc" id="L697">        byte[] latestBlockHash = getLatestBlockHash();</span>
+
+<span class="nc bnc" id="L699" title="All 8 branches missed.">        if (transaction == null || transaction.getMedicalOrgIdentifier() == null || transaction.getPatientSignature() == null || transaction.getEncryptedRecord() == null</span>
+<span class="nc bnc" id="L700" title="All 4 branches missed.">                || transaction.getPatientIdentifier() == null || transaction.getMedicalOrgSignature() == null)</span>
+<span class="nc" id="L701">            return false;</span>
+
+<span class="nc bnc" id="L703" title="All 2 branches missed.">        if (!hasMedicalOrg(transaction.getMedicalOrgIdentifier()))</span>
+<span class="nc" id="L704">            return false;</span>
+
+<span class="nc" id="L706">        MedicalOrgInfoForInternal medicalOrgInfoForInternal = getMedicalOrgInfoForInternal(transaction.getMedicalOrgIdentifier());</span>
+
+<span class="nc bnc" id="L708" title="All 2 branches missed.">        if (!TransactionManager.isTransactionUnique(latestBlockHash, transaction.calculateHash(), transaction.getPatientIdentifier()))</span>
+<span class="nc" id="L709">            return false;</span>
+<span class="nc" id="L710">        PatientInfo patientInfo = PatientInfoManager.load(latestBlockHash, transaction.getPatientIdentifier());</span>
+<span class="nc bnc" id="L711" title="All 2 branches missed.">        if (patientInfo == null)</span>
+<span class="nc" id="L712">            return false;</span>
+
+<span class="nc" id="L714">        return transaction.verify(patientInfo.getPublicKey(), medicalOrgInfoForInternal.getMedicalOrgInfo().getPublicKey());</span>
+
+    }
+
+    private void processAuthorization(byte[] validatorIdentifier, MedicalOrgInfo[] infos) {
+<span class="nc bnc" id="L719" title="All 2 branches missed.">        for (MedicalOrgInfo info : infos) {</span>
+<span class="nc" id="L720">            MedicalOrgInfoForInternal newAuthorizedMedOrg = new MedicalOrgInfoForInternal(info, validatorIdentifier);</span>
+<span class="nc" id="L721">            cachedCurrentMedicalOrgList.put(info.getIdentifier(), newAuthorizedMedOrg);</span>
+        }
+<span class="nc" id="L723">    }</span>
+
+    private void processRevocation(byte[][] revokedIdentifiers, ArrayList&lt;Transaction&gt; transactionPool) {
+<span class="nc bnc" id="L726" title="All 2 branches missed.">        for (byte[] revokedIdentifier : revokedIdentifiers) {</span>
+<span class="nc" id="L727">            cachedCurrentMedicalOrgList.remove(revokedIdentifier);</span>
+<span class="nc" id="L728">            Iterator&lt;Transaction&gt; iterator = transactionPool.iterator();</span>
+<span class="nc bnc" id="L729" title="All 2 branches missed.">            while (iterator.hasNext()) {</span>
+<span class="nc" id="L730">                Transaction transaction = iterator.next();</span>
+<span class="nc bnc" id="L731" title="All 2 branches missed.">                if (Arrays.equals(transaction.getMedicalOrgIdentifier(), revokedIdentifier)) {</span>
+<span class="nc" id="L732">                    iterator.remove();</span>
+                }
+
+<span class="nc" id="L735">            }</span>
+        }
+<span class="nc" id="L737">    }</span>
+
+    private AuthorityInfo processVote(byte[] voterIdentifier, Vote vote, ArrayList&lt;Vote&gt; myVotes, byte[] myIdentifier, byte[] blockHash) throws IOException {
+
+<span class="nc" id="L741">        boolean isForNewVoting = true;</span>
+<span class="nc" id="L742">        Voting changedAuthorityVoting = null;</span>
+
+<span class="nc bnc" id="L744" title="All 2 branches missed.">        if (vote == null)</span>
+<span class="nc" id="L745">            return null;</span>
+
+<span class="nc bnc" id="L747" title="All 2 branches missed.">        for (Voting voting : currentVotingList) // if voting about the beneficiary already exists cast a vote</span>
+        {
+<span class="nc bnc" id="L749" title="All 2 branches missed.">            if (voting.getBeneficiary().equals(vote.getBeneficiary())) {</span>
+<span class="nc" id="L750">                isForNewVoting = false;</span>
+<span class="nc bnc" id="L751" title="All 2 branches missed.">                if (vote.isAgree())</span>
+<span class="nc" id="L752">                    voting.addAgree(voterIdentifier);</span>
+                else
+<span class="nc" id="L754">                    voting.addDisagree(voterIdentifier);</span>
+<span class="nc" id="L755">                changedAuthorityVoting = voting;</span>
+<span class="nc" id="L756">                break;</span>
+            }
+
+<span class="nc" id="L759">        }</span>
+
+        // create new voting
+<span class="nc bnc" id="L762" title="All 2 branches missed.">        if (isForNewVoting) {</span>
+<span class="nc" id="L763">            Voting newVoting = new Voting(vote.getBeneficiary(), vote.isAdd());</span>
+<span class="nc" id="L764">            newVoting.addAgree(voterIdentifier);</span>
+<span class="nc" id="L765">            currentVotingList.add(newVoting);</span>
+<span class="nc" id="L766">            changedAuthorityVoting = newVoting;</span>
+
+        }
+
+<span class="nc bnc" id="L770" title="All 2 branches missed.">        boolean isVotingProcessed = changedAuthorityVoting.getNumAgree() &gt;= getValidationInterval(); // processed means either a new authority is trusted or existing authority is untrusted</span>
+<span class="nc" id="L771">        boolean isVotingRemoved = false;</span>
+<span class="nc bnc" id="L772" title="All 2 branches missed.">        if (isVotingProcessed) {</span>
+<span class="nc" id="L773">            isVotingRemoved = true;</span>
+<span class="nc" id="L774">            currentVotingList.remove(changedAuthorityVoting);</span>
+<span class="nc bnc" id="L775" title="All 2 branches missed.">            if (changedAuthorityVoting.isAdd()) {</span>
+<span class="nc" id="L776">                currentOverallAuthorityIdentifierList.add(changedAuthorityVoting.getBeneficiary().getIdentifier());</span>
+            } else {
+<span class="nc" id="L778">                currentOverallAuthorityIdentifierList.remove(GeneralHelper.getIndexFromArrayList(changedAuthorityVoting.getBeneficiary().getIdentifier(), currentOverallAuthorityIdentifierList));</span>
+<span class="nc" id="L779">                cachedCurrentAuthorityList.remove(changedAuthorityVoting.getBeneficiary().getIdentifier());</span>
+<span class="nc bnc" id="L780" title="All 2 branches missed.">                for (Voting voting : currentVotingList) {</span>
+<span class="nc" id="L781">                    voting.removeDisagree(vote.getBeneficiary().getIdentifier());</span>
+<span class="nc" id="L782">                    voting.removeAgree(vote.getBeneficiary().getIdentifier());</span>
+<span class="nc" id="L783">                }</span>
+            }
+<span class="nc bnc" id="L785" title="All 2 branches missed.">        } else if (changedAuthorityVoting.getNumDisagree() &gt; getTotalAuthorities() - getValidationInterval()) {</span>
+<span class="nc" id="L786">            isVotingRemoved = true;</span>
+<span class="nc" id="L787">            currentVotingList.remove(changedAuthorityVoting);</span>
+        }
+
+<span class="nc bnc" id="L790" title="All 2 branches missed.">        if (isVotingRemoved) {</span>
+<span class="nc bnc" id="L791" title="All 2 branches missed.">            for (int i = 0; i &lt; myVotes.size(); ++i) {</span>
+<span class="nc bnc" id="L792" title="All 2 branches missed.">                if (myVotes.get(i).getBeneficiary().equals(changedAuthorityVoting.getBeneficiary())) {</span>
+<span class="nc bnc" id="L793" title="All 4 branches missed.">                    if(isVotingProcessed||!myVotes.get(i).isAgree()) { // if the related voting is processed or it is removed and this authority tried to disagree with that.</span>
+<span class="nc" id="L794">                        MyVoteDropManager.drop(blockHash, myIdentifier, myVotes.get(i));</span>
+<span class="nc" id="L795">                        myVotes.remove(i);</span>
+                    }
+                    break;
+                }
+
+            }
+        }
+
+<span class="nc bnc" id="L803" title="All 2 branches missed.">        return isVotingProcessed ? changedAuthorityVoting.getBeneficiary() : null;</span>
+    }
+
+    private void removeFromMyVotes(byte[] blockHash, byte[] myIdentifier, AuthorityInfo processedAuthorityInfo, ArrayList&lt;Vote&gt; myVotes) throws IOException {
+<span class="nc bnc" id="L807" title="All 2 branches missed.">        if (processedAuthorityInfo == null)</span>
+<span class="nc" id="L808">            return;</span>
+
+<span class="nc bnc" id="L810" title="All 2 branches missed.">        for (int i = 0; i &lt; myVotes.size(); ++i) {</span>
+<span class="nc" id="L811">            Vote myVote = myVotes.get(i);</span>
+<span class="nc bnc" id="L812" title="All 2 branches missed.">            if (myVote.getBeneficiary().equals(processedAuthorityInfo)) {</span>
+<span class="nc" id="L813">                MyVoteDropManager.drop(blockHash, myIdentifier, myVote);</span>
+<span class="nc" id="L814">                myVotes.remove(i);</span>
+<span class="nc" id="L815">                return;</span>
+            }
+
+        }
+<span class="nc" id="L819">    }</span>
+
+    private boolean removeFromAuthorizationList(MedicalOrgInfo[] authorizedMedicalOrgInfos, ArrayList&lt;MedicalOrgInfo&gt; authorizationList) {
+<span class="nc" id="L822">        boolean removed = false;</span>
+<span class="nc bnc" id="L823" title="All 2 branches missed.">        for (MedicalOrgInfo medicalOrgInfo : authorizedMedicalOrgInfos) {</span>
+<span class="nc" id="L824">            removed = authorizationList.remove(medicalOrgInfo);</span>
+        }
+
+<span class="nc" id="L827">        return removed;</span>
+    }
+
+    private void removeFromRevocationList(byte[][] revokedMedicalOrgIdentifiers, SortedSet&lt;byte[]&gt; revocationList) {
+<span class="nc bnc" id="L831" title="All 2 branches missed.">        for (byte[] identifier : revokedMedicalOrgIdentifiers) {</span>
+<span class="nc" id="L832">            revocationList.remove(identifier);</span>
+        }
+<span class="nc" id="L834">    }</span>
+
+    private void removeFromPatientInfoList(PatientInfo[] patientInfos, ArrayList&lt;PatientInfo&gt; patientInfoList) {
+<span class="nc bnc" id="L837" title="All 2 branches missed.">        for (PatientInfo patientInfo : patientInfos) {</span>
+<span class="nc" id="L838">            patientInfoList.remove(patientInfo);</span>
+        }
+<span class="nc" id="L840">    }</span>
+
+    private void removeFromTransactionPool(Transaction[] transactions, ArrayList&lt;Transaction&gt; transactionPool) {
+<span class="nc bnc" id="L843" title="All 2 branches missed.">        for (Transaction transaction : transactions) {</span>
+<span class="nc" id="L844">            transactionPool.remove(transaction);</span>
+        }
+<span class="nc" id="L846">    }</span>
+
+    public void initializeChainWithBestChain(ArrayList&lt;Transaction&gt; transactionPool, ArrayList&lt;Vote&gt; myVotes, ArrayList&lt;MedicalOrgInfo&gt; authorizationList, SortedSet&lt;byte[]&gt; revocationList, ArrayList&lt;PatientInfo&gt; patientInfoList, byte[] myIdentifier) throws Exception {
+
+<span class="nc bnc" id="L850" title="All 2 branches missed.">        if (cachedCurrentChain.size() != 0)</span>
+<span class="nc" id="L851">            throw new Exception(&quot;The chain is not empty&quot;);</span>
+
+<span class="nc" id="L853">        Status bestChainStatus = BestChainInfoManager.load();</span>
+<span class="nc" id="L854">        byte[] bestChainHeadBlockHash = bestChainStatus.getLatestBlockHash();</span>
+<span class="nc" id="L855">        Block bestChainHeadBlock = BlockManager.loadBlock(bestChainHeadBlockHash);</span>
+<span class="nc" id="L856">        currentOverallAuthorityIdentifierList = AuthorityInfoManager.loadOverall(bestChainHeadBlock.calculateHash());</span>
+<span class="nc" id="L857">        currentVotingList = VotingManager.load(bestChainHeadBlockHash);</span>
+<span class="nc" id="L858">        cachedCurrentChain.add(bestChainHeadBlock);</span>
+<span class="nc" id="L859">        totalScore = bestChainStatus.getTotalScore();</span>
+
+
+<span class="nc bnc" id="L862" title="All 2 branches missed.">        for (int i = 0; i &lt; transactionPool.size(); ++i) {</span>
+<span class="nc bnc" id="L863" title="All 2 branches missed.">            if (!checkTransaction(transactionPool.get(i))) {</span>
+<span class="nc" id="L864">                transactionPool.remove(i);</span>
+<span class="nc" id="L865">                --i;</span>
+            }
+        }
+
+
+<span class="nc bnc" id="L870" title="All 2 branches missed.">        for (int i = 0; i &lt; myVotes.size(); ++i) {</span>
+<span class="nc bnc" id="L871" title="All 2 branches missed.">            if (!checkVote(myIdentifier, myVotes.get(i))) {</span>
+<span class="nc" id="L872">                myVotes.remove(i);</span>
+<span class="nc" id="L873">                --i;</span>
+            }
+        }
+
+<span class="nc bnc" id="L877" title="All 2 branches missed.">        for (int i = 0; i &lt; authorizationList.size(); ++i) {</span>
+<span class="nc bnc" id="L878" title="All 2 branches missed.">            if (hasMedicalOrg(authorizationList.get(i).getIdentifier())) {</span>
+<span class="nc" id="L879">                authorizationList.remove(i);</span>
+<span class="nc" id="L880">                --i;</span>
+            }
+        }
+
+
+<span class="nc" id="L885">        Iterator&lt;byte[]&gt; iterator = revocationList.iterator();</span>
+<span class="nc bnc" id="L886" title="All 2 branches missed.">        while (iterator.hasNext()) {</span>
+<span class="nc bnc" id="L887" title="All 2 branches missed.">            if (!hasMedicalOrg(iterator.next())) {</span>
+<span class="nc" id="L888">                iterator.remove();</span>
+            }
+        }
+
+
+<span class="nc bnc" id="L893" title="All 2 branches missed.">        for (int i = 0; i &lt; patientInfoList.size(); ++i) {</span>
+<span class="nc bnc" id="L894" title="All 2 branches missed.">            if (PatientInfoManager.patientInfoExists(bestChainHeadBlockHash, patientInfoList.get(i).getPatientIdentifier(), patientInfoList.get(i).calculateInfoHash())) {</span>
+<span class="nc" id="L895">                patientInfoList.remove(i);</span>
+<span class="nc" id="L896">                --i;</span>
+            }
+        }
+
+
+<span class="nc" id="L901">    }</span>
+
+
+    public void loadCurrentBest(ArrayList&lt;Transaction&gt; transactionPool, ArrayList&lt;Vote&gt; myVotes, ArrayList&lt;MedicalOrgInfo&gt; authorizationList, SortedSet&lt;byte[]&gt; revocationList, ArrayList&lt;PatientInfo&gt; patientInfoList, byte[] myIdentifier) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+
+
+<span class="nc" id="L907">        Status bestChainStatus = BestChainInfoManager.load();</span>
+
+<span class="nc" id="L909">        byte[] bestChainHeadBlockHash = bestChainStatus.getLatestBlockHash();</span>
+<span class="nc" id="L910">        byte[] myLatestBlockHash = getLatestBlockHash();</span>
+
+<span class="nc bnc" id="L912" title="All 2 branches missed.">        if (Arrays.equals(bestChainHeadBlockHash, myLatestBlockHash))</span>
+<span class="nc" id="L913">            return;</span>
+
+<span class="nc" id="L915">        Block bestChainHeadBlock = BlockManager.loadBlock(bestChainHeadBlockHash);</span>
+<span class="nc bnc" id="L916" title="All 2 branches missed.">        if (isNextBlock(bestChainHeadBlock))     // maybe delete ****</span>
+        {
+<span class="nc bnc" id="L918" title="All 2 branches missed.">            if (checkNextBlock(bestChainHeadBlock, transactionPool))</span>
+<span class="nc" id="L919">                addBlock(bestChainHeadBlock, transactionPool, myVotes, authorizationList, revocationList, patientInfoList, myIdentifier);</span>
+        }
+
+
+<span class="nc" id="L923">        ChainInfo myLatestBlockChainInfo = ChainInfoManager.load(myLatestBlockHash);</span>
+
+<span class="nc bnc" id="L925" title="All 2 branches missed.">        if (myLatestBlockChainInfo.isBestChain()) {</span>
+<span class="nc" id="L926">            Stack&lt;Block&gt; blockCollection = new Stack&lt;&gt;();</span>
+
+
+<span class="nc" id="L929">            Block processingBlock = bestChainHeadBlock;</span>
+<span class="nc" id="L930">            blockCollection.push(bestChainHeadBlock);</span>
+
+<span class="nc bnc" id="L932" title="All 2 branches missed.">            while (!Arrays.equals(processingBlock.getHeader().getPrevHash(), myLatestBlockHash)) {</span>
+<span class="nc" id="L933">                processingBlock = BlockManager.loadBlock(processingBlock.getHeader().getPrevHash());</span>
+<span class="nc" id="L934">                blockCollection.push(processingBlock);</span>
+            }
+
+<span class="nc bnc" id="L937" title="All 2 branches missed.">            while (!blockCollection.empty()) {</span>
+<span class="nc" id="L938">                addBlock(blockCollection.pop(), transactionPool, myVotes, authorizationList, revocationList, patientInfoList, myIdentifier);</span>
+            }
+<span class="nc" id="L940">        } else {</span>
+
+            //roll back
+<span class="nc" id="L943">            Block processingBlock = getLatestBlock();</span>
+<span class="nc" id="L944">            ChainInfo processingBlockChainInfo = myLatestBlockChainInfo;</span>
+
+<span class="nc bnc" id="L946" title="All 2 branches missed.">            while (!processingBlockChainInfo.isBestChain()) {</span>
+
+<span class="nc bnc" id="L948" title="All 2 branches missed.">                if (processingBlock.getHeader().getVote() != null) {</span>
+<span class="nc bnc" id="L949" title="All 2 branches missed.">                    if (Arrays.equals(processingBlock.getHeader().getValidatorIdentifier(), myIdentifier))</span>
+<span class="nc" id="L950">                        myVotes.add(processingBlock.getHeader().getVote());</span>
+                    else {
+<span class="nc" id="L952">                        Vote myDroppedVote = MyVoteDropManager.load(myIdentifier, processingBlock.calculateHash());</span>
+<span class="nc bnc" id="L953" title="All 2 branches missed.">                        if (myDroppedVote != null)</span>
+<span class="nc" id="L954">                            myVotes.add(myDroppedVote);</span>
+<span class="nc" id="L955">                    }</span>
+<span class="nc bnc" id="L956" title="All 2 branches missed.">                } else if (processingBlock.getHeader().getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0) {</span>
+<span class="nc" id="L957">                    ArrayList&lt;Vote&gt; myDroppedVotes = MyVoteDropManager.checkPointLoad(processingBlock.calculateHash(), myIdentifier);</span>
+<span class="nc bnc" id="L958" title="All 2 branches missed.">                    if (myDroppedVotes == null)</span>
+<span class="nc" id="L959">                        throw new FileCorruptionException();</span>
+<span class="nc bnc" id="L960" title="All 2 branches missed.">                    for (Vote myDroppedVote : myDroppedVotes)</span>
+<span class="nc" id="L961">                        myVotes.add(myDroppedVote);</span>
+                }
+
+<span class="nc bnc" id="L964" title="All 2 branches missed.">                if (processingBlock.getContent().getMedicalOrgAuthorizationList() != null) {</span>
+<span class="nc bnc" id="L965" title="All 2 branches missed.">                    if (Arrays.equals(processingBlock.getHeader().getValidatorIdentifier(), myIdentifier))</span>
+<span class="nc" id="L966">                        authorizationList.addAll(Arrays.asList(processingBlock.getContent().getMedicalOrgAuthorizationList()));</span>
+                }
+<span class="nc bnc" id="L968" title="All 2 branches missed.">                if (processingBlock.getContent().getMedicalOrgRevocationList() != null) {</span>
+<span class="nc bnc" id="L969" title="All 2 branches missed.">                    if (Arrays.equals(processingBlock.getHeader().getValidatorIdentifier(), myIdentifier))</span>
+<span class="nc" id="L970">                        revocationList.addAll(Arrays.asList(processingBlock.getContent().getMedicalOrgRevocationList()));</span>
+                }
+<span class="nc bnc" id="L972" title="All 2 branches missed.">                if (processingBlock.getContent().getPatientInfoList() != null) {</span>
+<span class="nc bnc" id="L973" title="All 2 branches missed.">                    if (Arrays.equals(processingBlock.getHeader().getValidatorIdentifier(), myIdentifier))</span>
+<span class="nc" id="L974">                        patientInfoList.addAll(Arrays.asList(processingBlock.getContent().getPatientInfoList()));</span>
+                }
+
+
+<span class="nc bnc" id="L978" title="All 2 branches missed.">                if (processingBlock.getContent().getTransactions() != null) {</span>
+<span class="nc" id="L979">                    transactionPool.addAll(Arrays.asList(processingBlock.getContent().getTransactions()));</span>
+                }
+
+
+<span class="nc" id="L983">                totalScore -= processingBlock.getHeader().getScore();</span>
+<span class="nc" id="L984">                byte[] nextProcessingBlockHash = processingBlock.getHeader().getPrevHash();</span>
+<span class="nc" id="L985">                processingBlockChainInfo = ChainInfoManager.load(nextProcessingBlockHash);</span>
+<span class="nc" id="L986">                processingBlock = BlockManager.loadBlock(nextProcessingBlockHash);</span>
+<span class="nc" id="L987">            }</span>
+
+
+<span class="nc" id="L990">            currentOverallAuthorityIdentifierList = AuthorityInfoManager.loadOverall(processingBlock.calculateHash());</span>
+<span class="nc" id="L991">            currentVotingList = VotingManager.load(processingBlock.calculateHash());</span>
+<span class="nc" id="L992">            cachedCurrentAuthorityList.clear();</span>
+<span class="nc" id="L993">            cachedCurrentMedicalOrgList.clear();</span>
+<span class="nc" id="L994">            cachedCurrentChain.clear();</span>
+
+
+            //at this point processingBlock holds the point where fork happens - it is already processed
+            //add back
+<span class="nc bnc" id="L999" title="All 2 branches missed.">            while (processingBlockChainInfo.getNextBlockHash() != null) {</span>
+<span class="nc" id="L1000">                byte[] nextProcessingBlockHash = processingBlockChainInfo.getNextBlockHash(); //for readibility</span>
+<span class="nc" id="L1001">                processingBlock = BlockManager.loadBlock(nextProcessingBlockHash);</span>
+<span class="nc" id="L1002">                processingBlockChainInfo = ChainInfoManager.load(nextProcessingBlockHash);</span>
+
+<span class="nc" id="L1004">                addBlock(processingBlock, transactionPool, myVotes, authorizationList, revocationList, patientInfoList, myIdentifier);</span>
+
+<span class="nc" id="L1006">            }</span>
+
+        }
+<span class="nc" id="L1009">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

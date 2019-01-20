@@ -12,7 +12,8 @@ public class BlockChainSecurityHelper {
     {
         byte[] hash = new byte[0];
         try {
-            hash = SecurityHelper.hash(SecurityHelper.getCompressedRawECPublicKey( publicKey,Configuration.ELIPTIC_CURVE), Configuration.BLOCKCHAIN_HASH_ALGORITHM);
+            hash = SecurityHelper.hash(SecurityHelper.getCompressedRawECPublicKey(
+                    publicKey,Configuration.ELIPTIC_CURVE), Configuration.BLOCKCHAIN_HASH_ALGORITHM);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }

@@ -1,0 +1,1991 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Validator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">node.validator</a> &gt; <span class="el_source">Validator.java</span></div><h1>Validator.java</h1><pre class="source lang-java linenums">package node.validator;
+
+import java.net.*;
+import java.security.*;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.util.*;
+import java.io.*;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+
+import blockchain.BlockChain;
+import blockchain.internal.ChainInfo;
+import blockchain.Status;
+import blockchain.internal.Voting;
+import blockchain.block.*;
+import blockchain.block.transaction.Transaction;
+import blockchain.manager.*;
+import blockchain.manager.datastructure.Location;
+import blockchain.manager.datastructure.MedicalOrgShortInfo;
+import blockchain.manager.datastructure.PatientShortInfo;
+import blockchain.utility.BlockChainSecurityHelper;
+import blockchain.utility.RawTranslator;
+import config.Configuration;
+import exception.BlockChainObjectParsingException;
+import exception.FileCorruptionException;
+import exception.InvalidBlockChainException;
+import exception.InvalidBlockChainMessageException;
+import general.utility.GeneralHelper;
+import node.ConnectionManager;
+import node.Message;
+import node.PeerInfo;
+import org.bouncycastle.operator.OperatorCreationException;
+import general.security.SecurityHelper;
+import rest.server.exception.BadRequest;
+import rest.server.exception.NotFound;
+
+import javax.net.ssl.*;
+
+
+public class Validator {
+
+    // authorities may have doubt on each other
+    // medical organizations and patients fully trust every authorities
+    // medical organizations and patients may have doubt on each other
+
+
+    // receive block -&gt; if requested and continuous to my current chain -&gt; store and add block -&gt; check if orphan block could be added and add if can
+    //              -&gt; if requested but not continuous to my current chain
+    //               -&gt; if not requested -&gt; if better than the one requested -&gt; store and add block, then, remove requested list
+    //                                  -&gt; if prev block not known -&gt; request for header -&gt; if likely to be better chain than mine and the currently requested one -&gt; request for the blocks
+
+    //better chain greater total score
+
+<span class="nc" id="L62">    private static Validator runningValidator = null;</span>
+
+
+<span class="nc" id="L65">    private Logger blockChainLogger = Logger.getLogger(Validator.class.getName());</span>
+
+    // For validator
+    private SSLServerSocketFactory sslServerSocketFactory;
+    private SSLSocketFactory sslSocketFactory;
+<span class="nc" id="L70">    private final ArrayList&lt;MedicalOrgInfo&gt; medicalOrgAuthorizationList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L71">    private final SortedSet&lt;byte[]&gt; medicalOrgRevocationList = new TreeSet&lt;&gt;(new GeneralHelper.byteArrayComparator());</span>
+<span class="nc" id="L72">    private final ArrayList&lt;PatientInfo&gt; patientInfoList = new ArrayList&lt;&gt;();</span>
+
+    //for any full node
+    private int port;
+    private ECPrivateKey myPrivateKey;
+    private ECPublicKey myPublicKey;
+    private byte[] myIdentifier;
+    private String myName;
+
+<span class="nc" id="L81">    private final BlockChain myMainChain = new BlockChain();</span>
+
+    private SSLServerSocket serverSocket;
+<span class="nc" id="L84">    private final ArrayList&lt;PeerInfo&gt; outBoundConnectionTobeRemoved = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L85">    private final ArrayList&lt;PeerInfo&gt; inBoundConnectionTobeRemoved = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L86">    private final LinkedHashMap&lt;PeerInfo, ConnectionManager&gt; outBoundConnectionList = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L87">    private final LinkedHashMap&lt;PeerInfo, ConnectionManager&gt; inBoundConnectionList = new LinkedHashMap&lt;&gt;();</span>
+
+
+<span class="nc" id="L90">    private ArrayList&lt;ArrayList&lt;BlockHeader&gt;&gt; pendingHeadersList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L91">    private ArrayList&lt;BlockHeader&gt; toBeRequestedHeaders = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L92">    private final ArrayList&lt;BlockHeader&gt; requestedHeaders = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L93">    private BlockHeader latestBlockHeaderRequested = null;</span>
+<span class="nc" id="L94">    private HashMap&lt;BlockHeader, RequestInfo&gt; requestedHeaderMap = new HashMap&lt;&gt;(); // for re-transmission</span>
+<span class="nc" id="L95">    private ArrayList&lt;InetAddress&gt; potentialPeerPool = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L97">    private final ArrayList&lt;Transaction&gt; transactionPool = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L98">    private final ArrayList&lt;Vote&gt; myVotes = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L99">    private final ArrayList&lt;Block&gt; orphanBlockList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L101">    private boolean isTerminated = false;</span>
+
+<span class="nc" id="L103">    private Random rand = new Random();</span>
+
+<span class="nc" id="L105">    private long lastBroadCastHeadersRequestTime = -1;</span>
+
+    // Lock
+<span class="nc" id="L108">    private static final ReentrantReadWriteLock chainInfoFilesLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L109">    private final ReentrantReadWriteLock myChainLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L110">    private final ReentrantReadWriteLock pendingHeadersListLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L111">    private final ReentrantReadWriteLock toBeRequestedHeadersLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L112">    private final ReentrantReadWriteLock requestedHeaderLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L113">    private final ReentrantReadWriteLock orphanBlockLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L114">    private final ReentrantReadWriteLock transactionLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L115">    private final ReentrantReadWriteLock connectionLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L116">    private final ReentrantReadWriteLock potentialPeerLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L117">    private final ReentrantReadWriteLock myVotesLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L118">    private final ReentrantReadWriteLock registrationLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L119">    private final ReentrantReadWriteLock authorizationLock = new ReentrantReadWriteLock();</span>
+<span class="nc" id="L120">    private final ReentrantReadWriteLock revocationLock = new ReentrantReadWriteLock();</span>
+
+
+    private class RequestInfo {
+
+        long timeRequested;
+        long timeFirstRequested;
+        int sentToIndex;
+
+<span class="nc" id="L129">        private RequestInfo(int sentToIndex, long timeRequested) {</span>
+<span class="nc" id="L130">            this.sentToIndex = sentToIndex;</span>
+<span class="nc" id="L131">            this.timeRequested = timeRequested;</span>
+<span class="nc" id="L132">            this.timeFirstRequested = timeRequested;</span>
+<span class="nc" id="L133">        }</span>
+    }
+
+    public static Validator create(KeyStore connectionKeyStore, char[] connectionKeyStorePassword, KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName) throws Exception {
+<span class="nc" id="L137">        return new Validator(connectionKeyStore, connectionKeyStorePassword, signingKeyStore, signingKeyStorePassword</span>
+                , port, logFileName);
+    }
+
+    public static Validator getRunningValidator() {
+<span class="nc" id="L142">        return runningValidator;</span>
+    }
+
+    public Logger getBlockChainLogger() {
+<span class="nc" id="L146">        return this.blockChainLogger;</span>
+    }
+
+
+    public void start(InetAddress[] initialPeerNodes) throws Exception {
+
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (runningValidator == null) {</span>
+
+<span class="nc" id="L154">            runningValidator = this;</span>
+
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            if (initialPeerNodes != null)</span>
+<span class="nc" id="L157">                connectWithPeers(initialPeerNodes);</span>
+
+<span class="nc" id="L159">            startAcceptingConnectionRequest(port);</span>
+<span class="nc" id="L160">            System.out.println(&quot;startAcceptingConnectionRequest called&quot;);//## for debug</span>
+
+<span class="nc" id="L162">            startRequestingPeerNodes();</span>
+<span class="nc" id="L163">            System.out.println(&quot;startRequestingPeerNodes called&quot;);//## for debug</span>
+
+<span class="nc" id="L165">            startRequestingConnection();</span>
+<span class="nc" id="L166">            System.out.println(&quot;startRequestingConnection called&quot;);//## for debug</span>
+
+<span class="nc" id="L168">            startRequestingBlocksAndBlockHeaders();</span>
+<span class="nc" id="L169">            System.out.println(&quot;startRequestingBlockHeaders called&quot;);//## for debug</span>
+
+<span class="nc" id="L171">            startValidation();</span>
+<span class="nc" id="L172">            System.out.println(&quot;startValidation called&quot;);//## for debug</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        } else if (runningValidator != this) {</span>
+<span class="nc" id="L174">            throw new Exception(&quot;A validator is already running, please shutdown the running validator to start it&quot;);</span>
+        }
+<span class="nc" id="L176">    }</span>
+
+    public boolean shutdown() {
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        if (runningValidator == this) {</span>
+<span class="nc" id="L180">            System.out.println(&quot;shutdown from validator start&quot;);</span>
+<span class="nc" id="L181">            ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L182">            readMyChainLock.lock();</span>
+<span class="nc" id="L183">            isTerminated = true;</span>
+<span class="nc" id="L184">            readMyChainLock.unlock();</span>
+<span class="nc" id="L185">            System.out.println(&quot;shutdown from validator end&quot;);</span>
+<span class="nc" id="L186">            runningValidator = null;</span>
+<span class="nc" id="L187">            return true;</span>
+        } else {
+<span class="nc" id="L189">            return false;</span>
+        }
+    }
+
+
+<span class="nc" id="L194">    private Validator(KeyStore connectionKeyStore, char[] connectionKeyStorePassword, KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName) throws Exception {</span>
+<span class="nc" id="L195">        this.port = port;</span>
+
+<span class="nc" id="L197">        KeyStore.PrivateKeyEntry entry = (KeyStore.PrivateKeyEntry) signingKeyStore.getEntry(Configuration.SIGNING_KEYSTORE_ALIAS, new KeyStore.PasswordProtection(signingKeyStorePassword));</span>
+<span class="nc" id="L198">        this.myPrivateKey = (ECPrivateKey) entry.getPrivateKey();</span>
+<span class="nc" id="L199">        this.myPublicKey = (ECPublicKey) entry.getCertificateChain()[0].getPublicKey();</span>
+<span class="nc" id="L200">        this.myIdentifier = BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(myPublicKey);</span>
+<span class="nc" id="L201">        this.myName = SecurityHelper.getSubjectCNFromX509Certificate((X509Certificate) entry.getCertificateChain()[0]);</span>
+
+<span class="nc" id="L203">        initializeSocketFactories(connectionKeyStore, connectionKeyStorePassword);</span>
+<span class="nc" id="L204">        System.out.println(&quot;Initialized SSL socket Factories&quot;);</span>
+
+<span class="nc" id="L206">        myMainChain.initializeChainWithBestChain(transactionPool, myVotes, medicalOrgAuthorizationList, medicalOrgRevocationList, patientInfoList, myIdentifier);</span>
+<span class="nc" id="L207">        System.out.println(&quot;Chain successfully loaded.\nCurrent latest block hash: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L208">                + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber() + &quot;\nScore: &quot; + myMainChain.getTotalScore());//## for debug</span>
+<span class="nc" id="L209">        blockChainLogger.info(&quot;Chain successfully loaded.\nCurrent latest block hash: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L210">                + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber() + &quot;\nScore: &quot; + myMainChain.getTotalScore());</span>
+
+
+<span class="nc" id="L213">        FileHandler blockChainLogFileHandler = new FileHandler(logFileName, true);</span>
+<span class="nc" id="L214">        SimpleFormatter formatter = new SimpleFormatter();</span>
+<span class="nc" id="L215">        blockChainLogger.addHandler(blockChainLogFileHandler);</span>
+<span class="nc" id="L216">        blockChainLogger.setUseParentHandlers(false);</span>
+<span class="nc" id="L217">        blockChainLogFileHandler.setFormatter(formatter);</span>
+
+<span class="nc" id="L219">    }</span>
+
+    //cert chain = {cert for tls | cert of authority or medical org}
+    private void initializeSocketFactories(KeyStore keyStore, char[] password) throws KeyStoreException, UnrecoverableKeyException, NoSuchAlgorithmException, KeyManagementException {
+
+<span class="nc" id="L224">        TrustManager[] trustManagers = new TrustManager[]{</span>
+<span class="nc" id="L225">                new X509TrustManager() {</span>
+                    public X509Certificate[] getAcceptedIssuers() {
+<span class="nc" id="L227">                        return new X509Certificate[0];</span>
+                    }
+
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException {
+
+<span class="nc" id="L232">                        ArrayList&lt;Lock&gt; usingLockList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L233">                        ReadLock myChainReadLock = myChainLock.readLock();</span>
+
+                        try {
+<span class="nc" id="L236">                            System.out.println(&quot;Start checking client's cert&quot;);</span>
+
+<span class="nc bnc" id="L238" title="All 2 branches missed.">                            for (X509Certificate cert : certs) {</span>
+<span class="nc" id="L239">                                cert.checkValidity();</span>
+                            }
+
+<span class="nc bnc" id="L242" title="All 2 branches missed.">                            if (certs.length != 2)</span>
+<span class="nc" id="L243">                                throw new CertificateException(&quot;Not sufficient chain length&quot;);</span>
+
+<span class="nc bnc" id="L245" title="All 2 branches missed.">                            if (certs[1].getPublicKey().equals(myPublicKey))  //##################### need to check</span>
+<span class="nc" id="L246">                                throw new CertificateException(&quot;It's me&quot;);</span>
+
+<span class="nc bnc" id="L248" title="All 2 branches missed.">                            if (certs[0].getKeyUsage()[5])</span>
+<span class="nc" id="L249">                                throw new CertificateException(&quot;The certificate is for signing&quot;);</span>
+
+<span class="nc" id="L251">                            GeneralHelper.lockForMe(usingLockList, myChainReadLock);</span>
+<span class="nc" id="L252">                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);</span>
+<span class="nc" id="L253">                            boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);</span>
+<span class="nc" id="L254">                            AuthorityInfo issuerInfo = null;</span>
+<span class="nc bnc" id="L255" title="All 2 branches missed.">                            if (hasIssuedAuthority)</span>
+<span class="nc" id="L256">                                issuerInfo = myMainChain.getAuthority(issuedAuthorityIdentifier);</span>
+<span class="nc" id="L257">                            GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc bnc" id="L259" title="All 2 branches missed.">                            if (issuerInfo != null) {</span>
+                                try {
+<span class="nc" id="L261">                                    certs[1].verify(issuerInfo.getPublicKey());</span>
+<span class="nc" id="L262">                                } catch (SignatureException | NoSuchProviderException | NoSuchAlgorithmException | InvalidKeyException e) {</span>
+<span class="nc" id="L263">                                    throw new CertificateException(&quot;The signing cert isn't issued by the issuer&quot;);</span>
+<span class="nc" id="L264">                                }</span>
+
+                                try {
+<span class="nc" id="L267">                                    certs[0].verify(certs[1].getPublicKey());</span>
+<span class="nc" id="L268">                                } catch (SignatureException | NoSuchProviderException | NoSuchAlgorithmException | InvalidKeyException e) {</span>
+<span class="nc" id="L269">                                    throw new CertificateException(&quot;The connection cert isn't issued by the issuer&quot;);</span>
+<span class="nc" id="L270">                                }</span>
+
+                            } else
+<span class="nc" id="L273">                                throw new CertificateException(&quot;The signing cert's issuer is not a valid authority&quot;);</span>
+
+<span class="nc" id="L275">                            System.out.println(&quot;Finished checking client's cert&quot;);</span>
+<span class="nc" id="L276">                        } catch (CertificateException e) {</span>
+<span class="nc" id="L277">                            throw e;</span>
+<span class="nc" id="L278">                        } catch (Exception e) {</span>
+<span class="nc" id="L279">                            throw new CertificateException(&quot;Not valid chain&quot;);</span>
+                        } finally {
+<span class="nc" id="L281">                            GeneralHelper.unLockForMe(usingLockList);</span>
+                        }
+<span class="nc" id="L283">                    }</span>
+
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException {
+
+<span class="nc" id="L287">                        ArrayList&lt;Lock&gt; usingLockList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L288">                        ReadLock myChainReadLock = myChainLock.readLock();</span>
+
+                        try {
+<span class="nc" id="L291">                            System.out.println(&quot;Start checking client's cert&quot;);</span>
+
+<span class="nc bnc" id="L293" title="All 2 branches missed.">                            for (X509Certificate cert : certs) {</span>
+<span class="nc" id="L294">                                cert.checkValidity();</span>
+                            }
+
+<span class="nc bnc" id="L297" title="All 2 branches missed.">                            if (certs.length != 2)</span>
+<span class="nc" id="L298">                                throw new CertificateException(&quot;Not sufficient chain length&quot;);</span>
+
+<span class="nc bnc" id="L300" title="All 2 branches missed.">                            if (certs[1].getPublicKey().equals(myPublicKey))</span>
+<span class="nc" id="L301">                                throw new CertificateException(&quot;It's me&quot;);</span>
+
+<span class="nc bnc" id="L303" title="All 2 branches missed.">                            if (certs[0].getKeyUsage()[5])</span>
+<span class="nc" id="L304">                                throw new CertificateException(&quot;The certificate is for signing&quot;);</span>
+
+<span class="nc" id="L306">                            GeneralHelper.lockForMe(usingLockList, myChainReadLock);</span>
+<span class="nc" id="L307">                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);</span>
+<span class="nc" id="L308">                            boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);</span>
+<span class="nc" id="L309">                            AuthorityInfo issuerInfo = null;</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">                            if (hasIssuedAuthority)</span>
+<span class="nc" id="L311">                                issuerInfo = myMainChain.getAuthority(issuedAuthorityIdentifier);</span>
+<span class="nc" id="L312">                            GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc bnc" id="L314" title="All 2 branches missed.">                            if (issuerInfo != null) {</span>
+                                try {
+<span class="nc" id="L316">                                    certs[1].verify(issuerInfo.getPublicKey());</span>
+<span class="nc" id="L317">                                } catch (SignatureException | NoSuchProviderException | NoSuchAlgorithmException | InvalidKeyException e) {</span>
+<span class="nc" id="L318">                                    throw new CertificateException(&quot;The signing cert isn't issued by the issuer&quot;);</span>
+<span class="nc" id="L319">                                }</span>
+
+                                try {
+<span class="nc" id="L322">                                    certs[0].verify(certs[1].getPublicKey());</span>
+<span class="nc" id="L323">                                } catch (SignatureException | NoSuchProviderException | NoSuchAlgorithmException | InvalidKeyException e) {</span>
+<span class="nc" id="L324">                                    throw new CertificateException(&quot;The connection cert isn't issued by the issuer&quot;);</span>
+<span class="nc" id="L325">                                }</span>
+
+                            } else
+<span class="nc" id="L328">                                throw new CertificateException(&quot;The signing cert's issuer is not a valid authority&quot;);</span>
+
+<span class="nc" id="L330">                            System.out.println(&quot;Finished checking client's cert&quot;);</span>
+<span class="nc" id="L331">                        } catch (CertificateException e) {</span>
+<span class="nc" id="L332">                            throw e;</span>
+<span class="nc" id="L333">                        } catch (Exception e) {</span>
+<span class="nc" id="L334">                            throw new CertificateException(&quot;Not valid chain&quot;);</span>
+                        } finally {
+<span class="nc" id="L336">                            GeneralHelper.unLockForMe(usingLockList);</span>
+                        }
+<span class="nc" id="L338">                    }</span>
+                }
+        };
+
+<span class="nc" id="L342">        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(&quot;SunX509&quot;);</span>
+<span class="nc" id="L343">        keyManagerFactory.init(keyStore, password);</span>
+<span class="nc" id="L344">        SSLContext sslContext = SSLContext.getInstance(&quot;TLSv1.2&quot;);</span>
+<span class="nc" id="L345">        sslContext.init(keyManagerFactory.getKeyManagers(), trustManagers, null);</span>
+
+<span class="nc" id="L347">        sslServerSocketFactory = sslContext.getServerSocketFactory();</span>
+<span class="nc" id="L348">        sslSocketFactory = sslContext.getSocketFactory();</span>
+<span class="nc" id="L349">    }</span>
+
+
+    private void removeFromConnectionList(PeerInfo peerInfo) {
+<span class="nc bnc" id="L353" title="All 2 branches missed.">        if (peerInfo == null)</span>
+<span class="nc" id="L354">            return;</span>
+
+
+<span class="nc" id="L357">        outBoundConnectionTobeRemoved.remove(peerInfo);</span>
+<span class="nc" id="L358">        inBoundConnectionTobeRemoved.remove(peerInfo);</span>
+
+<span class="nc" id="L360">        ConnectionManager connectionManager = null;</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">        if (inBoundConnectionList.containsKey(peerInfo)) {</span>
+<span class="nc" id="L362">            connectionManager = inBoundConnectionList.remove(peerInfo);</span>
+<span class="nc" id="L363">            connectionManager.close();</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">        } else if (outBoundConnectionList.containsKey(peerInfo)) {</span>
+<span class="nc" id="L365">            connectionManager = outBoundConnectionList.remove(peerInfo);</span>
+<span class="nc" id="L366">            connectionManager.close();</span>
+        }
+
+<span class="nc bnc" id="L369" title="All 2 branches missed.">        if (connectionManager != null) {</span>
+
+<span class="nc" id="L371">            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Successful disconnection&quot;);</span>
+<span class="nc" id="L372">            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Successful disconnection&quot;); //## for debug</span>
+        }
+<span class="nc" id="L374">    }</span>
+
+    private void connectWithPeers(InetAddress[] peers) {
+
+
+<span class="nc bnc" id="L379" title="All 2 branches missed.">        for (InetAddress peer : peers) {</span>
+            try {
+<span class="nc" id="L381">                SSLSocket newConnection = (SSLSocket) sslSocketFactory.createSocket(peer, Configuration.NODE_SERVER_PORT);</span>
+<span class="nc" id="L382">                newConnection.setEnabledCipherSuites(Configuration.CONNECTION_TLS_CIPHER_SUITE);</span>
+<span class="nc" id="L383">                newConnection.setSoTimeout(5000);</span>
+<span class="nc" id="L384">                newConnection.addHandshakeCompletedListener((ex) -&gt; {</span>
+<span class="nc" id="L385">                            verifyAndHandleConnection(newConnection, true);</span>
+<span class="nc" id="L386">                        }</span>
+                );
+<span class="nc" id="L388">                newConnection.startHandshake();</span>
+
+<span class="nc" id="L390">            } catch (IOException e) {</span>
+<span class="nc" id="L391">                blockChainLogger.info(peer.getHostAddress() + &quot;: Not responding&quot;);</span>
+<span class="nc" id="L392">                System.out.println(peer.getHostAddress() + &quot;: Not responding&quot;); //for debug</span>
+<span class="nc" id="L393">            }</span>
+
+        }
+
+
+<span class="nc" id="L398">    }</span>
+
+    private void startAcceptingConnectionRequest(int server_port) throws IOException {
+
+
+<span class="nc" id="L403">        serverSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(server_port, 500);</span>
+<span class="nc" id="L404">        serverSocket.setEnabledCipherSuites(Configuration.CONNECTION_TLS_CIPHER_SUITE);</span>
+<span class="nc" id="L405">        serverSocket.setNeedClientAuth(true);</span>
+<span class="nc" id="L406">        new Thread(() -&gt; {</span>
+<span class="nc bnc" id="L407" title="All 2 branches missed.">            while (!isTerminated) {</span>
+                try {
+<span class="nc" id="L409">                    SSLSocket newConnection = (SSLSocket) serverSocket.accept();</span>
+<span class="nc" id="L410">                    newConnection.setSoTimeout(5000);</span>
+<span class="nc" id="L411">                    newConnection.addHandshakeCompletedListener((ex) -&gt; {</span>
+<span class="nc" id="L412">                        verifyAndHandleConnection(newConnection, false);</span>
+<span class="nc" id="L413">                    });</span>
+<span class="nc" id="L414">                    newConnection.startHandshake();</span>
+<span class="nc" id="L415">                } catch (IOException e) {</span>
+<span class="nc" id="L416">                    blockChainLogger.info(&quot;Server Socket accept error&quot;);</span>
+<span class="nc" id="L417">                    e.printStackTrace(); //for debug</span>
+<span class="nc" id="L418">                }</span>
+            }
+<span class="nc" id="L420">        }).start();</span>
+
+<span class="nc" id="L422">    }</span>
+
+    private void verifyAndHandleConnection(SSLSocket newConnection, boolean isOutBound) {
+<span class="nc" id="L425">        new Thread(() -&gt; {</span>
+
+<span class="nc" id="L427">            PeerInfo peerInfo = null;</span>
+<span class="nc" id="L428">            WriteLock writeConnectionLock = connectionLock.writeLock();</span>
+<span class="nc" id="L429">            ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L430">            ArrayList&lt;Lock&gt; usingLockList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L432">            try (newConnection) {</span>
+
+<span class="nc" id="L434">                ECPublicKey peerPublicKey = (ECPublicKey) newConnection.getSession().getPeerCertificates()[1].getPublicKey();</span>
+<span class="nc" id="L435">                byte[] connectionRequesterIdentifier = BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(peerPublicKey);</span>
+
+<span class="nc bnc" id="L437" title="All 2 branches missed.">                if (Arrays.equals(connectionRequesterIdentifier, myIdentifier))</span>
+<span class="nc" id="L438">                    return;</span>
+
+<span class="nc" id="L440">                byte[] issuerKeyIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert((X509Certificate) newConnection.getSession().getPeerCertificates()[1]);</span>
+
+
+<span class="nc" id="L443">                GeneralHelper.lockForMe(usingLockList, readMyChainLock, writeConnectionLock);</span>
+
+                // signature checked during handshake
+<span class="nc bnc" id="L446" title="All 2 branches missed.">                if (!myMainChain.hasAuthority(issuerKeyIdentifier))</span>
+<span class="nc" id="L447">                    return;</span>
+
+<span class="nc" id="L449">                boolean isAuthorizedMedicalOrg = myMainChain.hasMedicalOrg(connectionRequesterIdentifier);</span>
+<span class="nc" id="L450">                boolean isAuthority = Arrays.equals(issuerKeyIdentifier, connectionRequesterIdentifier);</span>
+<span class="nc" id="L451">                Message myStatusMessage = new Message(Configuration.MESSAGE_STATUS, myMainChain.getCurrentStatus().getRaw());</span>
+
+<span class="nc" id="L453">                peerInfo = new PeerInfo(connectionRequesterIdentifier, issuerKeyIdentifier);</span>
+
+<span class="nc bnc" id="L455" title="All 2 branches missed.">                if (checkIfConnectionExists(peerInfo)) {</span>
+<span class="nc" id="L456">                    GeneralHelper.unLockForMe(usingLockList);</span>
+<span class="nc" id="L457">                    newConnection.close();</span>
+<span class="nc" id="L458">                    blockChainLogger.info(newConnection.getInetAddress().getHostAddress() + &quot;: Connection already exists&quot;);</span>
+<span class="nc" id="L459">                    System.out.println(newConnection.getInetAddress().getHostAddress() + &quot;: Connection already exists&quot;); //for debug</span>
+<span class="nc" id="L460">                    return;</span>
+                }
+
+                boolean isConfirmed;
+<span class="nc bnc" id="L464" title="All 4 branches missed.">                if (!(isAuthorizedMedicalOrg || isAuthority)) {</span>
+<span class="nc" id="L465">                    isConfirmed = false;</span>
+<span class="nc bnc" id="L466" title="All 2 branches missed.">                    if (System.currentTimeMillis() - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) &lt; Configuration.SYNC_PERIOD) {</span>
+<span class="nc" id="L467">                        GeneralHelper.unLockForMe(usingLockList);</span>
+<span class="nc" id="L468">                        newConnection.close();</span>
+<span class="nc" id="L469">                        blockChainLogger.info(newConnection.getInetAddress().getHostAddress() + &quot;: Neither authorized medical org nor trusted authority&quot;);</span>
+<span class="nc" id="L470">                        System.out.println(newConnection.getInetAddress().getHostAddress() + &quot;: Neither authorized medical org nor trusted authority&quot;); //for debug</span>
+<span class="nc" id="L471">                        return;</span>
+                    }
+                } else {
+<span class="nc" id="L474">                    isConfirmed = true;</span>
+                }
+
+<span class="nc" id="L477">                ConnectionManager newConnectionManager = new ConnectionManager(newConnection, isConfirmed);</span>
+<span class="nc bnc" id="L478" title="All 2 branches missed.">                if (!isOutBound) {</span>
+<span class="nc" id="L479">                    inBoundConnectionList.put(peerInfo, newConnectionManager);</span>
+                } else {
+<span class="nc" id="L481">                    outBoundConnectionList.put(peerInfo, newConnectionManager);</span>
+                }
+
+<span class="nc" id="L484">                GeneralHelper.unLockForMe(usingLockList);</span>
+
+
+<span class="nc" id="L487">                System.out.println(&quot;Connected to &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress());</span>
+
+<span class="nc" id="L489">                Status peerStatus = null;</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">                if (isOutBound) {</span>
+<span class="nc" id="L491">                    newConnectionManager.write(myStatusMessage);</span>
+<span class="nc" id="L492">                    blockChainLogger.info(&quot;Sent status: &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress());</span>
+<span class="nc" id="L493">                    System.out.println(&quot;Sent status to &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress()); //## debug</span>
+<span class="nc" id="L494">                    peerStatus = (Status) newConnectionManager.read().parse();</span>
+<span class="nc" id="L495">                    blockChainLogger.info(&quot;Received status: &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress());</span>
+<span class="nc" id="L496">                    System.out.println(&quot;Received status from &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress()); //## debug</span>
+
+                } else {
+<span class="nc" id="L499">                    peerStatus = (Status) newConnectionManager.read().parse();</span>
+<span class="nc" id="L500">                    blockChainLogger.info(&quot;Received status: &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress());</span>
+<span class="nc" id="L501">                    System.out.println(&quot;Received status: &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress()); //## debug</span>
+<span class="nc" id="L502">                    newConnectionManager.write(myStatusMessage);</span>
+<span class="nc" id="L503">                    blockChainLogger.info(&quot;Sent status: &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress());</span>
+<span class="nc" id="L504">                    System.out.println(&quot;Sent status to &quot; + newConnectionManager.getSocket().getInetAddress().getHostAddress()); //## debug</span>
+                }
+
+<span class="nc" id="L507">                newConnectionManager.getSocket().setSoTimeout(0);</span>
+<span class="nc" id="L508">                startHandleConnection(newConnectionManager, peerInfo, peerStatus, isOutBound);</span>
+
+<span class="nc" id="L510">            } catch (Exception e) {</span>
+<span class="nc" id="L511">                e.printStackTrace();</span>
+            } finally {
+<span class="nc" id="L513">                GeneralHelper.unLockForMe(usingLockList);</span>
+            }
+
+
+<span class="nc" id="L517">            GeneralHelper.lockForMe(usingLockList, writeConnectionLock);</span>
+
+<span class="nc" id="L519">            removeFromConnectionList(peerInfo);</span>
+
+<span class="nc" id="L521">            GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L523">        }).start();</span>
+<span class="nc" id="L524">    }</span>
+
+    // if exception, just disconnect
+    private void startHandleConnection(ConnectionManager connectionManager, PeerInfo peerInfo, Status peerStatus, boolean isOutBound) {
+
+        /*Message number
+         * 0: status
+         * 1: peer nodes list request
+         * 2: block header request - byte[][] hash locator - from greater height to smaller height - dense to sparse
+         * 3: block request - content =byte[] blockHash
+         * 4: peer node list
+         * 5: block header list - from smaller height to greater height
+         * 6: transaction
+         * 7: block
+         * */
+
+
+        //chain info
+
+<span class="nc" id="L543">        WriteLock writeChainInfoFilesLock = chainInfoFilesLock.writeLock();</span>
+
+        //chain
+<span class="nc" id="L546">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L547">        WriteLock writeMyChainLock = myChainLock.writeLock();</span>
+
+        //potential peer
+<span class="nc" id="L550">        WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();</span>
+
+        //transaction
+<span class="nc" id="L553">        WriteLock writeTransactionLock = transactionLock.writeLock();</span>
+
+        //pending header
+<span class="nc" id="L556">        WriteLock writePendingHeadersLock = pendingHeadersListLock.writeLock();</span>
+
+        //to be requested header
+<span class="nc" id="L559">        WriteLock writePendingHeaderLock = toBeRequestedHeadersLock.writeLock();</span>
+
+        //requested header
+<span class="nc" id="L562">        WriteLock writeRequestedHeaderLock = requestedHeaderLock.writeLock();</span>
+
+        //orphan
+<span class="nc" id="L565">        WriteLock writeOrphanBlockLock = orphanBlockLock.writeLock();</span>
+
+        //vote
+<span class="nc" id="L568">        WriteLock writeVoteLock = myVotesLock.writeLock();</span>
+
+        //registration
+<span class="nc" id="L571">        WriteLock writeRegistrationLock = registrationLock.writeLock();</span>
+
+        //authorization
+<span class="nc" id="L574">        WriteLock writeAuthorizationLock = authorizationLock.writeLock();</span>
+
+        //revocation
+<span class="nc" id="L577">        WriteLock writeRevocationLock = revocationLock.writeLock();</span>
+
+        //connection
+<span class="nc" id="L580">        ReadLock readConnectionLock = connectionLock.readLock();</span>
+
+
+<span class="nc" id="L583">        System.out.println(&quot;startHandleConnection entered&quot;); //debug</span>
+
+
+<span class="nc" id="L586">        ArrayList&lt;Lock&gt; usingLockList = new ArrayList&lt;&gt;();</span>
+        try {
+            //send peer list right after connection establishment
+
+<span class="nc" id="L590">            GeneralHelper.lockForMe(usingLockList, readConnectionLock);</span>
+
+<span class="nc" id="L592">            InetAddress[] peerAddresses = getPeerList(peerInfo);</span>
+
+<span class="nc bnc" id="L594" title="All 4 branches missed.">            if (peerAddresses != null &amp;&amp; peerAddresses.length != 0)</span>
+<span class="nc" id="L595">                connectionManager.write(new Message(Configuration.MESSAGE_PEER_NODE_LIST, RawTranslator.translateAddressesToBytes(peerAddresses)));</span>
+
+            //check if pool reached max
+<span class="nc bnc" id="L598" title="All 2 branches missed.">            if (!isOutBound) {</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">                if (inBoundConnectionList.size() - inBoundConnectionTobeRemoved.size() &gt; Configuration.MAX_IN_BOUND_CONNECTION) {</span>
+<span class="nc" id="L600">                    inBoundConnectionTobeRemoved.add(peerInfo);</span>
+<span class="nc" id="L601">                    blockChainLogger.info(&quot;Maximum connection exceeded&quot;);</span>
+<span class="nc" id="L602">                    GeneralHelper.unLockForMe(usingLockList);</span>
+<span class="nc" id="L603">                    return;</span>
+                }
+            }
+<span class="nc" id="L606">            GeneralHelper.unLockForMe(usingLockList);</span>
+
+
+<span class="nc" id="L609">            System.out.println(&quot;My status:\n Score: &quot; + myMainChain.getCurrentStatus().getTotalScore() + &quot;\nLatest block hash: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getCurrentStatus().getLatestBlockHash())); //debug</span>
+
+<span class="nc" id="L611">            System.out.println(&quot;Peer status:\n Score: &quot; + peerStatus.getTotalScore() + &quot;\nLatest block hash: &quot; + GeneralHelper.bytesToStringHex(peerStatus.getLatestBlockHash())); //debug</span>
+
+<span class="nc bnc" id="L613" title="All 2 branches missed.">            if (peerStatus.getTotalScore() &gt; myMainChain.getTotalScore()) {</span>
+<span class="nc" id="L614">                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()));</span>
+            }
+<span class="nc" id="L616">            GeneralHelper.unLockForMe(usingLockList);</span>
+
+
+<span class="nc" id="L619">            String peerAddressString = connectionManager.getSocket().getInetAddress().getHostAddress();</span>
+
+<span class="nc bnc" id="L621" title="All 2 branches missed.">            while (!isTerminated) {</span>
+
+<span class="nc bnc" id="L623" title="All 2 branches missed.">                if (!connectionManager.isConfirmed()</span>
+<span class="nc bnc" id="L624" title="All 2 branches missed.">                        &amp;&amp; System.currentTimeMillis() - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) &lt; Configuration.SYNC_PERIOD)</span>
+<span class="nc" id="L625">                    break;</span>
+
+<span class="nc" id="L627">                Message message = connectionManager.read();</span>
+<span class="nc" id="L628">                int messageNumber = message.number;</span>
+                Object content;
+                try {
+<span class="nc" id="L631">                    content = message.parse();</span>
+<span class="nc" id="L632">                } catch (BlockChainObjectParsingException ps) {</span>
+<span class="nc" id="L633">                    ps.printStackTrace();</span>
+<span class="nc" id="L634">                    throw new InvalidBlockChainMessageException(peerAddressString, messageNumber);</span>
+<span class="nc" id="L635">                }</span>
+
+<span class="nc" id="L637">                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: message &quot; + messageNumber + &quot; received&quot;); //debug</span>
+
+<span class="nc bnc" id="L639" title="All 8 branches missed.">                switch (messageNumber) {</span>
+
+                    case Configuration.MESSAGE_PEER_NODE_REQUEST: // peer node request
+<span class="nc" id="L642">                        blockChainLogger.info(peerAddressString + &quot;: Received peer node list request&quot;);</span>
+<span class="nc" id="L643">                        connectionManager.write(new Message(Configuration.MESSAGE_PEER_NODE_LIST, RawTranslator.translateAddressesToBytes(getPeerList(peerInfo))));</span>
+<span class="nc" id="L644">                        blockChainLogger.info(peerAddressString + &quot;: Sent peer node list request&quot;);</span>
+<span class="nc" id="L645">                        break;</span>
+
+                    case Configuration.MESSAGE_HEADER_REQUEST: // block headers request
+<span class="nc" id="L648">                        blockChainLogger.info(peerAddressString + &quot;: Received block headers request&quot;);</span>
+<span class="nc bnc" id="L649" title="All 2 branches missed.">                        if (!connectionManager.isConfirmed())</span>
+<span class="nc" id="L650">                            break;</span>
+
+<span class="nc" id="L652">                        GeneralHelper.lockForMe(usingLockList, readMyChainLock);</span>
+<span class="nc" id="L653">                        byte[][] hashesFromHashLocator = (byte[][]) content;</span>
+<span class="nc bnc" id="L654" title="All 2 branches missed.">                        if (Arrays.equals(myMainChain.getLatestBlockHash(), hashesFromHashLocator[0])) {</span>
+<span class="nc" id="L655">                            GeneralHelper.unLockForMe(usingLockList);</span>
+<span class="nc" id="L656">                            break;</span>
+                        }
+
+<span class="nc" id="L659">                        ByteArrayOutputStream headers = new ByteArrayOutputStream();</span>
+<span class="nc bnc" id="L660" title="All 2 branches missed.">                        for (byte[] hash : hashesFromHashLocator) {</span>
+<span class="nc" id="L661">                            ChainInfo info = ChainInfoManager.load(hash);</span>
+<span class="nc bnc" id="L662" title="All 2 branches missed.">                            if (info == null)</span>
+<span class="nc" id="L663">                                continue;</span>
+<span class="nc bnc" id="L664" title="All 2 branches missed.">                            if (info.isBestChain()) {</span>
+<span class="nc" id="L665">                                int i = 0;</span>
+<span class="nc" id="L666">                                byte[] curBlockHash = info.getNextBlockHash();</span>
+<span class="nc bnc" id="L667" title="All 4 branches missed.">                                while (curBlockHash != null &amp;&amp; i &lt;= Configuration.MAX_HEADER_NUMBER_PER_REQUEST) {</span>
+<span class="nc" id="L668">                                    headers.write(BlockManager.loadBlockHeader(curBlockHash).getRaw());</span>
+<span class="nc" id="L669">                                    curBlockHash = ChainInfoManager.load(curBlockHash).getNextBlockHash();</span>
+<span class="nc" id="L670">                                    ++i;</span>
+                                }
+                                break;
+                            }
+
+                        }
+<span class="nc" id="L676">                        GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc bnc" id="L678" title="All 2 branches missed.">                        if (headers.size() == 0)</span>
+<span class="nc" id="L679">                            break;</span>
+
+<span class="nc" id="L681">                        connectionManager.write(new Message(Configuration.MESSAGE_HEADER_LIST, headers.toByteArray()));</span>
+<span class="nc" id="L682">                        blockChainLogger.info(peerAddressString + &quot;: Sent block headers&quot;);</span>
+<span class="nc" id="L683">                        break;</span>
+
+                    case Configuration.MESSAGE_BLOCK_REQUEST:  // block request
+<span class="nc" id="L686">                        byte[] blockHash = (byte[]) content;</span>
+
+<span class="nc" id="L688">                        blockChainLogger.info(peerAddressString + &quot;: Received block(&quot; + GeneralHelper.bytesToStringHex(blockHash) + &quot;) request&quot;);</span>
+
+<span class="nc bnc" id="L690" title="All 2 branches missed.">                        if (!connectionManager.isConfirmed())</span>
+<span class="nc" id="L691">                            break;</span>
+
+<span class="nc" id="L693">                        Block block = BlockManager.loadBlock(blockHash);</span>
+<span class="nc bnc" id="L694" title="All 2 branches missed.">                        if (block != null) {</span>
+<span class="nc" id="L695">                            connectionManager.write(new Message(Configuration.MESSAGE_BLOCK, block.getRaw()));</span>
+<span class="nc" id="L696">                            blockChainLogger.info(peerAddressString + &quot;: Sent block(&quot; + GeneralHelper.bytesToStringHex(blockHash) + &quot;)&quot;);</span>
+                        }
+                        break;
+
+                    case Configuration.MESSAGE_PEER_NODE_LIST: //peer node list
+<span class="nc" id="L701">                        InetAddress[] receivedAddresses = (InetAddress[])(content);</span>
+<span class="nc" id="L702">                        ArrayList&lt;String&gt; newPotentialAddressStrings = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L704" title="All 2 branches missed.">                        for(InetAddress receivedAddress: receivedAddresses)</span>
+                        {
+<span class="nc" id="L706">                            newPotentialAddressStrings.add(receivedAddress.getHostAddress());</span>
+                        }
+
+<span class="nc" id="L709">                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);</span>
+
+<span class="nc bnc" id="L711" title="All 2 branches missed.">                        for (ConnectionManager inboundConnectionManager : inBoundConnectionList.values()) {</span>
+<span class="nc" id="L712">                            newPotentialAddressStrings.remove(inboundConnectionManager.getSocket().getInetAddress().getHostAddress());</span>
+<span class="nc" id="L713">                        }</span>
+
+<span class="nc bnc" id="L715" title="All 2 branches missed.">                        for (ConnectionManager outboundConnectionManager : outBoundConnectionList.values()) {</span>
+<span class="nc" id="L716">                            newPotentialAddressStrings.remove(outboundConnectionManager.getSocket().getInetAddress().getHostAddress());</span>
+<span class="nc" id="L717">                        }</span>
+
+<span class="nc bnc" id="L719" title="All 2 branches missed.">                        for (InetAddress potentialPeerAddress : potentialPeerPool) {</span>
+<span class="nc" id="L720">                            newPotentialAddressStrings.remove(potentialPeerAddress.getHostAddress());</span>
+<span class="nc" id="L721">                        }</span>
+
+<span class="nc bnc" id="L723" title="All 2 branches missed.">                        if(!newPotentialAddressStrings.isEmpty()) {</span>
+
+<span class="nc bnc" id="L725" title="All 2 branches missed.">                            for(String receivedAddressString: newPotentialAddressStrings)</span>
+                            {
+<span class="nc" id="L727">                                potentialPeerPool.add(InetAddress.getByName(receivedAddressString));</span>
+<span class="nc" id="L728">                            }</span>
+<span class="nc" id="L729">                            blockChainLogger.info(peerAddressString + &quot;: Added peer node list of size&quot; + newPotentialAddressStrings.size());</span>
+                        }
+
+<span class="nc" id="L732">                        GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L734">                        break;</span>
+
+                    case Configuration.MESSAGE_HEADER_LIST: //block headers
+
+<span class="nc" id="L738">                        BlockHeader[] receivedBlockHeaders = (BlockHeader[]) content;</span>
+
+<span class="nc" id="L740">                        blockChainLogger.info(peerAddressString + &quot;: Received block headers&quot;);</span>
+
+<span class="nc" id="L742">                        GeneralHelper.lockForMe(usingLockList, readMyChainLock);</span>
+
+
+<span class="nc" id="L745">                        ArrayList&lt;BlockHeader&gt; blockHeaders = new ArrayList&lt;&gt;();</span>
+
+
+<span class="nc bnc" id="L748" title="All 2 branches missed.">                        for (BlockHeader tempHeader : receivedBlockHeaders) {</span>
+<span class="nc bnc" id="L749" title="All 2 branches missed.">                            if (!BlockChainManager.hasBlock(tempHeader.calculateHash())) {</span>
+<span class="nc" id="L750">                                blockHeaders.add(tempHeader);</span>
+                            }
+                        }
+
+<span class="nc bnc" id="L754" title="All 2 branches missed.">                        if (!blockHeaders.isEmpty()) {</span>
+<span class="nc bnc" id="L755" title="All 2 branches missed.">                            int totalScore = myMainChain.isNextBlockHeader(blockHeaders.get(0)) ? myMainChain.checkHeaders(blockHeaders.toArray(new BlockHeader[0])) : BlockChainManager.checkBlockHeaders(blockHeaders.toArray(new BlockHeader[0]));</span>
+<span class="nc bnc" id="L756" title="All 2 branches missed.">                            if (totalScore == -1) {</span>
+<span class="nc" id="L757">                                throw new InvalidBlockChainException(peerAddressString);</span>
+                            }
+
+<span class="nc" id="L760">                            GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock);</span>
+<span class="nc" id="L761">                            pendingHeadersList.add(blockHeaders);</span>
+                        }
+
+<span class="nc" id="L764">                        GeneralHelper.unLockForMe(usingLockList);</span>
+<span class="nc" id="L765">                        break;</span>
+
+                    case Configuration.MESSAGE_TRANSACTION:
+
+<span class="nc" id="L769">                        Transaction transaction = (Transaction) content;</span>
+
+<span class="nc" id="L771">                        String transactionIdentifier = GeneralHelper.bytesToStringHex(transaction.calculateHash());</span>
+
+<span class="nc" id="L773">                        blockChainLogger.info(peerAddressString + &quot;: Received transaction(&quot; + transactionIdentifier + &quot;)&quot;); //# could be removed if too large</span>
+
+<span class="nc" id="L775">                        GeneralHelper.lockForMe(usingLockList, readMyChainLock, writeTransactionLock, readConnectionLock);</span>
+
+<span class="nc bnc" id="L777" title="All 2 branches missed.">                        if (transactionPool.contains(transaction)) {</span>
+<span class="nc" id="L778">                            blockChainLogger.info(&quot;Existing transaction(&quot; + transactionIdentifier + &quot;) in the pool&quot;);</span>
+<span class="nc bnc" id="L779" title="All 2 branches missed.">                        } else if (myMainChain.checkTransaction(transaction)) {</span>
+<span class="nc" id="L780">                            transactionPool.add(transaction);</span>
+<span class="nc" id="L781">                            blockChainLogger.info(&quot;Added transaction(&quot; + transactionIdentifier + &quot;) to the pool&quot;);</span>
+<span class="nc" id="L782">                            broadcastMessage(new Message(Configuration.MESSAGE_TRANSACTION, transaction.getRaw()), peerInfo);</span>
+<span class="nc" id="L783">                            blockChainLogger.info(&quot;Broadcasted transaction(&quot; + transactionIdentifier + &quot;)&quot;);</span>
+                        } else {
+<span class="nc" id="L785">                            blockChainLogger.info(&quot;Invalid or existing transaction(&quot; + transactionIdentifier + &quot;) in the chain&quot;);</span>
+                        }
+
+<span class="nc" id="L788">                        GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L790">                        break;</span>
+                    case Configuration.MESSAGE_BLOCK:
+<span class="nc" id="L792">                        Block block7 = (Block) content;</span>
+
+<span class="nc bnc" id="L794" title="All 2 branches missed.">                        if (!Arrays.equals(block7.getHeader().getContentHash(), block7.getContent().calculateHash())) {</span>
+<span class="nc" id="L795">                            blockChainLogger.info(peerAddressString + &quot;: Received an invalid block&quot;);</span>
+<span class="nc" id="L796">                            return;</span>
+                        }
+
+<span class="nc" id="L799">                        blockChainLogger.info(peerAddressString + &quot;: Received a block(&quot; + GeneralHelper.bytesToStringHex(block7.calculateHash()) + &quot;)\n Block number= &quot; + block7.getHeader().getBlockNumber());</span>
+
+<span class="nc" id="L801">                        System.out.println(&quot;pass1&quot;); //debug</span>
+<span class="nc" id="L802">                        GeneralHelper.lockForMe(usingLockList, writeChainInfoFilesLock, writeMyChainLock, writePendingHeaderLock, writeRequestedHeaderLock, writeOrphanBlockLock, writeTransactionLock,</span>
+                                readConnectionLock, writeVoteLock, writeRegistrationLock, writeAuthorizationLock, writeRevocationLock);
+
+<span class="nc bnc" id="L805" title="All 6 branches missed.">                        if (orphanBlockList.contains(block7) || myMainChain.hasBlock(block7) || BlockChainManager.hasBlock(block7.calculateHash())) {</span>
+<span class="nc" id="L806">                            GeneralHelper.unLockForMe(usingLockList);</span>
+<span class="nc" id="L807">                            break;</span>
+                        }
+
+
+<span class="nc" id="L811">                        boolean requested = false;</span>
+<span class="nc" id="L812">                        System.out.println(&quot;pass2&quot;); //debug</span>
+
+
+                        // check if it's requested block
+<span class="nc bnc" id="L816" title="All 4 branches missed.">                        if (toBeRequestedHeaders.size() != 0 || requestedHeaders.size() != 0) {</span>
+<span class="nc bnc" id="L817" title="All 2 branches missed.">                            if (requestedHeaders.contains(block7.getHeader())) {</span>
+<span class="nc" id="L818">                                requested = true;</span>
+<span class="nc" id="L819">                                requestedHeaderMap.remove(block7.getHeader());</span>
+<span class="nc" id="L820">                                requestedHeaders.remove(block7.getHeader());</span>
+<span class="nc bnc" id="L821" title="All 2 branches missed.">                            } else if (toBeRequestedHeaders.contains(block7.getHeader())) {</span>
+<span class="nc" id="L822">                                requested = true;</span>
+<span class="nc" id="L823">                                toBeRequestedHeaders.remove(block7.getHeader());</span>
+<span class="nc bnc" id="L824" title="All 2 branches missed.">                            } else if (Arrays.equals(block7.getHeader().getPrevHash(), latestBlockHeaderRequested.calculateHash())) // if it is continuous to the one I have requested, put it into the orphan list</span>
+                            {
+<span class="nc" id="L826">                                requested = true;</span>
+<span class="nc" id="L827">                                latestBlockHeaderRequested = block7.getHeader();</span>
+                            }
+                        }
+
+
+                        // if it's requested blocks
+<span class="nc bnc" id="L833" title="All 2 branches missed.">                        if (requested) {</span>
+                            // if it's next block
+<span class="nc bnc" id="L835" title="All 2 branches missed.">                            if (myMainChain.isNextBlock(block7)) {</span>
+
+                                // if it's invalid block (and invalid chain), disconnect and clear request lists
+<span class="nc bnc" id="L838" title="All 2 branches missed.">                                if (!myMainChain.checkNextBlock(block7, transactionPool)) {</span>
+<span class="nc" id="L839">                                    toBeRequestedHeaders.clear();</span>
+<span class="nc" id="L840">                                    requestedHeaderMap.clear();</span>
+<span class="nc" id="L841">                                    requestedHeaders.clear();</span>
+<span class="nc" id="L842">                                    orphanBlockList.clear();</span>
+<span class="nc" id="L843">                                    throw new InvalidBlockChainException(peerAddressString, block7);</span>
+                                }
+
+<span class="nc" id="L846">                                BlockChainManager.storeBlock(block7);</span>
+<span class="nc" id="L847">                                AuthorityInfo unTrustedAuthorityInfo = myMainChain.addBlock(block7, transactionPool, myVotes, medicalOrgAuthorizationList, medicalOrgRevocationList, patientInfoList, myIdentifier);</span>
+<span class="nc bnc" id="L848" title="All 2 branches missed.">                                if (unTrustedAuthorityInfo != null) {</span>
+<span class="nc" id="L849">                                    unTrustAuthority(unTrustedAuthorityInfo.getIdentifier());</span>
+                                }
+<span class="nc bnc" id="L851" title="All 2 branches missed.">                                if (block7.getContent().getMedicalOrgRevocationList() != null) {</span>
+
+<span class="nc bnc" id="L853" title="All 2 branches missed.">                                    for (byte[] revokedIdentifier : block7.getContent().getMedicalOrgRevocationList())</span>
+<span class="nc" id="L854">                                        revokeMedicalOrg(revokedIdentifier, block7.getHeader().getValidatorIdentifier());</span>
+                                }
+<span class="nc bnc" id="L856" title="All 2 branches missed.">                                if (block7.getContent().getMedicalOrgAuthorizationList() != null) {</span>
+<span class="nc bnc" id="L857" title="All 2 branches missed.">                                    for (MedicalOrgInfo medicalOrgInfo : block7.getContent().getMedicalOrgAuthorizationList())</span>
+<span class="nc" id="L858">                                        authorizeMedicalOrg(medicalOrgInfo.getIdentifier(), block7.getHeader().getValidatorIdentifier());</span>
+                                }
+
+<span class="nc" id="L861">                                System.out.println(&quot;Stored and added block(&quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L862">                                        + &quot;)\nCurrent total score: &quot; + myMainChain.getTotalScore() + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber());//debug</span>
+<span class="nc" id="L863">                                blockChainLogger.info(&quot;Stored and added block(&quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L864">                                        + &quot;)\nCurrent total score: &quot; + myMainChain.getTotalScore() + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber());</span>
+
+<span class="nc bnc" id="L866" title="All 2 branches missed.">                                if (System.currentTimeMillis() - block7.getHeader().getTimestamp() &lt; Configuration.SYNC_PERIOD) {</span>
+<span class="nc" id="L867">                                    broadcastMessage(new Message(Configuration.MESSAGE_BLOCK, block7.getRaw()), peerInfo);</span>
+                                }
+
+
+                                // process orphan blocks if possible
+<span class="nc" id="L872">                                Block processedBlock = block7;</span>
+<span class="nc bnc" id="L873" title="All 2 branches missed.">                                while (!orphanBlockList.isEmpty()) {</span>
+<span class="nc bnc" id="L874" title="All 2 branches missed.">                                    if (Arrays.equals(orphanBlockList.get(0).getHeader().getPrevHash(), processedBlock.getHeader().calculateHash())) {</span>
+
+<span class="nc bnc" id="L876" title="All 2 branches missed.">                                        if (myMainChain.checkNextBlock(orphanBlockList.get(0), transactionPool)) {</span>
+
+<span class="nc" id="L878">                                            processedBlock = orphanBlockList.get(0);</span>
+<span class="nc" id="L879">                                            orphanBlockList.remove(0);</span>
+
+<span class="nc" id="L881">                                            BlockChainManager.storeBlock(processedBlock);</span>
+
+<span class="nc" id="L883">                                            unTrustedAuthorityInfo = myMainChain.addBlock(processedBlock, transactionPool, myVotes, medicalOrgAuthorizationList, medicalOrgRevocationList, patientInfoList, myIdentifier);</span>
+<span class="nc bnc" id="L884" title="All 2 branches missed.">                                            if (unTrustedAuthorityInfo != null) {</span>
+<span class="nc" id="L885">                                                unTrustAuthority(unTrustedAuthorityInfo.getIdentifier());</span>
+                                            }
+<span class="nc bnc" id="L887" title="All 2 branches missed.">                                            if (processedBlock.getContent().getMedicalOrgRevocationList() != null) {</span>
+
+<span class="nc bnc" id="L889" title="All 2 branches missed.">                                                for (byte[] revokedIdentifier : processedBlock.getContent().getMedicalOrgRevocationList())</span>
+<span class="nc" id="L890">                                                    revokeMedicalOrg(revokedIdentifier, processedBlock.getHeader().getValidatorIdentifier());</span>
+                                            }
+<span class="nc bnc" id="L892" title="All 2 branches missed.">                                            if (processedBlock.getContent().getMedicalOrgAuthorizationList() != null) {</span>
+<span class="nc bnc" id="L893" title="All 2 branches missed.">                                                for (MedicalOrgInfo medicalOrgInfo : processedBlock.getContent().getMedicalOrgAuthorizationList())</span>
+<span class="nc" id="L894">                                                    authorizeMedicalOrg(medicalOrgInfo.getIdentifier(), processedBlock.getHeader().getValidatorIdentifier());</span>
+                                            }
+
+
+<span class="nc" id="L898">                                            System.out.println(&quot;Stored and added orphan block(&quot; + GeneralHelper.bytesToStringHex(processedBlock.calculateHash())</span>
+<span class="nc" id="L899">                                                    + &quot;)\nCurrent total score: &quot; + myMainChain.getTotalScore() + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber());//debug</span>
+<span class="nc" id="L900">                                            blockChainLogger.info(&quot;Stored and added orphan block(&quot; + GeneralHelper.bytesToStringHex(processedBlock.calculateHash())</span>
+<span class="nc" id="L901">                                                    + &quot;)\nCurrent total score: &quot; + myMainChain.getTotalScore() + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber());</span>
+
+<span class="nc bnc" id="L903" title="All 2 branches missed.">                                            if (System.currentTimeMillis() - processedBlock.getHeader().getTimestamp() &lt; Configuration.SYNC_PERIOD) {</span>
+<span class="nc" id="L904">                                                broadcastMessage(new Message(Configuration.MESSAGE_BLOCK, processedBlock.getRaw()), peerInfo);</span>
+                                            }
+
+                                        } else {
+<span class="nc" id="L908">                                            toBeRequestedHeaders.clear();</span>
+<span class="nc" id="L909">                                            requestedHeaderMap.clear();</span>
+<span class="nc" id="L910">                                            requestedHeaders.clear();</span>
+<span class="nc" id="L911">                                            orphanBlockList.clear();</span>
+<span class="nc" id="L912">                                            throw new InvalidBlockChainException(peerAddressString, orphanBlockList.get(0));</span>
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
+<span class="nc bnc" id="L918" title="All 2 branches missed.">                            } else if (BlockChainManager.hasBlock(block7.getHeader().getPrevHash())) {</span>
+
+                                // if it's invalid block (and invalid chain), disconnect and clear request lists
+<span class="nc bnc" id="L921" title="All 2 branches missed.">                                if (!BlockChainManager.checkBlock(block7)) {</span>
+<span class="nc" id="L922">                                    toBeRequestedHeaders.clear();</span>
+<span class="nc" id="L923">                                    requestedHeaderMap.clear();</span>
+<span class="nc" id="L924">                                    requestedHeaders.clear();</span>
+<span class="nc" id="L925">                                    orphanBlockList.clear();</span>
+<span class="nc" id="L926">                                    throw new InvalidBlockChainException(peerAddressString, block7);</span>
+                                }
+
+<span class="nc" id="L929">                                int newTotalScore = BlockChainManager.storeBlock(block7);</span>
+<span class="nc" id="L930">                                System.out.println(&quot;Stored block(&quot; + GeneralHelper.bytesToStringHex(block7.calculateHash())</span>
+<span class="nc" id="L931">                                        + &quot;)\nBlock number: &quot; + block7.getHeader().getBlockNumber());//debug</span>
+<span class="nc" id="L932">                                blockChainLogger.info(&quot;Stored block(&quot; + GeneralHelper.bytesToStringHex(block7.calculateHash())</span>
+<span class="nc" id="L933">                                        + &quot;)\nBlock number: &quot; + block7.getHeader().getBlockNumber());</span>
+
+<span class="nc" id="L935">                                Block processed = block7;</span>
+
+<span class="nc bnc" id="L937" title="All 2 branches missed.">                                while (!orphanBlockList.isEmpty()) {</span>
+<span class="nc bnc" id="L938" title="All 2 branches missed.">                                    if (Arrays.equals(orphanBlockList.get(0).getHeader().getPrevHash(), processed.getHeader().calculateHash())) {</span>
+<span class="nc bnc" id="L939" title="All 2 branches missed.">                                        if (BlockChainManager.checkBlock(orphanBlockList.get(0))) {</span>
+<span class="nc" id="L940">                                            processed = orphanBlockList.get(0);</span>
+<span class="nc" id="L941">                                            orphanBlockList.remove(0);</span>
+
+<span class="nc" id="L943">                                            newTotalScore = BlockChainManager.storeBlock(processed);</span>
+
+<span class="nc" id="L945">                                            System.out.println(&quot;Stored orphan block(&quot; + GeneralHelper.bytesToStringHex(processed.calculateHash())</span>
+<span class="nc" id="L946">                                                    + &quot;)\nBlock number: &quot; + processed.getHeader().getBlockNumber());//debug</span>
+<span class="nc" id="L947">                                            blockChainLogger.info(&quot;Stored orphan block(&quot; + GeneralHelper.bytesToStringHex(processed.calculateHash())</span>
+<span class="nc" id="L948">                                                    + &quot;)\nBlock number: &quot; + processed.getHeader().getBlockNumber());</span>
+
+<span class="nc bnc" id="L950" title="All 2 branches missed.">                                            if (System.currentTimeMillis() - processed.getHeader().getTimestamp() &lt; Configuration.SYNC_PERIOD) {</span>
+<span class="nc" id="L951">                                                broadcastMessage(new Message(Configuration.MESSAGE_BLOCK, processed.getRaw()), peerInfo);</span>
+                                            }
+
+
+                                        } else {
+<span class="nc" id="L956">                                            toBeRequestedHeaders.clear();</span>
+<span class="nc" id="L957">                                            requestedHeaderMap.clear();</span>
+<span class="nc" id="L958">                                            requestedHeaders.clear();</span>
+<span class="nc" id="L959">                                            orphanBlockList.clear();</span>
+<span class="nc" id="L960">                                            throw new InvalidBlockChainException(peerAddressString, orphanBlockList.get(0));</span>
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
+
+<span class="nc" id="L967">                                System.out.println(&quot;pass6&quot;); //debug</span>
+
+
+<span class="nc bnc" id="L970" title="All 2 branches missed.">                                if (newTotalScore &gt; myMainChain.getTotalScore()) {</span>
+<span class="nc" id="L971">                                    System.out.println(&quot;pass7&quot;); //debug</span>
+
+<span class="nc" id="L973">                                    myMainChain.loadCurrentBest(transactionPool, myVotes, medicalOrgAuthorizationList, medicalOrgRevocationList, patientInfoList, myIdentifier);</span>
+<span class="nc" id="L974">                                    refreshConnection(); // disconnect/connect based on current authority list and medical org list</span>
+
+<span class="nc" id="L976">                                    System.out.println(&quot;Changed Chain.\nCurrent latest block hash: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L977">                                            + &quot;\nScore: &quot; + myMainChain.getTotalScore() + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber()); //debug</span>
+<span class="nc" id="L978">                                    blockChainLogger.info(&quot;Changed Chain.\nCurrent latest block hash: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L979">                                            + &quot;\nScore: &quot; + myMainChain.getTotalScore() + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber());</span>
+
+                                }
+
+<span class="nc" id="L983">                                System.out.println(&quot;pass8&quot;); //debug</span>
+
+
+<span class="nc" id="L986">                            } else {</span>
+
+<span class="nc" id="L988">                                orphanBlockList.add(block7);</span>
+<span class="nc" id="L989">                                Collections.sort(orphanBlockList, new GeneralHelper.blockComparator());</span>
+
+<span class="nc" id="L991">                                System.out.println(&quot;Orphan block(&quot; + GeneralHelper.bytesToStringHex(block7.calculateHash())</span>
+<span class="nc" id="L992">                                        + &quot;)\nBlock number: &quot; + block7.getHeader().getBlockNumber());//debug</span>
+<span class="nc" id="L993">                                blockChainLogger.info(&quot;Orphan block(&quot; + GeneralHelper.bytesToStringHex(block7.calculateHash())</span>
+<span class="nc" id="L994">                                        + &quot;)\nBlock number: &quot; + block7.getHeader().getBlockNumber());</span>
+
+                            }
+                        } else //if it's not a requested block
+                        {
+                            //if it's the next block
+<span class="nc bnc" id="L1000" title="All 2 branches missed.">                            if (myMainChain.isNextBlock(block7)) {</span>
+
+                                //if it's invalid block, disconnect
+<span class="nc bnc" id="L1003" title="All 2 branches missed.">                                if (!myMainChain.checkNextBlock(block7, transactionPool)) {</span>
+<span class="nc" id="L1004">                                    throw new InvalidBlockChainException(peerAddressString, block7);</span>
+                                }
+
+
+<span class="nc" id="L1008">                                BlockChainManager.storeBlock(block7);</span>
+<span class="nc" id="L1009">                                AuthorityInfo unTrustedAuthorityInfo = myMainChain.addBlock(block7, transactionPool, myVotes, medicalOrgAuthorizationList, medicalOrgRevocationList, patientInfoList, myIdentifier);</span>
+<span class="nc bnc" id="L1010" title="All 2 branches missed.">                                if (unTrustedAuthorityInfo != null) {</span>
+<span class="nc" id="L1011">                                    unTrustAuthority(unTrustedAuthorityInfo.getIdentifier());</span>
+                                }
+<span class="nc bnc" id="L1013" title="All 2 branches missed.">                                if (block7.getContent().getMedicalOrgRevocationList() != null) {</span>
+
+<span class="nc bnc" id="L1015" title="All 2 branches missed.">                                    for (byte[] revokedIdentifier : block7.getContent().getMedicalOrgRevocationList())</span>
+<span class="nc" id="L1016">                                        revokeMedicalOrg(revokedIdentifier, block7.getHeader().getValidatorIdentifier());</span>
+                                }
+<span class="nc bnc" id="L1018" title="All 2 branches missed.">                                if (block7.getContent().getMedicalOrgAuthorizationList() != null) {</span>
+<span class="nc bnc" id="L1019" title="All 2 branches missed.">                                    for (MedicalOrgInfo medicalOrgInfo : block7.getContent().getMedicalOrgAuthorizationList())</span>
+<span class="nc" id="L1020">                                        authorizeMedicalOrg(medicalOrgInfo.getIdentifier(), block7.getHeader().getValidatorIdentifier());</span>
+                                }
+
+<span class="nc" id="L1023">                                System.out.println(&quot;Stored and added block(&quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L1024">                                        + &quot;)\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber() + &quot;\nScore: &quot; + myMainChain.getTotalScore());//debug</span>
+<span class="nc" id="L1025">                                blockChainLogger.info(&quot;Stored and added block(&quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L1026">                                        + &quot;)\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber() + &quot;\nScore: &quot; + myMainChain.getTotalScore());</span>
+
+<span class="nc bnc" id="L1028" title="All 2 branches missed.">                                if (System.currentTimeMillis() - block7.getHeader().getTimestamp() &lt; Configuration.SYNC_PERIOD) {</span>
+<span class="nc" id="L1029">                                    broadcastMessage(new Message(Configuration.MESSAGE_BLOCK, block7.getRaw()), peerInfo);</span>
+                                }
+
+
+<span class="nc bnc" id="L1033" title="All 2 branches missed.">                            } else if (BlockChainManager.hasBlock(block7.getHeader().getPrevHash())) {</span>
+
+                                //if it's invalid block, disconnect
+<span class="nc bnc" id="L1036" title="All 2 branches missed.">                                if (!BlockChainManager.checkBlock(block7)) {</span>
+<span class="nc" id="L1037">                                    throw new InvalidBlockChainException(peerAddressString, block7);</span>
+                                }
+
+<span class="nc" id="L1040">                                int processingTotal = StateInfoManager.load(block7.getHeader().getPrevHash()).getTotalScore() + block7.getHeader().getScore();</span>
+
+                                //if I have previous block, check its chain's score and if it is greater than that of requested one, just use it
+
+<span class="nc bnc" id="L1044" title="All 2 branches missed.">                                if (processingTotal &gt; myMainChain.getTotalScore()) {</span>
+
+<span class="nc" id="L1046">                                    BlockChainManager.storeBlock(block7);</span>
+
+<span class="nc" id="L1048">                                    myMainChain.loadCurrentBest(transactionPool, myVotes, medicalOrgAuthorizationList, medicalOrgRevocationList, patientInfoList, myIdentifier);</span>
+<span class="nc" id="L1049">                                    refreshConnection(); // disconnect/connect based on current authority list and medical org list</span>
+
+<span class="nc" id="L1051">                                    System.out.println(&quot;Changed Chain.\nCurrent latest block hash: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L1052">                                            + &quot;\nScore: &quot; + myMainChain.getTotalScore() + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber()); //debug</span>
+<span class="nc" id="L1053">                                    blockChainLogger.info(&quot;Changed Chain.\nCurrent latest block hash: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L1054">                                            + &quot;\nScore: &quot; + myMainChain.getTotalScore() + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber());</span>
+
+
+                                }
+<span class="nc" id="L1058">                            } else {</span>
+                                // not requested and I don't hold its prevblock =&gt; send blockheaders request
+<span class="nc" id="L1060">                                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()));</span>
+                            }
+                        }
+
+<span class="nc" id="L1064">                        GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L1066">                        break;</span>
+                    default:
+<span class="nc" id="L1068">                        throw new InvalidBlockChainMessageException(peerAddressString, messageNumber);</span>
+
+                }
+
+<span class="nc" id="L1072">            }</span>
+<span class="nc" id="L1073">        } catch (SocketException | EOFException se) {</span>
+            //just connection disconnected
+<span class="nc" id="L1075">        } catch (InvalidBlockChainException | InvalidBlockChainMessageException bme) {</span>
+<span class="nc" id="L1076">            bme.printStackTrace();</span>
+<span class="nc" id="L1077">            blockChainLogger.info(bme.getMessage());</span>
+<span class="nc" id="L1078">        } catch (BlockChainObjectParsingException | FileCorruptionException ps) {</span>
+<span class="nc" id="L1079">            ps.printStackTrace();</span>
+<span class="nc" id="L1080">            blockChainLogger.info(ps.getMessage());</span>
+<span class="nc" id="L1081">            shutdown();</span>
+<span class="nc" id="L1082">        } catch (IOException e) {</span>
+<span class="nc" id="L1083">            e.printStackTrace();</span>
+        } finally {
+<span class="nc" id="L1085">            GeneralHelper.unLockForMe(usingLockList);</span>
+        }
+<span class="nc" id="L1087">    }</span>
+
+    private void refreshConnection() throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+<span class="nc bnc" id="L1090" title="All 2 branches missed.">        for (PeerInfo peerInfo : inBoundConnectionList.keySet()) {</span>
+<span class="nc bnc" id="L1091" title="All 2 branches missed.">            if (inBoundConnectionList.get(peerInfo).isClosed())</span>
+<span class="nc" id="L1092">                continue;</span>
+
+<span class="nc bnc" id="L1094" title="All 2 branches missed.">            if (inBoundConnectionList.get(peerInfo).isConfirmed()) {</span>
+<span class="nc bnc" id="L1095" title="All 2 branches missed.">                if (!myMainChain.hasAuthority(peerInfo.getIssuerIdentifier())) {</span>
+<span class="nc" id="L1096">                    unTrustAuthority(peerInfo.getIssuerIdentifier());</span>
+<span class="nc bnc" id="L1097" title="All 4 branches missed.">                } else if (!peerInfo.isAuthority() &amp;&amp; !myMainChain.hasMedicalOrg(peerInfo.getPeerIdentifier())) {</span>
+<span class="nc" id="L1098">                    revokeMedicalOrg(peerInfo.getPeerIdentifier(), peerInfo.getIssuerIdentifier());</span>
+
+                }
+            } else {
+<span class="nc bnc" id="L1102" title="All 2 branches missed.">                if (!myMainChain.hasAuthority(peerInfo.getIssuerIdentifier())) {</span>
+<span class="nc" id="L1103">                    unTrustAuthority(peerInfo.getIssuerIdentifier());</span>
+<span class="nc bnc" id="L1104" title="All 2 branches missed.">                } else if (myMainChain.hasMedicalOrg(peerInfo.getPeerIdentifier())) {</span>
+<span class="nc" id="L1105">                    authorizeMedicalOrg(peerInfo.getPeerIdentifier(), peerInfo.getIssuerIdentifier());</span>
+                }
+            }
+
+<span class="nc" id="L1109">        }</span>
+
+<span class="nc bnc" id="L1111" title="All 2 branches missed.">        for (PeerInfo peerInfo : outBoundConnectionList.keySet()) {</span>
+<span class="nc bnc" id="L1112" title="All 2 branches missed.">            if (outBoundConnectionList.get(peerInfo).isClosed())</span>
+<span class="nc" id="L1113">                continue;</span>
+
+<span class="nc bnc" id="L1115" title="All 2 branches missed.">            if (outBoundConnectionList.get(peerInfo).isConfirmed()) {</span>
+<span class="nc bnc" id="L1116" title="All 2 branches missed.">                if (!myMainChain.hasAuthority(peerInfo.getIssuerIdentifier())) {</span>
+<span class="nc" id="L1117">                    unTrustAuthority(peerInfo.getIssuerIdentifier());</span>
+<span class="nc bnc" id="L1118" title="All 4 branches missed.">                } else if (!peerInfo.isAuthority() &amp;&amp; !myMainChain.hasMedicalOrg(peerInfo.getPeerIdentifier())) {</span>
+<span class="nc" id="L1119">                    revokeMedicalOrg(peerInfo.getPeerIdentifier(), peerInfo.getIssuerIdentifier());</span>
+                }
+            } else {
+<span class="nc bnc" id="L1122" title="All 2 branches missed.">                if (!myMainChain.hasAuthority(peerInfo.getIssuerIdentifier())) {</span>
+<span class="nc" id="L1123">                    unTrustAuthority(peerInfo.getIssuerIdentifier());</span>
+<span class="nc bnc" id="L1124" title="All 2 branches missed.">                } else if (myMainChain.hasMedicalOrg(peerInfo.getPeerIdentifier())) {</span>
+<span class="nc" id="L1125">                    authorizeMedicalOrg(peerInfo.getPeerIdentifier(), peerInfo.getIssuerIdentifier());</span>
+                }
+            }
+<span class="nc" id="L1128">        }</span>
+
+<span class="nc" id="L1130">    }</span>
+
+
+    private void startRequestingPeerNodes() {
+<span class="nc" id="L1134">        new Thread(() -&gt; {</span>
+<span class="nc bnc" id="L1135" title="All 2 branches missed.">            while (!isTerminated) {</span>
+
+                // get peer nodes list of the peer nodes and attempt to connect with the nodes
+                // that are not connected with it
+
+<span class="nc" id="L1140">                ReadLock readConnectionLock = connectionLock.readLock();</span>
+<span class="nc" id="L1141">                ReadLock readPotentialPeerLock = potentialPeerLock.readLock();</span>
+<span class="nc" id="L1142">                ArrayList&lt;Lock&gt; usingLockList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1144">                GeneralHelper.lockForMe(usingLockList, readConnectionLock, readPotentialPeerLock);</span>
+
+<span class="nc" id="L1146">                System.out.println(&quot;startRequestingPeerNodes entered&quot;); //debug</span>
+
+<span class="nc" id="L1148">                int diff = Configuration.MAX_OUT_BOUND_CONNECTION - outBoundConnectionList.size();</span>
+<span class="nc bnc" id="L1149" title="All 2 branches missed.">                if (potentialPeerPool.size() &lt; diff) {</span>
+<span class="nc" id="L1150">                    broadcastMessage(new Message(Configuration.MESSAGE_PEER_NODE_REQUEST, null), null);</span>
+<span class="nc" id="L1151">                    blockChainLogger.info(&quot;Sending request for other nodes' peers list&quot;);</span>
+                }
+
+<span class="nc" id="L1154">                GeneralHelper.unLockForMe(usingLockList);</span>
+
+                try {
+<span class="nc" id="L1157">                    Thread.sleep(60000);</span>
+<span class="nc" id="L1158">                } catch (InterruptedException e) {</span>
+<span class="nc" id="L1159">                    e.printStackTrace();</span>
+<span class="nc" id="L1160">                }</span>
+<span class="nc" id="L1161">            }</span>
+<span class="nc" id="L1162">        }).start();</span>
+<span class="nc" id="L1163">    }</span>
+
+
+    private void startRequestingConnection() {
+<span class="nc" id="L1167">        new Thread(() -&gt; {</span>
+            try {
+<span class="nc bnc" id="L1169" title="All 2 branches missed.">                while (!isTerminated) {</span>
+                    // get peer nodes list of the peer nodes and attempt to connect with the nodes
+                    // that are not connected with it
+
+
+<span class="nc" id="L1174">                    ReadLock readConnectionLock = connectionLock.readLock();</span>
+<span class="nc" id="L1175">                    WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();</span>
+<span class="nc" id="L1176">                    ArrayList&lt;Lock&gt; usingLockList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1178">                    GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);</span>
+
+<span class="nc" id="L1180">                    System.out.println(&quot;startRequestingConnection entered&quot;); //debug</span>
+
+<span class="nc" id="L1182">                    int diff = Configuration.MAX_OUT_BOUND_CONNECTION - outBoundConnectionList.size();</span>
+<span class="nc" id="L1183">                    int max = potentialPeerPool.size();</span>
+<span class="nc bnc" id="L1184" title="All 2 branches missed.">                    InetAddress[] potentialPeer = potentialPeerPool.subList(0, diff &gt; max ? max : diff).toArray(new InetAddress[0]);</span>
+
+<span class="nc bnc" id="L1186" title="All 2 branches missed.">                    for (InetAddress address : potentialPeer)</span>
+<span class="nc" id="L1187">                        potentialPeerPool.remove(address);</span>
+
+
+<span class="nc" id="L1190">                    GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L1192">                    connectWithPeers(potentialPeer); //## for debug</span>
+
+<span class="nc" id="L1194">                    Thread.sleep(20000);</span>
+
+<span class="nc" id="L1196">                }</span>
+<span class="nc" id="L1197">            } catch (Exception e) {</span>
+<span class="nc" id="L1198">                e.printStackTrace();</span>
+<span class="nc" id="L1199">                shutdown();</span>
+<span class="nc" id="L1200">            }</span>
+<span class="nc" id="L1201">        }).start();</span>
+<span class="nc" id="L1202">    }</span>
+
+    private void startRequestingBlocksAndBlockHeaders() {
+<span class="nc" id="L1205">        new Thread(() -&gt; {</span>
+            try {
+<span class="nc bnc" id="L1207" title="All 2 branches missed.">                while (!isTerminated) {</span>
+
+<span class="nc" id="L1209">                    ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L1210">                    WriteLock writePendingHeadersLock = pendingHeadersListLock.writeLock();</span>
+<span class="nc" id="L1211">                    WriteLock writeToBeRequestedHeadersLock = toBeRequestedHeadersLock.writeLock();</span>
+<span class="nc" id="L1212">                    WriteLock writeRequestedHeaderLock = requestedHeaderLock.writeLock();</span>
+<span class="nc" id="L1213">                    ReadLock readConnectionLock = connectionLock.readLock();</span>
+<span class="nc" id="L1214">                    ArrayList&lt;Lock&gt; usingLockList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1216">                    GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock, writeToBeRequestedHeadersLock, writeRequestedHeaderLock, readConnectionLock);</span>
+<span class="nc bnc" id="L1217" title="All 4 branches missed.">                    if (!toBeRequestedHeaders.isEmpty() || !requestedHeaders.isEmpty()) {</span>
+<span class="nc bnc" id="L1218" title="All 2 branches missed.">                        for (BlockHeader blockHeader : requestedHeaders) {</span>
+<span class="nc" id="L1219">                            RequestInfo requestInfo = requestedHeaderMap.get(blockHeader);</span>
+
+<span class="nc bnc" id="L1221" title="All 2 branches missed.">                            if (System.currentTimeMillis() - requestInfo.timeFirstRequested &gt; Configuration.MAXIMUM_RESPONSE_WAITING_TIME) {</span>
+<span class="nc" id="L1222">                                toBeRequestedHeaders.clear();</span>
+<span class="nc" id="L1223">                                requestedHeaderMap.clear();</span>
+<span class="nc" id="L1224">                                requestedHeaders.clear();</span>
+<span class="nc" id="L1225">                                orphanBlockList.clear();</span>
+<span class="nc" id="L1226">                                break;</span>
+                            }
+
+<span class="nc bnc" id="L1229" title="All 2 branches missed.">                            if (System.currentTimeMillis() - requestInfo.timeRequested &gt; Configuration.BLOCK_REQUEST_TIME_OUT) {</span>
+<span class="nc" id="L1230">                                System.out.println(&quot;re-sent request for block number:&quot; + blockHeader.getBlockNumber());</span>
+<span class="nc" id="L1231">                                int newIndex = unicastMessage(new Message(Configuration.MESSAGE_BLOCK_REQUEST, blockHeader.calculateHash()), requestInfo.sentToIndex + 1);</span>
+<span class="nc" id="L1232">                                requestInfo.sentToIndex = newIndex;</span>
+<span class="nc" id="L1233">                                requestInfo.timeRequested = System.currentTimeMillis();</span>
+                            }
+<span class="nc" id="L1235">                        }</span>
+
+<span class="nc bnc" id="L1237" title="All 2 branches missed.">                        if (requestedHeaderMap.size() &lt; Configuration.NUM_OF_BLOCK_REQUEST_AT_ONCE) {</span>
+<span class="nc" id="L1238">                            int maxPossibleRequest = Configuration.NUM_OF_BLOCK_REQUEST_AT_ONCE - requestedHeaderMap.size();</span>
+<span class="nc" id="L1239">                            int wantRequest = toBeRequestedHeaders.size();</span>
+<span class="nc bnc" id="L1240" title="All 2 branches missed.">                            int requestSize = (wantRequest &gt; maxPossibleRequest) ? maxPossibleRequest : wantRequest;</span>
+<span class="nc bnc" id="L1241" title="All 2 branches missed.">                            if (requestSize != 0) {</span>
+<span class="nc bnc" id="L1242" title="All 2 branches missed.">                                for (int i = 0; i &lt; requestSize; ++i) {</span>
+<span class="nc" id="L1243">                                    System.out.println(&quot;sent request for block number:&quot; + toBeRequestedHeaders.get(i).getBlockNumber());</span>
+<span class="nc" id="L1244">                                    int index = randomUnicastMessage(new Message(Configuration.MESSAGE_BLOCK_REQUEST, toBeRequestedHeaders.get(i).calculateHash()));</span>
+
+<span class="nc" id="L1246">                                    requestedHeaders.add(toBeRequestedHeaders.get(i));</span>
+<span class="nc" id="L1247">                                    requestedHeaderMap.put(toBeRequestedHeaders.get(i), new RequestInfo(index, System.currentTimeMillis()));</span>
+                                }
+
+<span class="nc bnc" id="L1250" title="All 2 branches missed.">                                if (requestSize &gt; 0) {</span>
+<span class="nc" id="L1251">                                    toBeRequestedHeaders.subList(0, requestSize).clear();</span>
+                                }
+
+                            }
+
+<span class="nc" id="L1256">                        }</span>
+                    } else {
+<span class="nc bnc" id="L1258" title="All 2 branches missed.">                        if (!pendingHeadersList.isEmpty()) {</span>
+<span class="nc bnc" id="L1259" title="All 2 branches missed.">                            while (!pendingHeadersList.isEmpty()) {</span>
+<span class="nc" id="L1260">                                ArrayList&lt;BlockHeader&gt; tempToBeRequested = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L1261" title="All 2 branches missed.">                                for (BlockHeader header : pendingHeadersList.get(0)) {</span>
+<span class="nc bnc" id="L1262" title="All 2 branches missed.">                                    if (!BlockChainManager.hasBlock(header.calculateHash()))</span>
+<span class="nc" id="L1263">                                        tempToBeRequested.add(header);</span>
+<span class="nc" id="L1264">                                }</span>
+<span class="nc" id="L1265">                                pendingHeadersList.remove(0);</span>
+<span class="nc bnc" id="L1266" title="All 2 branches missed.">                                if (!tempToBeRequested.isEmpty()) {</span>
+<span class="nc" id="L1267">                                    toBeRequestedHeaders.addAll(tempToBeRequested);</span>
+
+<span class="nc" id="L1269">                                    latestBlockHeaderRequested = tempToBeRequested.get(tempToBeRequested.size() - 1);</span>
+<span class="nc" id="L1270">                                    blockChainLogger.info(&quot;Requested blocks last block=&quot; + GeneralHelper.bytesToStringHex(latestBlockHeaderRequested.calculateHash())</span>
+<span class="nc" id="L1271">                                            + &quot;\nBlock Number: &quot; + latestBlockHeaderRequested.getBlockNumber());</span>
+<span class="nc" id="L1272">                                    break;</span>
+                                }
+<span class="nc" id="L1274">                            }</span>
+                        } else {
+<span class="nc" id="L1276">                            GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L1278">                            GeneralHelper.lockForMe(usingLockList, readMyChainLock);</span>
+<span class="nc" id="L1279">                            long currentTime = System.currentTimeMillis();</span>
+<span class="nc bnc" id="L1280" title="All 4 branches missed.">                            if (currentTime - lastBroadCastHeadersRequestTime &gt; Configuration.MAXIMUM_RESPONSE_WAITING_TIME &amp;&amp; System.currentTimeMillis() - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) &gt; Configuration.SYNC_PERIOD) {</span>
+<span class="nc" id="L1281">                                lastBroadCastHeadersRequestTime = currentTime;</span>
+<span class="nc" id="L1282">                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()), null);</span>
+                            }
+                        }
+                    }
+
+<span class="nc" id="L1287">                    GeneralHelper.unLockForMe(usingLockList);</span>
+
+
+<span class="nc" id="L1290">                    Thread.sleep(2000);</span>
+
+<span class="nc" id="L1292">                }</span>
+<span class="nc" id="L1293">            } catch (InterruptedException | BlockChainObjectParsingException | IOException e) {</span>
+<span class="nc" id="L1294">                e.printStackTrace();</span>
+            } finally {
+<span class="nc" id="L1296">                shutdown();</span>
+            }
+<span class="nc" id="L1298">        }).start();</span>
+<span class="nc" id="L1299">    }</span>
+
+    private void startValidation() {
+<span class="nc" id="L1302">        new Thread(() -&gt; {</span>
+<span class="nc" id="L1303">            ArrayList&lt;Lock&gt; usingLockList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L1304">            WriteLock writeChainInfoFilesLock = chainInfoFilesLock.writeLock();</span>
+<span class="nc" id="L1305">            WriteLock writeMyChainLock = myChainLock.writeLock();</span>
+<span class="nc" id="L1306">            WriteLock writeTransactionLock = transactionLock.writeLock();</span>
+<span class="nc" id="L1307">            WriteLock writeVoteLock = myVotesLock.writeLock();</span>
+<span class="nc" id="L1308">            WriteLock writeRegistrationLock = registrationLock.writeLock();</span>
+<span class="nc" id="L1309">            WriteLock writeAuthorizationLock = authorizationLock.writeLock();</span>
+<span class="nc" id="L1310">            WriteLock writeRevocationLock = revocationLock.writeLock();</span>
+<span class="nc" id="L1311">            ReadLock readConnectionLock = connectionLock.readLock();</span>
+            try {
+<span class="nc bnc" id="L1313" title="All 2 branches missed.">                while (!isTerminated) {</span>
+
+
+<span class="nc" id="L1316">                    GeneralHelper.lockForMe(usingLockList, writeChainInfoFilesLock, writeMyChainLock);</span>
+
+
+<span class="nc bnc" id="L1319" title="All 6 branches missed.">                    if (myMainChain.canSignNext(myIdentifier) &amp;&amp; requestedHeaders.isEmpty() &amp;&amp; toBeRequestedHeaders.isEmpty()) {</span>
+<span class="nc bnc" id="L1320" title="All 2 branches missed.">                        if (myMainChain.isNextBlockInOrder(myIdentifier)) {</span>
+
+<span class="nc" id="L1322">                            GeneralHelper.lockForMe(usingLockList, writeTransactionLock, readConnectionLock, writeVoteLock, writeRegistrationLock, writeAuthorizationLock, writeRevocationLock);</span>
+
+<span class="nc" id="L1324">                            Vote vote = null;</span>
+<span class="nc bnc" id="L1325" title="All 4 branches missed.">                            if (myVotes.size() &gt; 0 &amp;&amp; myMainChain.getCurrentLatestBlockNumber() + 1 % Configuration.CHECK_POINT_BLOCK_INTERVAL != 0) {</span>
+<span class="nc" id="L1326">                                vote = myVotes.get(0);</span>
+                            }
+<span class="nc" id="L1328">                            Block block = signBlock(vote, Configuration.IN_ORDER, myMainChain.getCurrentLatestBlockNumber() + 1, myMainChain.getLatestBlockHash());</span>
+
+<span class="nc" id="L1330">                            BlockChainManager.storeBlock(block);</span>
+
+<span class="nc" id="L1332">                            AuthorityInfo unTrustedAuthorityInfo = myMainChain.addBlock(block, transactionPool, myVotes, medicalOrgAuthorizationList, medicalOrgRevocationList, patientInfoList, myIdentifier);</span>
+<span class="nc bnc" id="L1333" title="All 2 branches missed.">                            if (unTrustedAuthorityInfo != null) {</span>
+<span class="nc" id="L1334">                                unTrustAuthority(unTrustedAuthorityInfo.getIdentifier());</span>
+                            }
+
+<span class="nc bnc" id="L1337" title="All 2 branches missed.">                            if (block.getContent().getMedicalOrgRevocationList() != null) {</span>
+
+<span class="nc bnc" id="L1339" title="All 2 branches missed.">                                for (byte[] revokedIdentifier : block.getContent().getMedicalOrgRevocationList())</span>
+<span class="nc" id="L1340">                                    revokeMedicalOrg(revokedIdentifier, block.getHeader().getValidatorIdentifier());</span>
+                            }
+<span class="nc bnc" id="L1342" title="All 2 branches missed.">                            if (block.getContent().getMedicalOrgAuthorizationList() != null) {</span>
+<span class="nc bnc" id="L1343" title="All 2 branches missed.">                                for (MedicalOrgInfo medicalOrgInfo : block.getContent().getMedicalOrgAuthorizationList())</span>
+<span class="nc" id="L1344">                                    authorizeMedicalOrg(medicalOrgInfo.getIdentifier(), block.getHeader().getValidatorIdentifier());</span>
+                            }
+
+<span class="nc" id="L1347">                            System.out.println(&quot;In-order block signed and added: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L1348">                                    + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber() + &quot;\nScore: &quot; + myMainChain.getTotalScore()); //debug</span>
+<span class="nc" id="L1349">                            blockChainLogger.info(&quot;In-order block signed and added: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L1350">                                    + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber() + &quot;\nScore: &quot; + myMainChain.getTotalScore());</span>
+
+<span class="nc" id="L1352">                            broadcastMessage(new Message(Configuration.MESSAGE_BLOCK, block.getRaw()), null);</span>
+
+<span class="nc" id="L1354">                            GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L1356">                        } else {</span>
+
+<span class="nc" id="L1358">                            byte[] latestBlockHash = myMainChain.getLatestBlockHash();</span>
+
+<span class="nc bnc" id="L1360" title="All 2 branches missed.">                            if (System.currentTimeMillis() - myMainChain.getLatestBlockTimeStamp() &lt; Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) {</span>
+                                // wait for random offset and then if the block is not received, sign it
+<span class="nc" id="L1362">                                int randomOffset = myMainChain.generateRandomOffset();</span>
+
+<span class="nc" id="L1364">                                GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L1366">                                Thread.sleep(randomOffset);</span>
+
+<span class="nc" id="L1368">                                GeneralHelper.lockForMe(usingLockList, writeMyChainLock);</span>
+                            }
+
+
+<span class="nc bnc" id="L1372" title="All 2 branches missed.">                            if (Arrays.equals(latestBlockHash, myMainChain.getLatestBlockHash())) {</span>
+<span class="nc" id="L1373">                                GeneralHelper.lockForMe(usingLockList, writeTransactionLock, readConnectionLock, writeVoteLock, writeRegistrationLock, writeAuthorizationLock, writeRevocationLock);</span>
+
+<span class="nc" id="L1375">                                Vote vote = null;</span>
+<span class="nc bnc" id="L1376" title="All 4 branches missed.">                                if (myVotes.size() &gt; 0 &amp;&amp; myMainChain.getCurrentLatestBlockNumber() + 1 % Configuration.CHECK_POINT_BLOCK_INTERVAL != 0) {</span>
+<span class="nc" id="L1377">                                    vote = myVotes.get(0);</span>
+                                }
+
+<span class="nc" id="L1380">                                Block block = signBlock(vote, Configuration.OUT_ORDER, myMainChain.getCurrentLatestBlockNumber() + 1, myMainChain.getLatestBlockHash());</span>
+
+<span class="nc" id="L1382">                                BlockChainManager.storeBlock(block);</span>
+
+<span class="nc" id="L1384">                                AuthorityInfo unTrustedAuthorityInfo = myMainChain.addBlock(block, transactionPool, myVotes, medicalOrgAuthorizationList, medicalOrgRevocationList, patientInfoList, myIdentifier);</span>
+<span class="nc bnc" id="L1385" title="All 2 branches missed.">                                if (unTrustedAuthorityInfo != null) {</span>
+<span class="nc" id="L1386">                                    unTrustAuthority(unTrustedAuthorityInfo.getIdentifier());</span>
+                                }
+<span class="nc bnc" id="L1388" title="All 2 branches missed.">                                if (block.getContent().getMedicalOrgRevocationList() != null) {</span>
+
+<span class="nc bnc" id="L1390" title="All 2 branches missed.">                                    for (byte[] revokedIdentifier : block.getContent().getMedicalOrgRevocationList())</span>
+<span class="nc" id="L1391">                                        revokeMedicalOrg(revokedIdentifier, block.getHeader().getValidatorIdentifier());</span>
+                                }
+<span class="nc bnc" id="L1393" title="All 2 branches missed.">                                if (block.getContent().getMedicalOrgAuthorizationList() != null) {</span>
+<span class="nc bnc" id="L1394" title="All 2 branches missed.">                                    for (MedicalOrgInfo medicalOrgInfo : block.getContent().getMedicalOrgAuthorizationList())</span>
+<span class="nc" id="L1395">                                        authorizeMedicalOrg(medicalOrgInfo.getIdentifier(), block.getHeader().getValidatorIdentifier());</span>
+                                }
+
+<span class="nc" id="L1398">                                System.out.println(&quot;Out-order block signed and added: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L1399">                                        + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber() + &quot;\nScore: &quot; + myMainChain.getTotalScore()); // debug</span>
+
+<span class="nc" id="L1401">                                blockChainLogger.info(&quot;Out-order block signed and added: &quot; + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())</span>
+<span class="nc" id="L1402">                                        + &quot;\nCurrent latest block number: &quot; + myMainChain.getCurrentLatestBlockNumber() + &quot;\nScore: &quot; + myMainChain.getTotalScore());</span>
+
+<span class="nc" id="L1404">                                broadcastMessage(new Message(Configuration.MESSAGE_BLOCK, block.getRaw()), null);</span>
+
+<span class="nc" id="L1406">                                GeneralHelper.unLockForMe(usingLockList);</span>
+<span class="nc" id="L1407">                            } else {</span>
+<span class="nc" id="L1408">                                GeneralHelper.unLockForMe(usingLockList);</span>
+                            }
+
+                        }
+                    }
+
+<span class="nc" id="L1414">                    GeneralHelper.unLockForMe(usingLockList);</span>
+
+<span class="nc" id="L1416">                    Thread.sleep(100);</span>
+
+
+                }
+
+<span class="nc" id="L1421">            } catch (Exception e) {</span>
+<span class="nc" id="L1422">                e.printStackTrace();</span>
+<span class="nc" id="L1423">                shutdown();</span>
+            } finally {
+<span class="nc" id="L1425">                GeneralHelper.unLockForMe(usingLockList);</span>
+            }
+
+<span class="nc" id="L1428">        }</span>
+        ).
+
+<span class="nc" id="L1431">                start();</span>
+
+<span class="nc" id="L1433">    }</span>
+
+
+    // includes unconfirmed connection since genrally used for requests
+    private int unicastMessage(Message message, int index) {
+
+<span class="nc" id="L1439">        int newIndex = -1;</span>
+<span class="nc" id="L1440">        int inBoundSize = inBoundConnectionList.size();</span>
+<span class="nc" id="L1441">        int outBoundSize = outBoundConnectionList.size();</span>
+<span class="nc" id="L1442">        int totalSize = inBoundSize + outBoundSize;</span>
+<span class="nc" id="L1443">        ConnectionManager connectionManager = null;</span>
+        try {
+<span class="nc bnc" id="L1445" title="All 2 branches missed.">            if (totalSize != 0) {</span>
+<span class="nc" id="L1446">                newIndex = index % totalSize;</span>
+
+<span class="nc bnc" id="L1448" title="All 2 branches missed.">                if (newIndex &gt;= inBoundSize) {</span>
+<span class="nc" id="L1449">                    newIndex -= inBoundSize;</span>
+<span class="nc" id="L1450">                    int i = 0;</span>
+<span class="nc bnc" id="L1451" title="All 2 branches missed.">                    for (PeerInfo tempPeerInfo : outBoundConnectionList.keySet()) {</span>
+<span class="nc bnc" id="L1452" title="All 2 branches missed.">                        if (i == newIndex) {</span>
+<span class="nc" id="L1453">                            connectionManager = outBoundConnectionList.get(tempPeerInfo);</span>
+<span class="nc" id="L1454">                            break;</span>
+                        }
+<span class="nc" id="L1456">                        ++i;</span>
+<span class="nc" id="L1457">                    }</span>
+
+<span class="nc" id="L1459">                } else {</span>
+<span class="nc" id="L1460">                    int i = 0;</span>
+<span class="nc bnc" id="L1461" title="All 2 branches missed.">                    for (PeerInfo tempPeerInfo : inBoundConnectionList.keySet()) {</span>
+<span class="nc bnc" id="L1462" title="All 2 branches missed.">                        if (i == newIndex) {</span>
+<span class="nc" id="L1463">                            connectionManager = inBoundConnectionList.get(tempPeerInfo);</span>
+<span class="nc" id="L1464">                            break;</span>
+                        }
+<span class="nc" id="L1466">                        ++i;</span>
+<span class="nc" id="L1467">                    }</span>
+                }
+
+<span class="nc" id="L1470">                connectionManager.write(message);</span>
+<span class="nc" id="L1471">                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Sent message &quot; + message.number);</span>
+<span class="nc" id="L1472">                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Sent message &quot; + message.number); //#debug</span>
+            }
+<span class="nc" id="L1474">        } catch (IOException e) {</span>
+<span class="nc" id="L1475">            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Attempted to send message&quot;+ message.number+&quot; but failed due to IOException. So, closing the connection&quot;);</span>
+<span class="nc" id="L1476">            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Attempted to send message\&quot;+ message.number+\&quot; but failed due to IOException. So, closing the connection&quot;); //#debug</span>
+<span class="nc" id="L1477">            connectionManager.close();</span>
+<span class="nc" id="L1478">        }</span>
+
+
+<span class="nc" id="L1481">        return newIndex;</span>
+    }
+
+    private int randomUnicastMessage(Message message) {
+<span class="nc" id="L1485">        int random = -1;</span>
+<span class="nc" id="L1486">        int inBoundSize = inBoundConnectionList.size();</span>
+<span class="nc" id="L1487">        int outBoundSize = outBoundConnectionList.size();</span>
+<span class="nc" id="L1488">        int totalSize = inBoundSize + outBoundSize;</span>
+<span class="nc" id="L1489">        ConnectionManager connectionManager = null;</span>
+        try {
+<span class="nc bnc" id="L1491" title="All 2 branches missed.">            if (totalSize != 0) {</span>
+<span class="nc" id="L1492">                random = rand.nextInt(totalSize);</span>
+
+<span class="nc bnc" id="L1494" title="All 2 branches missed.">                if (random &gt;= inBoundSize) { // from outbound</span>
+<span class="nc" id="L1495">                    random -= inBoundSize;</span>
+<span class="nc" id="L1496">                    int i = 0;</span>
+<span class="nc bnc" id="L1497" title="All 2 branches missed.">                    for (PeerInfo tempPeerInfo : outBoundConnectionList.keySet()) {</span>
+<span class="nc bnc" id="L1498" title="All 2 branches missed.">                        if (i == random) {</span>
+<span class="nc" id="L1499">                            connectionManager = outBoundConnectionList.get(tempPeerInfo);</span>
+<span class="nc" id="L1500">                            break;</span>
+                        }
+<span class="nc" id="L1502">                        ++i;</span>
+<span class="nc" id="L1503">                    }</span>
+
+<span class="nc" id="L1505">                } else {</span>
+<span class="nc" id="L1506">                    int i = 0;</span>
+<span class="nc bnc" id="L1507" title="All 2 branches missed.">                    for (PeerInfo tempPeerInfo : inBoundConnectionList.keySet()) {</span>
+<span class="nc bnc" id="L1508" title="All 2 branches missed.">                        if (i == random) {</span>
+<span class="nc" id="L1509">                            connectionManager = inBoundConnectionList.get(tempPeerInfo);</span>
+<span class="nc" id="L1510">                            break;</span>
+                        }
+<span class="nc" id="L1512">                        ++i;</span>
+<span class="nc" id="L1513">                    }</span>
+                }
+
+<span class="nc" id="L1516">                connectionManager.write(message);</span>
+<span class="nc" id="L1517">                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Sent message &quot; + message.number);</span>
+<span class="nc" id="L1518">                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Sent message &quot; + message.number); //#debug</span>
+            }
+<span class="nc" id="L1520">        } catch (IOException e) {</span>
+<span class="nc" id="L1521">            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Attempted to send message&quot;+ message.number+&quot; but failed due to IOException. So, closing the connection&quot;);</span>
+<span class="nc" id="L1522">            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Attempted to send message\&quot;+ message.number+\&quot; but failed due to IOException. So, closing the connection&quot;); //#debug</span>
+<span class="nc" id="L1523">            connectionManager.close();</span>
+<span class="nc" id="L1524">        }</span>
+
+<span class="nc" id="L1526">        return random;</span>
+    }
+
+    //only to confirmed
+    private void broadcastMessage(Message message, PeerInfo except) {
+
+<span class="nc" id="L1532">        int totalSize = 0;</span>
+
+
+<span class="nc bnc" id="L1535" title="All 2 branches missed.">        for (PeerInfo peerInfo : inBoundConnectionList.keySet()) {</span>
+<span class="nc bnc" id="L1536" title="All 2 branches missed.">            if (peerInfo.equals(except))</span>
+<span class="nc" id="L1537">                continue;</span>
+
+<span class="nc" id="L1539">            ConnectionManager connectionManager = inBoundConnectionList.get(peerInfo);</span>
+<span class="nc bnc" id="L1540" title="All 2 branches missed.">            if (!connectionManager.isConfirmed())</span>
+<span class="nc" id="L1541">                continue;</span>
+
+            try {
+<span class="nc" id="L1544">                connectionManager.write(message);</span>
+<span class="nc" id="L1545">                ++totalSize;</span>
+<span class="nc" id="L1546">            } catch (IOException e) {</span>
+<span class="nc" id="L1547">                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Attempted to send message&quot;+ message.number+&quot; but failed due to IOException. So, closing the connection&quot;);</span>
+<span class="nc" id="L1548">                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Attempted to send message\&quot;+ message.number+\&quot; but failed due to IOException. So, closing the connection&quot;); //#debug</span>
+<span class="nc" id="L1549">                connectionManager.close();</span>
+<span class="nc" id="L1550">            }</span>
+<span class="nc" id="L1551">        }</span>
+
+<span class="nc bnc" id="L1553" title="All 2 branches missed.">        for (PeerInfo peerInfo : outBoundConnectionList.keySet()) {</span>
+
+<span class="nc bnc" id="L1555" title="All 2 branches missed.">            if (peerInfo.equals(except))</span>
+<span class="nc" id="L1556">                continue;</span>
+
+<span class="nc" id="L1558">            ConnectionManager connectionManager = outBoundConnectionList.get(peerInfo);</span>
+<span class="nc bnc" id="L1559" title="All 2 branches missed.">            if (!connectionManager.isConfirmed())</span>
+<span class="nc" id="L1560">                continue;</span>
+
+            try {
+<span class="nc" id="L1563">                connectionManager.write(message);</span>
+<span class="nc" id="L1564">                ++totalSize;</span>
+<span class="nc" id="L1565">            } catch (IOException e) {</span>
+<span class="nc" id="L1566">                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Attempted to send message&quot;+ message.number+&quot; but failed due to IOException. So, closing the connection&quot;);</span>
+<span class="nc" id="L1567">                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + &quot;: Attempted to send message\&quot;+ message.number+\&quot; but failed due to IOException. So, closing the connection&quot;); //#debug</span>
+<span class="nc" id="L1568">                connectionManager.close();</span>
+<span class="nc" id="L1569">            }</span>
+<span class="nc" id="L1570">        }</span>
+
+<span class="nc bnc" id="L1572" title="All 2 branches missed.">        if (totalSize &gt; 0) {</span>
+<span class="nc" id="L1573">            System.out.println(&quot;Broadcasted message &quot; + message.number + &quot; to &quot; + totalSize + &quot; node(s)&quot;);// debug</span>
+<span class="nc" id="L1574">            blockChainLogger.info(&quot;Broadcasted message &quot; + message.number + &quot; to &quot; + totalSize + &quot; node(s)&quot;);</span>
+        }
+
+<span class="nc" id="L1577">    }</span>
+
+
+    private void unTrustAuthority(byte[] authorityIdentifier) {
+<span class="nc bnc" id="L1581" title="All 2 branches missed.">        for (PeerInfo peerInfo : inBoundConnectionList.keySet())</span>
+<span class="nc bnc" id="L1582" title="All 2 branches missed.">            if (Arrays.equals(peerInfo.getIssuerIdentifier(), authorityIdentifier))</span>
+<span class="nc" id="L1583">                inBoundConnectionList.get(peerInfo).close();</span>
+<span class="nc bnc" id="L1584" title="All 2 branches missed.">        for (PeerInfo peerInfo : outBoundConnectionList.keySet())</span>
+<span class="nc bnc" id="L1585" title="All 2 branches missed.">            if (Arrays.equals(peerInfo.getIssuerIdentifier(), authorityIdentifier))</span>
+<span class="nc" id="L1586">                outBoundConnectionList.get(peerInfo).close();</span>
+<span class="nc" id="L1587">    }</span>
+
+    private void revokeMedicalOrg(byte[] medicalOrgIdentifier, byte[] issuerIdentifier) {
+
+<span class="nc" id="L1591">        PeerInfo peerInfo = new PeerInfo(medicalOrgIdentifier, issuerIdentifier);</span>
+<span class="nc bnc" id="L1592" title="All 2 branches missed.">        if (inBoundConnectionList.containsKey(peerInfo)) {</span>
+<span class="nc" id="L1593">            inBoundConnectionList.get(peerInfo).close();</span>
+        }
+
+<span class="nc bnc" id="L1596" title="All 2 branches missed.">        if (outBoundConnectionList.containsKey(peerInfo)) {</span>
+<span class="nc" id="L1597">            outBoundConnectionList.get(peerInfo).close();</span>
+        }
+<span class="nc" id="L1599">    }</span>
+
+    private void authorizeMedicalOrg(byte[] medicalOrgIdentifier, byte[] issuerIdentifier) {
+<span class="nc" id="L1602">        PeerInfo peerInfo = new PeerInfo(medicalOrgIdentifier, issuerIdentifier);</span>
+<span class="nc bnc" id="L1603" title="All 2 branches missed.">        if (inBoundConnectionList.containsKey(peerInfo)) {</span>
+<span class="nc" id="L1604">            inBoundConnectionList.get(peerInfo).setConfirmed(true);</span>
+        }
+
+<span class="nc bnc" id="L1607" title="All 2 branches missed.">        if (outBoundConnectionList.containsKey(peerInfo)) {</span>
+<span class="nc" id="L1608">            outBoundConnectionList.get(peerInfo).setConfirmed(true);</span>
+        }
+<span class="nc" id="L1610">    }</span>
+
+    private Block signBlock(Vote vote, byte score, int blockNumber, byte[] prevBlockHash) {
+<span class="nc" id="L1613">        return new Block(myPrivateKey, vote, null, blockNumber, score, prevBlockHash, myPublicKey, getAuthorizations(Configuration.MAX_AUTHORIZATION)</span>
+<span class="nc" id="L1614">                , getRevocations(Configuration.MAX_REVOCATION)</span>
+<span class="nc" id="L1615">                , getRegistrations(Configuration.MAX_PATIENT_INFO)</span>
+<span class="nc" id="L1616">                , getTransactions(Configuration.MAX_RECORD));</span>
+    }
+
+
+    private MedicalOrgInfo[] getAuthorizations(int num) {
+<span class="nc bnc" id="L1621" title="All 2 branches missed.">        if (medicalOrgAuthorizationList.size() == 0)</span>
+<span class="nc" id="L1622">            return null;</span>
+
+
+<span class="nc bnc" id="L1625" title="All 2 branches missed.">        return medicalOrgAuthorizationList.subList(0, num &gt; medicalOrgAuthorizationList.size() ? medicalOrgAuthorizationList.size() : num).toArray(new MedicalOrgInfo[0]);</span>
+    }
+
+    private byte[][] getRevocations(int num) {
+<span class="nc bnc" id="L1629" title="All 2 branches missed.">        if (medicalOrgRevocationList.size() == 0)</span>
+<span class="nc" id="L1630">            return null;</span>
+
+<span class="nc" id="L1632">        ArrayList&lt;byte[]&gt; revokedIdentifiers = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L1633" title="All 2 branches missed.">        int length = num &gt; medicalOrgRevocationList.size() ? medicalOrgRevocationList.size() : num;</span>
+
+<span class="nc" id="L1635">        Iterator&lt;byte[]&gt; iterator = medicalOrgRevocationList.iterator();</span>
+<span class="nc bnc" id="L1636" title="All 2 branches missed.">        for (int i = 0; i &lt; length; ++i) {</span>
+<span class="nc" id="L1637">            revokedIdentifiers.add(iterator.next());</span>
+        }
+
+
+<span class="nc" id="L1641">        return revokedIdentifiers.toArray(new byte[0][0]);</span>
+    }
+
+    private PatientInfo[] getRegistrations(int num) {
+<span class="nc bnc" id="L1645" title="All 2 branches missed.">        if (patientInfoList.size() == 0)</span>
+<span class="nc" id="L1646">            return null;</span>
+
+<span class="nc bnc" id="L1648" title="All 2 branches missed.">        return patientInfoList.subList(0, num &gt; patientInfoList.size() ? patientInfoList.size() : num).toArray(new PatientInfo[0]);</span>
+    }
+
+
+    private Transaction[] getTransactions(int num) {
+<span class="nc bnc" id="L1653" title="All 2 branches missed.">        if (transactionPool.size() == 0)</span>
+<span class="nc" id="L1654">            return null;</span>
+
+
+<span class="nc bnc" id="L1657" title="All 2 branches missed.">        return transactionPool.subList(0, num &gt; transactionPool.size() ? transactionPool.size() : num).toArray(new Transaction[0]);</span>
+    }
+
+    private InetAddress[] getPeerList(PeerInfo toWhom) {
+<span class="nc" id="L1661">        int inBoundSize = inBoundConnectionList.size();</span>
+<span class="nc" id="L1662">        int outBoundSize = outBoundConnectionList.size();</span>
+<span class="nc" id="L1663">        int totalSize = inBoundSize + outBoundSize - 1; // remove the one who asked</span>
+<span class="nc bnc" id="L1664" title="All 2 branches missed.">        InetAddress[] peerList = new InetAddress[totalSize &gt; 0 ? totalSize : 0];</span>
+
+<span class="nc" id="L1666">        int index = 0;</span>
+<span class="nc bnc" id="L1667" title="All 2 branches missed.">        for (PeerInfo peerInfo : inBoundConnectionList.keySet())</span>
+<span class="nc bnc" id="L1668" title="All 2 branches missed.">            if (!peerInfo.equals(toWhom))</span>
+<span class="nc" id="L1669">                peerList[index++] = inBoundConnectionList.get(peerInfo).getSocket().getInetAddress();</span>
+<span class="nc bnc" id="L1670" title="All 2 branches missed.">        for (PeerInfo peerInfo : outBoundConnectionList.keySet())</span>
+<span class="nc bnc" id="L1671" title="All 2 branches missed.">            if (!peerInfo.equals(toWhom))</span>
+<span class="nc" id="L1672">                peerList[index++] = outBoundConnectionList.get(peerInfo).getSocket().getInetAddress();</span>
+
+<span class="nc" id="L1674">        return peerList;</span>
+    }
+
+    private boolean checkIfConnectionExists(PeerInfo peerInfo) {
+
+<span class="nc bnc" id="L1679" title="All 2 branches missed.">        if (inBoundConnectionList.containsKey(peerInfo))</span>
+<span class="nc" id="L1680">            return true;</span>
+<span class="nc" id="L1681">        return outBoundConnectionList.containsKey(peerInfo);</span>
+    }
+
+
+    // For API begins
+
+
+    public ArrayList&lt;Vote&gt; getMyVotes() {
+
+<span class="nc" id="L1690">        ReadLock readMyVotesLock = myVotesLock.readLock();</span>
+
+<span class="nc" id="L1692">        readMyVotesLock.lock();</span>
+
+<span class="nc" id="L1694">        ArrayList&lt;Vote&gt; votes = new ArrayList&lt;&gt;(myVotes);</span>
+
+<span class="nc" id="L1696">        readMyVotesLock.unlock();</span>
+
+<span class="nc" id="L1698">        return votes;</span>
+    }
+
+    public byte[] getMyIdentifier() {
+<span class="nc" id="L1702">        return myIdentifier;</span>
+    }
+
+    public ArrayList&lt;AuthorityInfo&gt; getOverallAuthorityList() throws IOException, BlockChainObjectParsingException {
+
+<span class="nc" id="L1707">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+
+
+<span class="nc" id="L1710">        readMyChainLock.lock();</span>
+
+<span class="nc" id="L1712">        ArrayList&lt;AuthorityInfo&gt; currentOverallAuthorityList = myMainChain.getCurrentOverallAuthorityInfoList();</span>
+
+<span class="nc" id="L1714">        readMyChainLock.unlock();</span>
+
+
+<span class="nc" id="L1717">        return currentOverallAuthorityList;</span>
+
+    }
+
+    public ArrayList&lt;Voting&gt; getVotingList() {
+
+<span class="nc" id="L1723">        return myMainChain.getCurrentVotingList();</span>
+
+    }
+
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: cannot be prossessed
+     */
+    public byte castVote(Vote v) throws IOException, BlockChainObjectParsingException {
+<span class="nc" id="L1735">        byte result = 0;</span>
+
+<span class="nc" id="L1737">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L1738">        WriteLock writeMyVotesLock = myVotesLock.writeLock();</span>
+
+<span class="nc" id="L1740">        ArrayList&lt;Lock&gt; usingLock = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1742">        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeMyVotesLock);</span>
+
+<span class="nc bnc" id="L1744" title="All 2 branches missed.">        if (myVotes.contains(v)) {</span>
+<span class="nc" id="L1745">            result = 1;</span>
+<span class="nc bnc" id="L1746" title="All 2 branches missed.">        } else if (!myMainChain.checkVote(myIdentifier, v)) { // already exists, existed or duplicate, ...</span>
+<span class="nc" id="L1747">            result = 2;</span>
+        }
+<span class="nc bnc" id="L1749" title="All 2 branches missed.">        if (result == 0)</span>
+<span class="nc" id="L1750">            myVotes.add(v);</span>
+
+<span class="nc" id="L1752">        GeneralHelper.unLockForMe(usingLock);</span>
+
+<span class="nc" id="L1754">        return result;</span>
+
+    }
+
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: already exists
+     */
+    public byte addToPatientInfoListForRegistration(PatientInfo patientInfo) throws IOException, BlockChainObjectParsingException, BadRequest {
+
+
+<span class="nc" id="L1768">        byte result = 0;</span>
+
+<span class="nc" id="L1770">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L1771">        WriteLock writeRegistrationLock = registrationLock.writeLock();</span>
+
+<span class="nc" id="L1773">        ArrayList&lt;Lock&gt; usingLock = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1775">        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRegistrationLock);</span>
+
+<span class="nc bnc" id="L1777" title="All 2 branches missed.">        if (patientInfoList.contains(patientInfo)) {</span>
+<span class="nc" id="L1778">            result = 1;</span>
+<span class="nc bnc" id="L1779" title="All 2 branches missed.">        } else if (PatientInfoManager.patientExists(myMainChain.getLatestBlockHash(), patientInfo.getPatientIdentifier())) {</span>
+<span class="nc" id="L1780">            result = 2;</span>
+<span class="nc bnc" id="L1781" title="All 2 branches missed.">        } else if (!patientInfo.verify()) {</span>
+<span class="nc" id="L1782">            System.out.println(&quot;This message shouldn't pop up&quot;);//debug</span>
+<span class="nc" id="L1783">            throw new BadRequest();</span>
+        }
+
+<span class="nc bnc" id="L1786" title="All 2 branches missed.">        if (result == 0)</span>
+<span class="nc" id="L1787">            patientInfoList.add(patientInfo);</span>
+
+<span class="nc" id="L1789">        GeneralHelper.unLockForMe(usingLock);</span>
+
+<span class="nc" id="L1791">        return result;</span>
+    }
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: patient doesn't exist
+     * 3: already updated
+     */
+    public byte addToPatientInfoListForUpdate(PatientInfo patientInfo) throws IOException, BlockChainObjectParsingException, BadRequest {
+
+<span class="nc" id="L1803">        byte result = 0;</span>
+
+<span class="nc" id="L1805">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L1806">        WriteLock writeRegistrationLock = registrationLock.writeLock();</span>
+
+
+<span class="nc" id="L1809">        ArrayList&lt;Lock&gt; usingLock = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1811">        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRegistrationLock);</span>
+
+<span class="nc bnc" id="L1813" title="All 2 branches missed.">        if (patientInfoList.contains(patientInfo)) {</span>
+<span class="nc" id="L1814">            result = 1;</span>
+<span class="nc bnc" id="L1815" title="All 2 branches missed.">        } else if (!PatientInfoManager.patientExists(myMainChain.getLatestBlockHash(), patientInfo.getPatientIdentifier())) {</span>
+<span class="nc" id="L1816">            result = 2;</span>
+<span class="nc bnc" id="L1817" title="All 2 branches missed.">        } else if (PatientInfoManager.patientInfoExists(myMainChain.getLatestBlockHash(), patientInfo.getPatientIdentifier(), patientInfo.calculateInfoHash())) {</span>
+<span class="nc" id="L1818">            result = 3;</span>
+<span class="nc bnc" id="L1819" title="All 2 branches missed.">        } else if (!patientInfo.verify()) {</span>
+<span class="nc" id="L1820">            System.out.println(&quot;This message shouldn't pop up&quot;);//debug</span>
+<span class="nc" id="L1821">            throw new BadRequest();</span>
+        }
+
+<span class="nc bnc" id="L1824" title="All 2 branches missed.">        if (result == 0)</span>
+<span class="nc" id="L1825">            patientInfoList.add(patientInfo);</span>
+
+<span class="nc" id="L1827">        GeneralHelper.unLockForMe(usingLock);</span>
+
+
+<span class="nc" id="L1830">        return result;</span>
+    }
+
+    public byte[] getPatientEncryptedInfo(Location location) throws IOException, BlockChainObjectParsingException {
+<span class="nc" id="L1834">        return PatientInfoManager.loadEcnryptedInfo(location);</span>
+    }
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: authorized by another authority
+     */
+    public byte addToRevocationList(byte[] identifier) throws IOException, BlockChainObjectParsingException, FileCorruptionException, NotFound {
+
+<span class="nc" id="L1845">        byte result = 0;</span>
+
+<span class="nc" id="L1847">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L1848">        WriteLock writeRevocationLock = revocationLock.writeLock();</span>
+
+<span class="nc" id="L1850">        ArrayList&lt;Lock&gt; usingLock = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1852">        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRevocationLock);</span>
+
+<span class="nc bnc" id="L1854" title="All 2 branches missed.">        if (!myMainChain.hasMedicalOrg(identifier)) {</span>
+<span class="nc" id="L1855">            throw new NotFound();</span>
+        } else {
+<span class="nc bnc" id="L1857" title="All 2 branches missed.">            if (medicalOrgRevocationList.contains(identifier)) {</span>
+<span class="nc" id="L1858">                result = 1;</span>
+<span class="nc bnc" id="L1859" title="All 2 branches missed.">            } else if (!Arrays.equals(myMainChain.getMedicalOrgInfoForInternal(identifier).getAuthorityIdentifier(), myIdentifier)) {</span>
+<span class="nc" id="L1860">                result = 2;</span>
+            }
+
+<span class="nc bnc" id="L1863" title="All 2 branches missed.">            if (result == 0)</span>
+<span class="nc" id="L1864">                medicalOrgRevocationList.add(identifier);</span>
+
+<span class="nc" id="L1866">            GeneralHelper.unLockForMe(usingLock);</span>
+        }
+
+<span class="nc" id="L1869">        return result;</span>
+    }
+
+    /*
+     * return error status code(1 byte) or transaction id(32 byte) (if successful):
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: already exists
+     */
+    public byte addToAuthorizationList(MedicalOrgInfo medicalOrgInfo) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+
+<span class="nc" id="L1881">        byte result = 0;</span>
+
+<span class="nc" id="L1883">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+<span class="nc" id="L1884">        WriteLock writeAuthorizationLock = authorizationLock.writeLock();</span>
+
+<span class="nc" id="L1886">        ArrayList&lt;Lock&gt; usingLock = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1888">        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeAuthorizationLock);</span>
+
+<span class="nc bnc" id="L1890" title="All 2 branches missed.">        if (medicalOrgAuthorizationList.contains(medicalOrgInfo)) {</span>
+<span class="nc" id="L1891">            result = 1;</span>
+<span class="nc bnc" id="L1892" title="All 2 branches missed.">        } else if (myMainChain.hasMedicalOrg(medicalOrgInfo.getIdentifier())) {</span>
+<span class="nc" id="L1893">            result = 2;</span>
+<span class="nc bnc" id="L1894" title="All 2 branches missed.">        } else if (myMainChain.isMedicalOrgRevoked(medicalOrgInfo.getIdentifier())) {</span>
+<span class="nc" id="L1895">            result = 2;</span>
+        }
+
+<span class="nc bnc" id="L1898" title="All 2 branches missed.">        if (result == 0) {</span>
+<span class="nc" id="L1899">            medicalOrgAuthorizationList.add(medicalOrgInfo);</span>
+        }
+
+<span class="nc" id="L1902">        GeneralHelper.unLockForMe(usingLock);</span>
+
+<span class="nc" id="L1904">        return result;</span>
+    }
+
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: not authorized
+     * 2: not authorized by me
+     */
+    public byte isMedicalOrgAuthorizedByMe(byte[] identifier) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+
+<span class="nc" id="L1916">        byte result = 0;</span>
+
+<span class="nc" id="L1918">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+
+<span class="nc" id="L1920">        ArrayList&lt;Lock&gt; usingLock = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L1922">        GeneralHelper.lockForMe(usingLock, readMyChainLock);</span>
+
+
+<span class="nc bnc" id="L1925" title="All 2 branches missed.">        if (!myMainChain.hasMedicalOrg(identifier))</span>
+<span class="nc" id="L1926">            result = 1;</span>
+<span class="nc bnc" id="L1927" title="All 2 branches missed.">        else if (!Arrays.equals(myIdentifier, myMainChain.getMedicalOrgInfoForInternal(identifier).getAuthorityIdentifier()))</span>
+<span class="nc" id="L1928">            result = 2;</span>
+
+<span class="nc" id="L1930">        GeneralHelper.unLockForMe(usingLock);</span>
+
+<span class="nc" id="L1932">        return result;</span>
+    }
+
+    public X509Certificate issueCertificate(MedicalOrgInfo medicalOrgInfo, Date noAfter) throws OperatorCreationException, CertificateException, IOException {
+<span class="nc" id="L1936">        return SecurityHelper.issueCertificate(medicalOrgInfo.getPublicKey(), myPublicKey, myPrivateKey</span>
+<span class="nc" id="L1937">                , noAfter, medicalOrgInfo.getName(), myName</span>
+<span class="nc" id="L1938">                , BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(medicalOrgInfo.getPublicKey())</span>
+                , myIdentifier, null, Configuration.SIGNING_CERTIFICATE_SIGNATURE_ALGORITHM, true);
+    }
+
+
+    public MedicalOrgInfo getMedicalOrgInfo(byte[] medicalOrgIdentifier) throws BlockChainObjectParsingException, IOException {
+
+<span class="nc" id="L1945">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+
+<span class="nc" id="L1947">        readMyChainLock.lock();</span>
+
+<span class="nc" id="L1949">        MedicalOrgInfo medicalOrgInfo = null;</span>
+        try {
+<span class="nc" id="L1951">            medicalOrgInfo = myMainChain.getMedicalOrgInfoForInternal(medicalOrgIdentifier).getMedicalOrgInfo();</span>
+<span class="nc" id="L1952">        } catch (FileCorruptionException e) {</span>
+<span class="nc" id="L1953">            e.printStackTrace();</span>
+<span class="nc" id="L1954">            shutdown();</span>
+        } finally {
+<span class="nc" id="L1956">            readMyChainLock.unlock();</span>
+        }
+
+<span class="nc" id="L1959">        return medicalOrgInfo;</span>
+
+    }
+
+    public ArrayList&lt;MedicalOrgShortInfo&gt; getAllMedicalOrgShortInfoAuthorizedBy(byte[] authorityIdentifier) throws BlockChainObjectParsingException, IOException {
+
+<span class="nc" id="L1965">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+
+<span class="nc" id="L1967">        readMyChainLock.lock();</span>
+
+<span class="nc" id="L1969">        ArrayList&lt;MedicalOrgShortInfo&gt; medicalOrgShortInfos = MedicalOrgInfoManager.loadEveryShortInfo(myMainChain.getLatestBlockHash(), authorityIdentifier);</span>
+
+<span class="nc" id="L1971">        readMyChainLock.unlock();</span>
+
+<span class="nc" id="L1973">        return medicalOrgShortInfos;</span>
+
+    }
+
+    public ArrayList&lt;PatientShortInfo&gt; getPatientShortInfoList(byte[] patienIdentifier) throws IOException, BlockChainObjectParsingException {
+
+<span class="nc" id="L1979">        ReadLock readMyChainLock = myChainLock.readLock();</span>
+
+<span class="nc" id="L1981">        readMyChainLock.lock();</span>
+
+<span class="nc" id="L1983">        ArrayList&lt;PatientShortInfo&gt; patientShortInfos = PatientInfoManager.loadEveryShortInfo(myMainChain.getLatestBlockHash(), patienIdentifier);</span>
+<span class="nc" id="L1984">        readMyChainLock.unlock();</span>
+
+<span class="nc" id="L1986">        return patientShortInfos;</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

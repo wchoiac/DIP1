@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthorityInfoForInternal.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">blockchain.internal</a> &gt; <span class="el_source">AuthorityInfoForInternal.java</span></div><h1>AuthorityInfoForInternal.java</h1><pre class="source lang-java linenums">package blockchain.internal;
+
+import blockchain.block.AuthorityInfo;
+
+import java.util.Objects;
+
+//index of an authority is the total number of authorities, before it gets added in.
+public class AuthorityInfoForInternal{
+    private AuthorityInfo authorityInfo;
+    private int lastSignedBlockNumber; // if -1, it is at most current number -((current Authority number)/2 +1) from now
+    private byte[] untrustedBlock;
+    public AuthorityInfoForInternal(AuthorityInfo info, int lastSignedBlockHeight, byte[] untrustedBlock)
+<span class="nc" id="L13">    {</span>
+<span class="nc" id="L14">        this.setAuthorityInfo(info);</span>
+<span class="nc" id="L15">        this.setLastSignedBlockNumber(lastSignedBlockHeight);</span>
+<span class="nc" id="L16">        this.setUntrustedBlock(untrustedBlock);</span>
+<span class="nc" id="L17">    }</span>
+    public boolean canSign(int currentBlockNumber, int totalAuthorities)
+    {
+<span class="nc" id="L20">        int validationInterval=(totalAuthorities/2)+1;</span>
+<span class="nc bnc" id="L21" title="All 4 branches missed.">        return getLastSignedBlockNumber() ==-1 || currentBlockNumber- getLastSignedBlockNumber() &gt;=validationInterval;</span>
+    }
+
+    public static boolean isInOrder(int currentBlockNumber, int totalAuthorities, int index)
+    {
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        return (currentBlockNumber%totalAuthorities)==index;</span>
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        if (o == this) return true;</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (!(o instanceof AuthorityInfoForInternal)) {</span>
+<span class="nc" id="L34">            return false;</span>
+        }
+
+<span class="nc" id="L37">        AuthorityInfoForInternal authorityInfoForInternal = (AuthorityInfoForInternal) o;</span>
+<span class="nc" id="L38">        return authorityInfoForInternal.getAuthorityInfo().equals(getAuthorityInfo());</span>
+
+    }
+
+    @Override
+    public int hashCode()
+    {
+<span class="nc" id="L45">        return Objects.hash(getAuthorityInfo());</span>
+
+    }
+
+    public AuthorityInfo getAuthorityInfo() {
+<span class="nc" id="L50">        return authorityInfo;</span>
+    }
+
+    public void setAuthorityInfo(AuthorityInfo authorityInfo) {
+<span class="nc" id="L54">        this.authorityInfo = authorityInfo;</span>
+<span class="nc" id="L55">    }</span>
+
+    public int getLastSignedBlockNumber() {
+<span class="nc" id="L58">        return lastSignedBlockNumber;</span>
+    }
+
+    public void setLastSignedBlockNumber(int lastSignedBlockNumber) {
+<span class="nc" id="L62">        this.lastSignedBlockNumber = lastSignedBlockNumber;</span>
+<span class="nc" id="L63">    }</span>
+
+    public byte[] getUntrustedBlock() {
+<span class="nc" id="L66">        return untrustedBlock;</span>
+    }
+
+    public void setUntrustedBlock(byte[] untrustedBlock) {
+<span class="nc" id="L70">        this.untrustedBlock = untrustedBlock;</span>
+<span class="nc" id="L71">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

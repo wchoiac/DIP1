@@ -249,7 +249,7 @@ public class ValidatorResource {
         } catch (ServerError|IOException | BlockChainObjectParsingException e) {
             e.printStackTrace();
             return Response.serverError().build();
-        } catch (InvalidKeyException|SignatureException|InvalidKeySpecException | BadRequest e) {
+        } catch (InvalidKeySpecException | BadRequest e) {
             e.printStackTrace();
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
@@ -372,10 +372,10 @@ public class ValidatorResource {
         try {
             return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().renewCertificate(certificateRenewRequestPojo))
                     , MediaType.APPLICATION_JSON).build();
-        } catch (ServerError| FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {
+        } catch ( FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {
             e.printStackTrace();
             return Response.serverError().build();
-        } catch (InvalidKeySpecException | BadRequest e) {
+        } catch (BadRequest e) {
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
 

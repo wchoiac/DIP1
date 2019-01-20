@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ValidatorResource.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">rest.server.resource</a> &gt; <span class="el_source">ValidatorResource.java</span></div><h1>ValidatorResource.java</h1><pre class="source lang-java linenums">package rest.server.resource;
+
+import blockchain.block.PatientInfo;
+import exception.BlockChainObjectParsingException;
+import exception.FileCorruptionException;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.glassfish.grizzly.http.server.Request;
+import rest.pojo.*;
+import rest.server.ValidatorRestServer;
+import rest.server.exception.BadRequest;
+import rest.server.exception.InvalidUserInfo;
+import rest.server.exception.NotFound;
+import rest.server.exception.ServerError;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.ext.Provider;
+import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
+
+
+//hash algorithm is always SHA256
+//signature algorithm is always SHA256withECDSA
+
+/**
+ *
+ */
+@Provider
+@Path(&quot;/&quot;)
+<span class="nc" id="L38">public class ValidatorResource {</span>
+
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    @Path(&quot;test&quot;)
+    public Response test(@Context Request request, @QueryParam(&quot;test&quot;) String test) {
+
+<span class="nc" id="L46">        System.out.println(test + &quot; &quot; + request.getRequestURI());</span>
+
+<span class="nc" id="L48">        return Response.serverError().build();</span>
+    }
+
+    /*
+     *  If successful, Secure token
+     *  Else, return &quot;login failed&quot;
+     */
+    @POST
+    @Produces(MediaType.TEXT_PLAIN)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(&quot;user/login&quot;)
+    public Response login(@Context Request request, UserInfoPojo userInfoPojo) {
+
+        String token;
+        try {
+<span class="nc" id="L63">            token = ValidatorRestServer.getRunningServer().getAPIResolver().apiLogin(userInfoPojo);</span>
+<span class="nc" id="L64">        } catch (IOException e) {</span>
+<span class="nc" id="L65">            e.printStackTrace();</span>
+<span class="nc" id="L66">            return Response.serverError().build();</span>
+<span class="nc" id="L67">        } catch (BadRequest e) {</span>
+<span class="nc" id="L68">            return Response.status(Response.Status.BAD_REQUEST).build();</span>
+<span class="nc" id="L69">        } catch (InvalidUserInfo e) {</span>
+<span class="nc" id="L70">            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + &quot;: login fail &quot; + userInfoPojo.getUsername());</span>
+<span class="nc" id="L71">            return Response.status(Response.Status.UNAUTHORIZED).build();</span>
+<span class="nc" id="L72">        }</span>
+
+<span class="nc" id="L74">        ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + &quot;: login success(&quot; + userInfoPojo.getUsername() + &quot;)&quot;);</span>
+<span class="nc" id="L75">        return Response.ok(token,MediaType.TEXT_PLAIN).build();</span>
+
+    }
+
+    /*
+     * return list of authority information
+     */
+    @GET
+    @SecuredRootLevel
+    @Produces(MediaType.APPLICATION_JSON) // Read with AuthorityInfoPojo[]
+    @Path(&quot;authority/get-overall-list&quot;)
+    public Response getOverallList() {
+
+        try {
+<span class="nc" id="L89">            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getOverallList(), MediaType.APPLICATION_JSON).build();</span>
+<span class="nc" id="L90">        } catch (IOException | BlockChainObjectParsingException e) {</span>
+<span class="nc" id="L91">            e.printStackTrace();</span>
+<span class="nc" id="L92">            return Response.serverError().build();</span>
+        }
+    }
+
+
+    /*
+     * return list of votes that to be processed
+     */
+    @GET
+    @SecuredRootLevel
+    @Produces(MediaType.APPLICATION_JSON) // Read with VotePojo[]
+    @Path(&quot;authority/vote/get-processing-list&quot;)
+    public Response getMyVotes() {
+
+<span class="nc" id="L106">        return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getMyVotes()</span>
+<span class="nc" id="L107">                , MediaType.APPLICATION_JSON).build();</span>
+
+    }
+
+
+    /*
+     * return list of on-going votings
+     */
+    @GET
+    @SecuredRootLevel
+    @Produces(MediaType.APPLICATION_JSON) //Read with VotingPojo[]
+    @Path(&quot;authority/vote/get-current-list&quot;)
+    public Response getCurrentVotingList() {
+
+<span class="nc" id="L121">        return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getCurrentVotingList()</span>
+<span class="nc" id="L122">                , MediaType.APPLICATION_JSON).build();</span>
+
+    }
+
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: cannot be processed (e.g. already voted)
+     */
+    @POST
+    @SecuredRootLevel
+    @Produces(MediaType.TEXT_PLAIN)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(&quot;authority/vote/cast&quot;)
+    public Response castVote(VotePojo votePojo) {
+        try {
+<span class="nc" id="L140">            return Response.ok(&quot;&quot; + ValidatorRestServer.getRunningServer().getAPIResolver().castVote(votePojo), MediaType.TEXT_PLAIN).build();</span>
+<span class="nc" id="L141">        } catch (IOException | BlockChainObjectParsingException e) {</span>
+<span class="nc" id="L142">            e.printStackTrace();</span>
+<span class="nc" id="L143">            return Response.serverError().build();</span>
+<span class="nc" id="L144">        } catch (InvalidKeySpecException | BadRequest e) {</span>
+<span class="nc" id="L145">            e.printStackTrace();</span>
+<span class="nc" id="L146">            return Response.status(Response.Status.BAD_REQUEST).build();</span>
+        }
+    }
+
+    /*
+     * return list of short information of the patient
+     */
+    @POST
+    @SecuredUserLevel
+    @Produces(MediaType.APPLICATION_JSON) // Read with PatientShortInfoPojo[]
+    @Consumes(MediaType.APPLICATION_JSON) // {&quot;content&quot;: &lt;Patient's identifier - byte array&gt;} - use ByteArrayWrapper
+    @Path(&quot;patient/get-patient-short-info-list&quot;)
+    public Response getPatientShortInfoList(ByteArrayWrapper wrapper) {
+
+        try {
+<span class="nc" id="L161">            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getPatientShortInfoList(wrapper.getContent())</span>
+<span class="nc" id="L162">                    , MediaType.APPLICATION_JSON).build();</span>
+<span class="nc" id="L163">        } catch (IOException | BlockChainObjectParsingException e) {</span>
+<span class="nc" id="L164">            e.printStackTrace();</span>
+<span class="nc" id="L165">            return Response.serverError().build();</span>
+<span class="nc" id="L166">        } catch (BadRequest e) {</span>
+<span class="nc" id="L167">            e.printStackTrace();</span>
+<span class="nc" id="L168">            return Response.status(Response.Status.BAD_REQUEST).build();</span>
+<span class="nc" id="L169">        } catch (NotFound e) {</span>
+<span class="nc" id="L170">            e.printStackTrace();</span>
+<span class="nc" id="L171">            return Response.status(Response.Status.NOT_FOUND).build();</span>
+        }
+
+
+    }
+
+    /*
+     * return list of the requested patient information contents
+     */
+    @POST
+    @SecuredUserLevel
+    @Produces(MediaType.APPLICATION_JSON) // read with PatientInfoContentPojo[]
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(&quot;patient/get-patient-info-content-list&quot;)
+    public Response getPatientInfoContentsList(ArrayList&lt;LocationPojo&gt; locationPojos) {
+
+        try {
+<span class="nc" id="L188">            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getPatientInfoContentsList(locationPojos)</span>
+<span class="nc" id="L189">                    , MediaType.APPLICATION_JSON).build();</span>
+<span class="nc" id="L190">        } catch (IOException | BlockChainObjectParsingException e) {</span>
+<span class="nc" id="L191">            e.printStackTrace();</span>
+<span class="nc" id="L192">            return Response.serverError().build();</span>
+<span class="nc" id="L193">        } catch (NotFound e) {</span>
+<span class="nc" id="L194">            e.printStackTrace();// may be just bad request</span>
+<span class="nc" id="L195">            return Response.status(Response.Status.NOT_FOUND).build();</span>
+<span class="nc" id="L196">        } catch (BadRequest e) {</span>
+<span class="nc" id="L197">            e.printStackTrace();</span>
+<span class="nc" id="L198">            return Response.status(Response.Status.BAD_REQUEST).build();</span>
+        }
+
+    }
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: already exists
+     *
+     * To note, signature = signature( GeneralHelper.longToBytes(timeStamp) | encryptedInfo ) , &quot;|&quot; means concatenate
+     */
+    @PUT
+    @SecuredUserLevel
+    @Produces(MediaType.TEXT_PLAIN)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(&quot;patient/register&quot;)
+    public Response register(PatientInfoPojo patientInfoPojo) {
+
+        try {
+<span class="nc" id="L219">            return Response.ok(&quot;&quot; + ValidatorRestServer.getRunningServer().getAPIResolver().register(patientInfoPojo)</span>
+<span class="nc" id="L220">                    , MediaType.TEXT_PLAIN).build();</span>
+<span class="nc" id="L221">        } catch (ServerError|IOException | BlockChainObjectParsingException e) {</span>
+<span class="nc" id="L222">            e.printStackTrace();</span>
+<span class="nc" id="L223">            return Response.serverError().build();</span>
+<span class="nc" id="L224">        } catch (InvalidKeySpecException | BadRequest e) {</span>
+<span class="nc" id="L225">            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();</span>
+        }
+
+    }
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: patient doesn't exist
+     * 3: already updated
+     *
+     * To note, signature = signature( GeneralHelper.longToBytes(timeStamp) | encryptedInfo ), &quot;|&quot; means concatenate
+     */
+    @PUT
+    @SecuredUserLevel
+    @Produces(MediaType.TEXT_PLAIN)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(&quot;patient/update&quot;)
+    public Response update(PatientInfoPojo patientInfoPojo) {
+
+        try {
+<span class="nc" id="L247">            return Response.ok(&quot;&quot; + ValidatorRestServer.getRunningServer().getAPIResolver().update(patientInfoPojo)</span>
+<span class="nc" id="L248">                    , MediaType.TEXT_PLAIN).build();</span>
+<span class="nc" id="L249">        } catch (ServerError|IOException | BlockChainObjectParsingException e) {</span>
+<span class="nc" id="L250">            e.printStackTrace();</span>
+<span class="nc" id="L251">            return Response.serverError().build();</span>
+<span class="nc" id="L252">        } catch (InvalidKeySpecException | BadRequest e) {</span>
+<span class="nc" id="L253">            e.printStackTrace();</span>
+<span class="nc" id="L254">            return Response.status(Response.Status.BAD_REQUEST).build();</span>
+        }
+    }
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: authorized by another authority
+     */
+    @PUT
+    @SecuredUserLevel
+    @Produces(MediaType.TEXT_PLAIN)
+    @Consumes(MediaType.APPLICATION_JSON) //{&quot;content&quot;: &lt;Medical organization's identifier - byte array&gt;}
+    @Path(&quot;medical-org/revoke&quot;)
+    public Response revoke(ByteArrayWrapper byteArrayWrapper) {
+
+        try {
+<span class="nc" id="L272">            return Response.ok(&quot;&quot; + ValidatorRestServer.getRunningServer().getAPIResolver().revoke(byteArrayWrapper.getContent())</span>
+<span class="nc" id="L273">                    , MediaType.TEXT_PLAIN).build();</span>
+<span class="nc" id="L274">        } catch (IOException | BlockChainObjectParsingException|FileCorruptionException e) {</span>
+<span class="nc" id="L275">            e.printStackTrace();</span>
+<span class="nc" id="L276">            return Response.serverError().build();</span>
+<span class="nc" id="L277">        } catch (BadRequest e) {</span>
+<span class="nc" id="L278">            return Response.status(Response.Status.BAD_REQUEST).build();</span>
+<span class="nc" id="L279">        }  catch (NotFound notFound) {</span>
+<span class="nc" id="L280">            return Response.status(Response.Status.NOT_FOUND).build();</span>
+        }
+
+    }
+
+    /*
+     * return status code(1 byte) + encoded certificate(if success):
+     * status code:
+     * 0: successful
+     * 1: being processed
+     * 2: already exists
+     */
+    @SecuredUserLevel
+    @PUT
+    @Produces(MediaType.APPLICATION_JSON)// {&quot;content&quot;: &lt;Status code(1 byte) + DER encoded certificate(if success) - byte array&gt;} - use ByteArrayWrapper
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(&quot;medical-org/authorize&quot;)
+    public Response authorize(AuthorizationRequestPojo authorizationRequestPojo) {
+
+
+        try {
+<span class="nc" id="L301">            return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().authorize(authorizationRequestPojo))</span>
+<span class="nc" id="L302">                    , MediaType.APPLICATION_JSON).build();</span>
+<span class="nc" id="L303">        } catch (FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {</span>
+<span class="nc" id="L304">            e.printStackTrace();</span>
+<span class="nc" id="L305">            return Response.serverError().build();</span>
+<span class="nc" id="L306">        } catch (InvalidKeySpecException | BadRequest e) {</span>
+<span class="nc" id="L307">            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();</span>
+        }
+    }
+
+    /*
+     * return list of information of medical organizations authorized by this authority
+     */
+    @GET
+    @SecuredUserLevel
+    @Produces(MediaType.APPLICATION_JSON) // Read with MedicalOrgShortInfoPojo[]
+    @Path(&quot;medical-org/get-authorization-list&quot;)
+    public Response loadAllMedicalOrgShortInfoAuthorizedByMe() {
+
+        try {
+<span class="nc" id="L321">            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().loadAllMedicalOrgShortInfoAuthorizedByThisAuthority()</span>
+<span class="nc" id="L322">                    , MediaType.APPLICATION_JSON).build();</span>
+<span class="nc" id="L323">        } catch (BlockChainObjectParsingException | IOException e) {</span>
+<span class="nc" id="L324">            e.printStackTrace();</span>
+<span class="nc" id="L325">            return Response.serverError().build();</span>
+        }
+
+    }
+
+    /*
+     * return the corresponding DER encoded X509 certificate
+     */
+    @POST
+    @SecuredUserLevel
+    @Produces(MediaType.APPLICATION_JSON) // {&quot;content&quot;: &lt;DER encoded X509 certificate - byte array&gt;} - Read with ByteArrayWrapper
+    @Consumes(MediaType.APPLICATION_JSON) // {&quot;content&quot;: &lt;Medical organization's identifier - byte array&gt;} - use ByteArrayWrapper
+    @Path(&quot;medical-org/get-certificate&quot;)
+    public Response getCertificate(ByteArrayWrapper wrapper) {
+
+
+        try {
+<span class="nc" id="L342">            byte[] result = ValidatorRestServer.getRunningServer().getAPIResolver().getCertificate(wrapper.getContent());</span>
+<span class="nc" id="L343">            return Response.ok(new ByteArrayWrapper(result), MediaType.APPLICATION_JSON).build();</span>
+<span class="nc" id="L344">        } catch (CertificateEncodingException e) {</span>
+<span class="nc" id="L345">            e.printStackTrace();</span>
+<span class="nc" id="L346">            return Response.serverError().build();</span>
+<span class="nc" id="L347">        } catch (NotFound e) {</span>
+<span class="nc" id="L348">            e.printStackTrace();</span>
+<span class="nc" id="L349">            return Response.status(Response.Status.NOT_FOUND).build();</span>
+<span class="nc" id="L350">        } catch (BadRequest e) {</span>
+<span class="nc" id="L351">            e.printStackTrace();</span>
+<span class="nc" id="L352">            return Response.status(Response.Status.BAD_REQUEST).build();</span>
+        }
+
+    }
+
+    /*
+     * return status code(1 byte) + encoded certificate:
+     * status code:
+     * 0: successful
+     * 1: not authorized
+     * 2: not authorized by this authority
+     */
+    @POST
+    @SecuredUserLevel
+    @Produces(MediaType.APPLICATION_JSON)// {&quot;content&quot;: &lt;Status code(1 byte) + DER encoded certificate(if success) - byte array&gt;} - Read with ByteArrayWrapper
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(&quot;medical-org/renew-certificate&quot;)
+    public Response renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) {
+
+
+        try {
+<span class="nc" id="L373">            return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().renewCertificate(certificateRenewRequestPojo))</span>
+<span class="nc" id="L374">                    , MediaType.APPLICATION_JSON).build();</span>
+<span class="nc" id="L375">        } catch ( FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {</span>
+<span class="nc" id="L376">            e.printStackTrace();</span>
+<span class="nc" id="L377">            return Response.serverError().build();</span>
+<span class="nc" id="L378">        } catch (BadRequest e) {</span>
+<span class="nc" id="L379">            return Response.status(Response.Status.BAD_REQUEST).build();</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

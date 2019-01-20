@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConnectionManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">node</a> &gt; <span class="el_source">ConnectionManager.java</span></div><h1>ConnectionManager.java</h1><pre class="source lang-java linenums">package node;
+
+import blockchain.Status;
+import blockchain.block.Block;
+import blockchain.block.BlockHeader;
+import blockchain.block.transaction.Transaction;
+import blockchain.utility.RawTranslator;
+import config.Configuration;
+import exception.BlockChainObjectParsingException;
+import exception.InvalidBlockChainMessageException;
+
+import javax.net.ssl.SSLSocket;
+import java.io.*;
+
+public class ConnectionManager {
+
+
+    private final DataOutputStream os;
+    private final DataInputStream is;
+    private SSLSocket socket;
+    private boolean isConfirmed;
+
+    public boolean isConfirmed() {
+<span class="nc" id="L24">        return isConfirmed;</span>
+    }
+
+    public void setConfirmed(boolean confirmed) {
+<span class="nc" id="L28">        isConfirmed = confirmed;</span>
+<span class="nc" id="L29">    }</span>
+
+
+    public SSLSocket getSocket() {
+<span class="nc" id="L33">        return socket;</span>
+    }
+
+    public void setSocket(SSLSocket socket) {
+<span class="nc" id="L37">        this.socket = socket;</span>
+<span class="nc" id="L38">    }</span>
+
+<span class="nc" id="L40">    public ConnectionManager(SSLSocket socket, boolean isConfirmed) throws IOException {</span>
+<span class="nc" id="L41">        this.socket = socket;</span>
+<span class="nc" id="L42">        socket.setKeepAlive(true);</span>
+
+<span class="nc" id="L44">        this.os = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));</span>
+<span class="nc" id="L45">        this.is = new DataInputStream(new BufferedInputStream(socket.getInputStream()));</span>
+<span class="nc" id="L46">        this.isConfirmed =isConfirmed;</span>
+<span class="nc" id="L47">    }</span>
+
+    public void close(){
+
+<span class="nc bnc" id="L51" title="All 2 branches missed.">       if(!isClosed())</span>
+       {
+           try {
+<span class="nc" id="L54">               socket.close();</span>
+<span class="nc" id="L55">           } catch (IOException e) {</span>
+<span class="nc" id="L56">               e.printStackTrace();</span>
+<span class="nc" id="L57">           }</span>
+
+       }
+<span class="nc" id="L60">    }</span>
+
+    public boolean isClosed()
+    {
+<span class="nc" id="L64">        return socket.isClosed();</span>
+    }
+
+
+    /*Messagem number
+     * 0: status
+     * 1: peer nodes list request
+     * 2: block header request - byte[][] hash locator - from greater height to smaller height - dense to sparse
+     * 3: block request - content =byte[] blockHash
+     * 4: peer node list
+     * 5: block header list - from smaller height to greater height
+     * 6: transaction
+     * 7: block
+     * */
+    public void write(Message message) throws IOException {
+<span class="nc" id="L79">        synchronized (os)</span>
+        {
+<span class="nc" id="L81">            byte[] content =message.content;</span>
+
+<span class="nc" id="L83">            os.writeByte(message.number);</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">            if(message.number==Configuration.MESSAGE_PEER_NODE_REQUEST) {</span>
+<span class="nc" id="L85">                os.writeInt(0);</span>
+            }
+            else {
+<span class="nc" id="L88">                os.writeInt(content.length);</span>
+<span class="nc" id="L89">                os.write(content);</span>
+            }
+<span class="nc" id="L91">            os.flush();</span>
+<span class="nc" id="L92">        }</span>
+<span class="nc" id="L93">    }</span>
+
+    public Message read() throws IOException, InvalidBlockChainMessageException {
+
+<span class="nc" id="L97">        synchronized (is)</span>
+        {
+<span class="nc" id="L99">            byte number =is.readByte();</span>
+<span class="nc" id="L100">            int length = is.readInt();</span>
+<span class="nc" id="L101">            checkLength(number,length);</span>
+
+<span class="nc" id="L103">            byte[] content = new byte[length];</span>
+<span class="nc" id="L104">            is.readFully(content);</span>
+
+<span class="nc" id="L106">            return new Message(number,content);</span>
+        }
+    }
+
+
+    //currently no limit
+    private void checkLength(byte number, int length) throws InvalidBlockChainMessageException {
+<span class="nc bnc" id="L113" title="All 9 branches missed.">        switch (number) {</span>
+            case Configuration.MESSAGE_STATUS:
+<span class="nc" id="L115">                break;</span>
+            case Configuration.MESSAGE_PEER_NODE_REQUEST:
+<span class="nc bnc" id="L117" title="All 2 branches missed.">                if(length!=0)</span>
+<span class="nc" id="L118">                    throw new InvalidBlockChainMessageException(socket.getInetAddress().getHostAddress(),number);</span>
+                break;
+            case Configuration.MESSAGE_HEADER_REQUEST:
+<span class="nc" id="L121">                break;</span>
+            case Configuration.MESSAGE_BLOCK_REQUEST:
+<span class="nc bnc" id="L123" title="All 2 branches missed.">                if(length!=Configuration.HASH_LENGTH)</span>
+<span class="nc" id="L124">                    throw new InvalidBlockChainMessageException(socket.getInetAddress().getHostAddress(),number);</span>
+                break;
+            case Configuration.MESSAGE_PEER_NODE_LIST:
+<span class="nc" id="L127">                break;</span>
+            case Configuration.MESSAGE_HEADER_LIST:
+<span class="nc" id="L129">                break;</span>
+            case Configuration.MESSAGE_TRANSACTION:
+<span class="nc" id="L131">                break;</span>
+            case Configuration.MESSAGE_BLOCK:
+<span class="nc" id="L133">                break;</span>
+            default:
+<span class="nc" id="L135">                throw new InvalidBlockChainMessageException(socket.getInetAddress().getHostAddress(),number);</span>
+        }
+<span class="nc" id="L137">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

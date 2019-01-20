@@ -11,6 +11,7 @@ import general.utility.GeneralHelper;
 
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import java.util.Objects;
 
 public class MedicalOrgInfo implements Identifiable, Raw {
@@ -64,6 +65,17 @@ public class MedicalOrgInfo implements Identifiable, Raw {
         return medicalOrgInfo;
     }
 
+    public static MedicalOrgInfo parse(byte[] raw) throws BlockChainObjectParsingException {
+        ByteArrayReader byteArrayReader = new ByteArrayReader();
+        byteArrayReader.set(raw);
+        MedicalOrgInfo medicalOrgInfo = parse(byteArrayReader);
+
+        if(!byteArrayReader.isFinished())
+            throw new BlockChainObjectParsingException();
+
+        return medicalOrgInfo;
+    }
+
     public byte[] getIdentifier()
     {
         return BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(publicKey);
@@ -76,7 +88,9 @@ public class MedicalOrgInfo implements Identifiable, Raw {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MedicalOrgInfo that = (MedicalOrgInfo) o;
-        return Objects.equals(getPublicKey(), that.getPublicKey());
+        return Arrays.equals(
+                BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(getPublicKey())
+                ,BlockChainSecurityHelper.calculateIdentifierFromECPublicKey( that.getPublicKey()));
     }
 
     // identified by publickey only

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SessionManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">rest.server.manager</a> &gt; <span class="el_source">SessionManager.java</span></div><h1>SessionManager.java</h1><pre class="source lang-java linenums">package rest.server.manager;
+
+import config.Configuration;
+import general.security.SecurityHelper;
+import general.utility.GeneralHelper;
+import rest.pojo.UserInfoPojo;
+import rest.server.exception.InvalidUserInfo;
+
+import java.io.*;
+import java.lang.reflect.Array;
+import java.nio.file.Files;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+
+<span class="nc" id="L15">public class SessionManager {</span>
+
+    public static String login(UserInfoPojo userInfoPojo) throws IOException, InvalidUserInfo {
+<span class="nc" id="L18">        File userInfoFile = new File(Configuration.USERINFO_FOLDER, userInfoPojo.getUsername());</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">        if (!userInfoFile.exists()) {</span>
+<span class="nc" id="L20">            throw new InvalidUserInfo();</span>
+        } else {
+
+<span class="nc" id="L23">            byte[] userInfoAllBytes = Files.readAllBytes(userInfoFile.toPath());//level(1byte) | salt(16 bytes) | password hash| secureToken()</span>
+
+<span class="nc" id="L25">            byte level = userInfoAllBytes[0];</span>
+<span class="nc" id="L26">            byte[] salt = Arrays.copyOfRange(userInfoAllBytes,1,1+Configuration.PASSWORD_SALT_LENGTH);</span>
+<span class="nc" id="L27">            byte[] passwordHash = Arrays.copyOfRange(userInfoAllBytes,1+Configuration.PASSWORD_SALT_LENGTH,</span>
+                    1+Configuration.PASSWORD_SALT_LENGTH+Configuration.PASSWORD_HASH_LENGTH);
+
+<span class="nc" id="L30">            byte[] passwordHashBasedOnUserInput = null;</span>
+            try {
+<span class="nc" id="L32">                passwordHashBasedOnUserInput = SecurityHelper.passwordHash(userInfoPojo.getPassword(),salt,Configuration.PASSWORD_HASH_ALGORITHM);</span>
+<span class="nc" id="L33">            } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L34">                e.printStackTrace(); // not expected</span>
+<span class="nc" id="L35">            }</span>
+
+<span class="nc bnc" id="L37" title="All 2 branches missed.">            if (Arrays.equals(passwordHash, passwordHashBasedOnUserInput)) {</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">                if (userInfoAllBytes.length != 1+Configuration.PASSWORD_SALT_LENGTH+Configuration.PASSWORD_HASH_LENGTH) {</span>
+<span class="nc" id="L39">                    String preToken = new String(Arrays.copyOfRange(userInfoAllBytes</span>
+                            ,1+Configuration.PASSWORD_SALT_LENGTH+Configuration.PASSWORD_HASH_LENGTH
+                            ,userInfoAllBytes.length));
+<span class="nc" id="L42">                    File prevSessionFile = new File(Configuration.SESSION_FOLDER, preToken);</span>
+
+<span class="nc bnc" id="L44" title="All 2 branches missed.">                    if (prevSessionFile.exists())</span>
+<span class="nc" id="L45">                        prevSessionFile.delete();</span>
+                }
+
+<span class="nc" id="L48">                String newToken = SecurityHelper.generateSecureToken();</span>
+<span class="nc" id="L49">                BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(new File(Configuration.SESSION_FOLDER, newToken)));</span>
+<span class="nc" id="L50">                bos.write(level);</span>
+<span class="nc" id="L51">                bos.write(userInfoPojo.getUsername().getBytes()); // level | username</span>
+<span class="nc" id="L52">                bos.close();</span>
+
+<span class="nc" id="L54">                bos = new BufferedOutputStream(new FileOutputStream(userInfoFile));</span>
+<span class="nc" id="L55">                bos.write(level);</span>
+<span class="nc" id="L56">                bos.write(salt);</span>
+<span class="nc" id="L57">                bos.write(passwordHash);</span>
+<span class="nc" id="L58">                bos.write(newToken.getBytes());</span>
+<span class="nc" id="L59">                bos.close();</span>
+
+<span class="nc" id="L61">                return newToken;</span>
+            } else {
+<span class="nc" id="L63">                throw new InvalidUserInfo();</span>
+            }
+        }
+    }
+
+
+    public static String getUserName(String token) throws IOException {
+
+<span class="nc" id="L71">        File tokenFile = new File(Configuration.SESSION_FOLDER, token);</span>
+
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        if (!tokenFile.exists())</span>
+<span class="nc" id="L74">            return null;</span>
+
+<span class="nc" id="L76">        byte[] sessionInfoAllBytes = Files.readAllBytes(tokenFile.toPath()); // level | username</span>
+
+<span class="nc" id="L78">        return new String(Arrays.copyOfRange(sessionInfoAllBytes,1,sessionInfoAllBytes.length));</span>
+
+    }
+
+    public static boolean isValidLevelToken(String token, byte level) throws IOException {
+<span class="nc" id="L83">        File sessionFile = new File(Configuration.SESSION_FOLDER, token);</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (!sessionFile.exists())</span>
+<span class="nc" id="L85">            return false;</span>
+<span class="nc" id="L86">        byte[] sessionInfoAllBytes = Files.readAllBytes(sessionFile.toPath()); // level | username</span>
+
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        return sessionInfoAllBytes[0]==level;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GeneralHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">general.utility</a> &gt; <span class="el_source">GeneralHelper.java</span></div><h1>GeneralHelper.java</h1><pre class="source lang-java linenums">package general.utility;
+
+import blockchain.block.Block;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Comparator;
+import java.util.concurrent.locks.Lock;
+
+
+<span class="nc" id="L15">public class GeneralHelper {</span>
+
+    public static boolean isBitSet(byte value, byte position) {
+<span class="nc bnc" id="L18" title="All 2 branches missed.">        return (value &amp; (1 &lt;&lt; position)) != 0;</span>
+    }
+
+    public static byte[] bytesFromBase64UrlString(String base64String) {
+<span class="nc" id="L22">        return Base64.getUrlDecoder().decode(base64String);</span>
+    }
+
+    public static String bytesToBase64UrlString(byte[] bytes) {
+<span class="nc" id="L26">        return Base64.getUrlEncoder().encodeToString(bytes);</span>
+    }
+
+    public static String bytesToStringHex(byte[] data) {
+<span class="nc bnc" id="L30" title="All 2 branches missed.">        if (data == null)</span>
+<span class="nc" id="L31">            return null;</span>
+<span class="nc" id="L32">        StringBuilder hashValue = new StringBuilder();</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        for (byte b : data) {</span>
+<span class="nc" id="L34">            String hex = Integer.toHexString(0xFF &amp; b);</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">            if (hex.length() == 1)</span>
+<span class="nc" id="L36">                hashValue.append(&quot;0&quot; + hex);</span>
+            else
+<span class="nc" id="L38">                hashValue.append(hex);</span>
+        }
+<span class="nc" id="L40">        return hashValue.toString();</span>
+    }
+
+    //##reference: https://stackoverflow.com/questions/140131/convert-a-string-representation-of-a-hex-dump-to-a-byte-array-using-java
+    public static byte[] stringHexToByteArray(String s) {
+<span class="nc" id="L45">        int len = s.length();</span>
+<span class="nc" id="L46">        byte[] data = new byte[len / 2];</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        for (int i = 0; i &lt; len; i += 2) {</span>
+<span class="nc" id="L48">            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) &lt;&lt; 4)</span>
+<span class="nc" id="L49">                    + Character.digit(s.charAt(i + 1), 16));</span>
+        }
+<span class="nc" id="L51">        return data;</span>
+    }
+
+    public static byte[] mergeByteArrays(byte[]... bs) {
+
+<span class="fc" id="L56">        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();</span>
+        try {
+<span class="fc bfc" id="L58" title="All 2 branches covered.">            for (byte[] bytes : bs) {</span>
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">                if (bytes != null)</span>
+<span class="fc" id="L60">                    outputStream.write(bytes);</span>
+            }
+<span class="nc" id="L62">        } catch (IOException e) {</span>
+<span class="nc" id="L63">            e.printStackTrace();</span>
+<span class="fc" id="L64">        }</span>
+<span class="fc" id="L65">        return outputStream.toByteArray();</span>
+    }
+
+
+    public static byte[] longToBytes(long x) {
+<span class="fc" id="L70">        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);</span>
+<span class="fc" id="L71">        buffer.putLong(x);</span>
+<span class="fc" id="L72">        return buffer.array();</span>
+    }
+
+
+    public static long bytesToLong(byte[] bytes) {
+<span class="fc" id="L77">        ByteBuffer buffer = ByteBuffer.wrap(bytes);</span>
+<span class="fc" id="L78">        return buffer.getLong();</span>
+    }
+
+
+    public static byte[] intToBytes(int x) {
+<span class="fc" id="L83">        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);</span>
+<span class="fc" id="L84">        buffer.putInt(x);</span>
+<span class="fc" id="L85">        return buffer.array();</span>
+    }
+
+    public static int bytesToInt(byte[] bytes) {
+<span class="fc" id="L89">        ByteBuffer buffer = ByteBuffer.wrap(bytes);</span>
+<span class="fc" id="L90">        return buffer.getInt();</span>
+    }
+
+
+    // reference:   ............................
+<span class="nc" id="L95">    public static class byteArrayComparator implements Comparator&lt;byte[]&gt; {</span>
+        @Override
+        public int compare(byte[] byteArray1, byte[] byteArray2) {
+
+<span class="nc" id="L99">            int result = 0;</span>
+<span class="nc" id="L100">            int maxLength = Math.max(byteArray1.length, byteArray2.length);</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            for (int index = 0; index &lt; maxLength; index++) {</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                int o1Value = index &lt; byteArray1.length ? byteArray1[index] : 0;</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">                int o2Value = index &lt; byteArray2.length ? byteArray2[index] : 0;</span>
+<span class="nc" id="L104">                int cmp = Integer.compare(o1Value, o2Value);</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">                if (cmp != 0) {</span>
+<span class="nc" id="L106">                    result = cmp;</span>
+<span class="nc" id="L107">                    break;</span>
+                }
+            }
+<span class="nc" id="L110">            return result;</span>
+        }
+    }
+
+
+    // reference:   ............................
+<span class="nc" id="L116">    public static class blockComparator implements Comparator&lt;Block&gt; {</span>
+        @Override
+        public int compare(Block block1, Block block2) {
+
+<span class="nc" id="L120">            return Integer.compare(block1.getHeader().getBlockNumber(), block2.getHeader().getBlockNumber());</span>
+        }
+    }
+
+
+    static public int getIndexFromArrayList(byte[] bytes, ArrayList&lt;byte[]&gt; list) {
+
+<span class="nc" id="L127">        int result = -1;</span>
+
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        for (int i = 0; i &lt; list.size(); ++i) {</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            if (Arrays.equals(bytes, list.get(i))) {</span>
+<span class="nc" id="L131">                result = i;</span>
+<span class="nc" id="L132">                break;</span>
+            }
+        }
+<span class="nc" id="L135">        return result;</span>
+    }
+
+    public static void lockForMe(ArrayList&lt;Lock&gt; lockList, Lock... locks) {
+
+        /**
+         * myChainLock
+         * chainSwitchLock
+         * pendingHeaderLock
+         * requestedHeaderLock
+         * orphanBlockLock
+         * recordLock
+         * connection lock
+         * potentialPeerLock
+         * voteLock
+         * RegistrationLock
+         * AuthorizationLock
+         * RevocationLock
+         */
+
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        for (Lock lock : locks) {</span>
+<span class="nc" id="L156">            lock.lock();</span>
+<span class="nc" id="L157">            lockList.add(lock);</span>
+        }
+<span class="nc" id="L159">    }</span>
+
+    public static void selectiveUnLockForMe(ArrayList&lt;Lock&gt; lockList, Lock... locks) {
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        for (Lock lock : locks) {</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">            if (lockList.contains(lock)) {</span>
+<span class="nc" id="L164">                lock.unlock();</span>
+<span class="nc" id="L165">                lockList.remove(lock);</span>
+            }
+        }
+<span class="nc" id="L168">    }</span>
+
+    public static void unLockForMe(ArrayList&lt;Lock&gt; lockList) {
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        for (Lock lock : lockList) {</span>
+<span class="nc" id="L172">            lock.unlock();</span>
+<span class="nc" id="L173">        }</span>
+<span class="nc" id="L174">        lockList.clear();</span>
+<span class="nc" id="L175">    }</span>
+
+    public static void main(String[] args) {
+<span class="nc" id="L178">        byte[] a = {1, 2, 3};</span>
+
+<span class="nc" id="L180">        System.out.println(bytesToBase64UrlString(a));</span>
+<span class="nc" id="L181">        System.out.println(Arrays.equals(bytesFromBase64UrlString(bytesToBase64UrlString(a)), a));</span>
+
+<span class="nc" id="L183">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

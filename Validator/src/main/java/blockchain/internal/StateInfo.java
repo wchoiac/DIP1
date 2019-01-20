@@ -7,6 +7,7 @@ import general.utility.GeneralHelper;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Objects;
 
 public class StateInfo implements Raw {
     private static final int EXPECTED_LENGTH = Configuration.HASH_LENGTH*2 + Integer.BYTES*2;
@@ -76,5 +77,24 @@ public class StateInfo implements Raw {
         stateInfo.setTotalAuthorities(GeneralHelper.bytesToInt(Arrays.copyOfRange(raw,2*Configuration.HASH_LENGTH+Integer.BYTES,2*Configuration.HASH_LENGTH+2*Integer.BYTES)));
 
         return stateInfo;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        StateInfo stateInfo = (StateInfo) o;
+        return totalScore == stateInfo.totalScore &&
+                totalAuthorities == stateInfo.totalAuthorities &&
+                Arrays.equals(latestVotingListBlockHash, stateInfo.latestVotingListBlockHash) &&
+                Arrays.equals(latestAuthorityListBlockHash, stateInfo.latestAuthorityListBlockHash);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(totalScore, totalAuthorities);
+        result = 31 * result + Arrays.hashCode(latestVotingListBlockHash);
+        result = 31 * result + Arrays.hashCode(latestAuthorityListBlockHash);
+        return result;
     }
 }

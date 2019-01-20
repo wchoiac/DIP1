@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ValidatorAPIResolver.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">rest.server</a> &gt; <span class="el_source">ValidatorAPIResolver.java</span></div><h1>ValidatorAPIResolver.java</h1><pre class="source lang-java linenums">package rest.server;
+
+import blockchain.internal.Voting;
+import blockchain.block.*;
+import blockchain.manager.datastructure.Location;
+import blockchain.manager.datastructure.MedicalOrgShortInfo;
+import blockchain.manager.datastructure.PatientShortInfo;
+import config.Configuration;
+import exception.BlockChainObjectParsingException;
+import exception.FileCorruptionException;
+import general.utility.GeneralHelper;
+import node.validator.Validator;
+import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
+import org.bouncycastle.jce.ECNamedCurveTable;
+import org.bouncycastle.operator.OperatorCreationException;
+import rest.pojo.*;
+import rest.server.exception.BadRequest;
+import rest.server.exception.InvalidUserInfo;
+import rest.server.exception.NotFound;
+import rest.server.exception.ServerError;
+import rest.server.manager.CertificateManager;
+import rest.server.manager.SessionManager;
+import general.security.SecurityHelper;
+
+import java.io.*;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.SignatureException;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
+
+
+public class ValidatorAPIResolver {
+
+    private Validator validator;
+
+
+<span class="nc" id="L44">    public ValidatorAPIResolver(Validator validator) {</span>
+<span class="nc" id="L45">        this.validator = validator;</span>
+<span class="nc" id="L46">    }</span>
+
+
+    /*
+     * return Secure token
+     */
+    public String apiLogin(UserInfoPojo userInfoPojo) throws IOException, BadRequest, InvalidUserInfo {
+<span class="nc bnc" id="L53" title="All 6 branches missed.">        if (userInfoPojo == null || userInfoPojo.getPassword() == null || userInfoPojo.getUsername() == null)</span>
+<span class="nc" id="L54">            throw new BadRequest();</span>
+
+<span class="nc" id="L56">        return SessionManager.login(userInfoPojo);</span>
+    }
+
+    /*
+     * return list of authority information
+     */
+    public ArrayList&lt;AuthorityInfoPojo&gt; getOverallList() throws IOException, BlockChainObjectParsingException {
+
+<span class="nc" id="L64">        ArrayList&lt;AuthorityInfo&gt; authorityInfos = validator.getOverallAuthorityList();</span>
+<span class="nc" id="L65">        ArrayList&lt;AuthorityInfoPojo&gt; authorityInfoPojos = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        for (AuthorityInfo authorityInfo : authorityInfos) {</span>
+<span class="nc" id="L68">            AuthorityInfoPojo tempAuthorityInfoPojo = new AuthorityInfoPojo(authorityInfo.getName()</span>
+<span class="nc" id="L69">                    ,authorityInfo.getPublicKey().getEncoded(),true);</span>
+<span class="nc" id="L70">            authorityInfoPojos.add(tempAuthorityInfoPojo);</span>
+<span class="nc" id="L71">        }</span>
+
+<span class="nc" id="L73">        return authorityInfoPojos;</span>
+    }
+
+    /*
+     * return list of votes that to be processed
+     */
+    public ArrayList&lt;VotePojo&gt; getMyVotes() {
+
+<span class="nc" id="L81">        ArrayList&lt;Vote&gt; votes = validator.getMyVotes();</span>
+<span class="nc" id="L82">        ArrayList&lt;VotePojo&gt; votePojos = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        for (Vote vote : votes) {</span>
+<span class="nc" id="L85">            AuthorityInfoPojo tempAuthorityInfoPojo = new AuthorityInfoPojo(vote.getBeneficiary().getName()</span>
+<span class="nc" id="L86">                    ,vote.getBeneficiary().getPublicKey().getEncoded(),true);</span>
+
+<span class="nc" id="L88">            VotePojo tempVotePojo = new VotePojo();</span>
+<span class="nc" id="L89">            tempVotePojo.setBeneficiary(tempAuthorityInfoPojo);</span>
+<span class="nc" id="L90">            tempVotePojo.setAdd(vote.isAdd());</span>
+<span class="nc" id="L91">            tempVotePojo.setAgree(vote.isAgree());</span>
+<span class="nc" id="L92">            votePojos.add(tempVotePojo);</span>
+<span class="nc" id="L93">        }</span>
+
+
+<span class="nc" id="L96">        return votePojos;</span>
+    }
+
+    /*
+     * return list of on-going votings
+     */
+    public ArrayList&lt;VotingPojo&gt; getCurrentVotingList() {
+
+<span class="nc" id="L104">        ArrayList&lt;Voting&gt; votings = validator.getVotingList();</span>
+<span class="nc" id="L105">        ArrayList&lt;VotingPojo&gt; votingPojos = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        for (Voting voting : votings) {</span>
+<span class="nc" id="L108">            AuthorityInfoPojo tempAuthorityInfoPojo = new AuthorityInfoPojo(voting.getBeneficiary().getName()</span>
+<span class="nc" id="L109">                    ,voting.getBeneficiary().getPublicKey().getEncoded(),true);</span>
+
+<span class="nc" id="L111">            VotingPojo tempVotingPojo = new VotingPojo();</span>
+<span class="nc" id="L112">            tempVotingPojo.setBeneficiary(tempAuthorityInfoPojo);</span>
+<span class="nc" id="L113">            tempVotingPojo.setAdd(voting.isAdd());</span>
+<span class="nc" id="L114">            tempVotingPojo.setAgree(voting.getNumAgree());</span>
+<span class="nc" id="L115">            tempVotingPojo.setDisagree(voting.getNumDisagree());</span>
+<span class="nc" id="L116">            tempVotingPojo.setVoted(voting.isExistingVoter(validator.getMyIdentifier()));</span>
+<span class="nc" id="L117">            votingPojos.add(tempVotingPojo);</span>
+<span class="nc" id="L118">        }</span>
+
+
+<span class="nc" id="L121">        return votingPojos;</span>
+    }
+
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: cannot be processed due to duplicate vote, etc
+     */
+    public byte castVote(VotePojo votePojo) throws InvalidKeySpecException, IOException, BlockChainObjectParsingException, BadRequest {
+<span class="nc bnc" id="L132" title="All 4 branches missed.">        if (votePojo == null || votePojo.getBeneficiary() == null</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                || votePojo.getBeneficiary().getName() == null</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                || votePojo.getBeneficiary().getName().length() &gt; Configuration.MAX_NAME_LENGTH</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                || votePojo.getBeneficiary().getEcPublicKey() == null</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">                || (!votePojo.getBeneficiary().isKeyDEREncoded()</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">                &amp;&amp; votePojo.getBeneficiary().getEcPublicKey().length != Configuration.RAW_PUBLICKEY_LENGTH))</span>
+<span class="nc" id="L138">            throw new BadRequest();</span>
+
+
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if(votePojo.getBeneficiary().isKeyDEREncoded())</span>
+        {
+<span class="nc bnc" id="L143" title="All 2 branches missed.">            if(!SecurityHelper.checkCurve(votePojo.getBeneficiary().getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))</span>
+<span class="nc" id="L144">                throw new BadRequest(&quot;Wrong curve&quot;);</span>
+        }
+
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        ECPublicKey ecPublicKey = votePojo.getBeneficiary().isKeyDEREncoded()</span>
+<span class="nc" id="L148">                ? SecurityHelper.getECPublicKeyFromEncoded(votePojo.getBeneficiary().getEcPublicKey()) //check curve</span>
+<span class="nc" id="L149">                : SecurityHelper.getECPublicKeyFromCompressedRaw(votePojo.getBeneficiary().getEcPublicKey(), Configuration.ELIPTIC_CURVE);</span>
+
+<span class="nc" id="L151">        AuthorityInfo tempAuthorityInfo = new AuthorityInfo(votePojo.getBeneficiary().getName(),ecPublicKey);</span>
+
+
+<span class="nc" id="L154">        Vote vote = new Vote(tempAuthorityInfo, votePojo.isAdd(), votePojo.isAgree());</span>
+
+<span class="nc" id="L156">        return validator.castVote(vote);</span>
+
+    }
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: already exists
+     */
+
+    public byte register(PatientInfoPojo patientInfoPojo) throws InvalidKeySpecException, IOException, BlockChainObjectParsingException, ServerError, BadRequest {
+
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        if (patientInfoPojo == null</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">                || patientInfoPojo.getEncryptedInfo() == null</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                || patientInfoPojo.getEcPublicKey() == null</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">                || (!patientInfoPojo.isKeyDEREncoded()</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                &amp;&amp; patientInfoPojo.getEcPublicKey().length != Configuration.RAW_PUBLICKEY_LENGTH)</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">                || patientInfoPojo.getSignature() == null</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                || (!patientInfoPojo.isSignatureDEREncoded()</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                &amp;&amp; patientInfoPojo.getSignature().length != Configuration.SIGNATURE_LENGTH)</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        || patientInfoPojo.getTimestamp()&gt;System.currentTimeMillis())</span>
+<span class="nc" id="L178">            throw new BadRequest(&quot;Bad data&quot;);</span>
+
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if(patientInfoPojo.isKeyDEREncoded())</span>
+        {
+<span class="nc bnc" id="L182" title="All 2 branches missed.">            if(!SecurityHelper.checkCurve(patientInfoPojo.getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))</span>
+<span class="nc" id="L183">                throw new BadRequest(&quot;Wrong curve&quot;);</span>
+        }
+
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        ECPublicKey ecPublicKey = patientInfoPojo.isKeyDEREncoded()</span>
+<span class="nc" id="L187">                ? SecurityHelper.getECPublicKeyFromEncoded(patientInfoPojo.getEcPublicKey()) //check curve</span>
+<span class="nc" id="L188">                : SecurityHelper.getECPublicKeyFromCompressedRaw(patientInfoPojo.getEcPublicKey(), Configuration.ELIPTIC_CURVE);</span>
+
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        byte[] rawSignature = patientInfoPojo.isSignatureDEREncoded()</span>
+<span class="nc" id="L191">                ? SecurityHelper.getRawFromDERECDSASignature(patientInfoPojo.getSignature(), Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH)</span>
+<span class="nc" id="L192">                : patientInfoPojo.getSignature();</span>
+
+
+<span class="nc" id="L195">        byte[] timestampBytes = GeneralHelper.longToBytes(patientInfoPojo.getTimestamp());</span>
+<span class="nc" id="L196">        byte[] signatureCoverage = GeneralHelper.mergeByteArrays(timestampBytes, patientInfoPojo.getEncryptedInfo());</span>
+
+        try {
+<span class="nc bnc" id="L199" title="All 2 branches missed.">            if (!SecurityHelper.verifyRawECDSASignatureWithContent(ecPublicKey,signatureCoverage, rawSignature</span>
+                    , Configuration.BLOCKCHAIN_HASH_ALGORITHM, Configuration.ELIPTIC_CURVE))
+<span class="nc" id="L201">                throw new BadRequest(&quot;Bad signature&quot;);</span>
+<span class="nc" id="L202">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L203">            e.printStackTrace();</span>
+<span class="nc" id="L204">            throw new ServerError(); // not expected</span>
+<span class="nc" id="L205">        }</span>
+
+<span class="nc" id="L207">        PatientInfo patientInfo = new PatientInfo(patientInfoPojo.getTimestamp()</span>
+<span class="nc" id="L208">                , ecPublicKey, patientInfoPojo.getEncryptedInfo(), rawSignature);</span>
+
+<span class="nc" id="L210">        return validator.addToPatientInfoListForRegistration(patientInfo);</span>
+    }
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: patient doesn't exist
+     * 3: already updated
+     */
+    public byte update(PatientInfoPojo patientInfoPojo) throws InvalidKeySpecException, IOException, BlockChainObjectParsingException, BadRequest, ServerError {
+
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        if (patientInfoPojo == null</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">                || patientInfoPojo.getEncryptedInfo() == null</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">                || patientInfoPojo.getEcPublicKey() == null</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                || (!patientInfoPojo.isKeyDEREncoded()</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                &amp;&amp; patientInfoPojo.getEcPublicKey().length != Configuration.RAW_PUBLICKEY_LENGTH)</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">                || patientInfoPojo.getSignature() == null</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">                || (!patientInfoPojo.isSignatureDEREncoded()</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">                &amp;&amp; patientInfoPojo.getSignature().length != Configuration.SIGNATURE_LENGTH)</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">                || patientInfoPojo.getTimestamp()&gt;System.currentTimeMillis())</span>
+<span class="nc" id="L231">            throw new BadRequest(&quot;Bad data&quot;);</span>
+
+<span class="nc bnc" id="L233" title="All 2 branches missed.">        if(patientInfoPojo.isKeyDEREncoded())</span>
+        {
+<span class="nc bnc" id="L235" title="All 2 branches missed.">            if(!SecurityHelper.checkCurve(patientInfoPojo.getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))</span>
+<span class="nc" id="L236">                throw new BadRequest(&quot;Wrong curve&quot;);</span>
+        }
+
+<span class="nc bnc" id="L239" title="All 2 branches missed.">        ECPublicKey ecPublicKey = patientInfoPojo.isKeyDEREncoded()</span>
+<span class="nc" id="L240">                ? SecurityHelper.getECPublicKeyFromEncoded(patientInfoPojo.getEcPublicKey()) //check curve</span>
+<span class="nc" id="L241">                : SecurityHelper.getECPublicKeyFromCompressedRaw(patientInfoPojo.getEcPublicKey(), Configuration.ELIPTIC_CURVE);</span>
+
+<span class="nc bnc" id="L243" title="All 2 branches missed.">        byte[] rawSignature = patientInfoPojo.isSignatureDEREncoded()</span>
+<span class="nc" id="L244">                ? SecurityHelper.getRawFromDERECDSASignature(patientInfoPojo.getSignature(), Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH)</span>
+<span class="nc" id="L245">                : patientInfoPojo.getSignature();</span>
+
+<span class="nc" id="L247">        byte[] timestampBytes = GeneralHelper.longToBytes(patientInfoPojo.getTimestamp());</span>
+<span class="nc" id="L248">        byte[] signatureCoverage = GeneralHelper.mergeByteArrays(timestampBytes, patientInfoPojo.getEncryptedInfo());</span>
+
+        try {
+<span class="nc bnc" id="L251" title="All 2 branches missed.">            if (!SecurityHelper.verifyRawECDSASignatureWithContent(ecPublicKey,signatureCoverage, rawSignature</span>
+                    , Configuration.BLOCKCHAIN_HASH_ALGORITHM, Configuration.ELIPTIC_CURVE))
+<span class="nc" id="L253">                throw new BadRequest(&quot;Bad signature&quot;);</span>
+<span class="nc" id="L254">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L255">            e.printStackTrace();</span>
+<span class="nc" id="L256">            throw new ServerError(); // not expected</span>
+<span class="nc" id="L257">        }</span>
+
+<span class="nc" id="L259">        PatientInfo patientInfo = new PatientInfo(patientInfoPojo.getTimestamp()</span>
+<span class="nc" id="L260">                , ecPublicKey, patientInfoPojo.getEncryptedInfo(), rawSignature);</span>
+
+
+<span class="nc" id="L263">        return validator.addToPatientInfoListForUpdate(patientInfo);</span>
+    }
+
+
+    /*
+     *return status code:
+     * 0: successful
+     * 1: being processed
+     * 2: authorized by another authority
+     */
+    public byte revoke(byte[] revokedIdentifier) throws IOException, BlockChainObjectParsingException, BadRequest, FileCorruptionException, NotFound {
+<span class="nc bnc" id="L274" title="All 4 branches missed.">        if (revokedIdentifier == null || revokedIdentifier.length!=Configuration.IDENTIFIER_LENGTH)</span>
+<span class="nc" id="L275">            throw new BadRequest(&quot;Bad data&quot;);</span>
+
+
+<span class="nc" id="L278">        return validator.addToRevocationList(revokedIdentifier);</span>
+    }
+
+    /*
+     * return status code(1 byte) + encoded certificate:
+     * status code:
+     * 0: successful
+     * 1: being processed
+     * 2: already exists
+     */
+    public byte[] authorize(AuthorizationRequestPojo authorizationRequestPojo) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, BlockChainObjectParsingException, InvalidKeySpecException, BadRequest, FileCorruptionException {
+
+<span class="nc bnc" id="L290" title="All 4 branches missed.">        if (authorizationRequestPojo == null || authorizationRequestPojo.getMedicalOrgInfo() == null</span>
+<span class="nc bnc" id="L291" title="All 2 branches missed.">                || authorizationRequestPojo.getMedicalOrgInfo().getName() == null</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">                || authorizationRequestPojo.getMedicalOrgInfo().getName().length() &gt; Configuration.MAX_NAME_LENGTH</span>
+<span class="nc bnc" id="L293" title="All 2 branches missed.">                || authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey() == null</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">                || (!authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded()</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">                &amp;&amp; authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey().length != Configuration.RAW_PUBLICKEY_LENGTH)</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">                || authorizationRequestPojo.getNoAfter() == null</span>
+<span class="nc bnc" id="L297" title="All 2 branches missed.">                || authorizationRequestPojo.getNoAfter().getTime() &lt;= System.currentTimeMillis())</span>
+<span class="nc" id="L298">            throw new BadRequest(&quot;Bad data&quot;);</span>
+
+
+<span class="nc bnc" id="L301" title="All 2 branches missed.">        if(authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded())</span>
+        {
+<span class="nc bnc" id="L303" title="All 2 branches missed.">            if(!SecurityHelper.checkCurve(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))</span>
+<span class="nc" id="L304">                throw new BadRequest(&quot;Wrong curve&quot;);</span>
+        }
+
+
+<span class="nc bnc" id="L308" title="All 2 branches missed.">        ECPublicKey ecPublicKey = authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded()</span>
+<span class="nc" id="L309">                ? SecurityHelper.getECPublicKeyFromEncoded(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey())</span>
+<span class="nc" id="L310">                : SecurityHelper.getECPublicKeyFromCompressedRaw(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey(), Configuration.ELIPTIC_CURVE);</span>
+
+<span class="nc" id="L312">        ByteArrayOutputStream result = new ByteArrayOutputStream();</span>
+<span class="nc" id="L313">        MedicalOrgInfo medicalOrgInfo = new MedicalOrgInfo(authorizationRequestPojo.getMedicalOrgInfo().getName()</span>
+                , ecPublicKey);
+
+
+<span class="nc" id="L317">        byte authorizationResult = validator.addToAuthorizationList(medicalOrgInfo);</span>
+<span class="nc" id="L318">        result.write(authorizationResult);</span>
+
+<span class="nc bnc" id="L320" title="All 2 branches missed.">        if (authorizationResult == 0) {</span>
+<span class="nc" id="L321">            X509Certificate x509Certificate = validator.issueCertificate(medicalOrgInfo, authorizationRequestPojo.getNoAfter());</span>
+
+<span class="nc" id="L323">            CertificateManager.store(x509Certificate);</span>
+<span class="nc" id="L324">            result.write(x509Certificate.getEncoded());</span>
+
+        }
+
+<span class="nc" id="L328">        return result.toByteArray();</span>
+    }
+
+
+    /*
+     * return status code(1 byte) + encoded certificate:
+     * status code:
+     * 0: successful
+     * 1: not authorized
+     * 2: not authorized by me
+     */
+    public byte[] renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, BlockChainObjectParsingException, BadRequest, FileCorruptionException {
+
+<span class="nc bnc" id="L341" title="All 2 branches missed.">        if (certificateRenewRequestPojo==null</span>
+<span class="nc bnc" id="L342" title="All 4 branches missed.">        ||certificateRenewRequestPojo.getIdentifier() == null || certificateRenewRequestPojo.getIdentifier().length!=Configuration.IDENTIFIER_LENGTH</span>
+<span class="nc bnc" id="L343" title="All 2 branches missed.">                ||certificateRenewRequestPojo.getNoAfter()==null</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">        || certificateRenewRequestPojo.getNoAfter().getTime() &lt;= System.currentTimeMillis())</span>
+<span class="nc" id="L345">            throw new BadRequest(&quot;Bad data&quot;);</span>
+
+
+<span class="nc" id="L348">        ByteArrayOutputStream result = new ByteArrayOutputStream();</span>
+
+<span class="nc" id="L350">        byte isAuthorizedByMe = validator.isMedicalOrgAuthorizedByMe(certificateRenewRequestPojo.getIdentifier());</span>
+<span class="nc" id="L351">        result.write(isAuthorizedByMe);</span>
+
+<span class="nc bnc" id="L353" title="All 2 branches missed.">        if (isAuthorizedByMe == 0) {</span>
+<span class="nc" id="L354">            MedicalOrgInfo medicalOrgInfo = validator.getMedicalOrgInfo(certificateRenewRequestPojo.getIdentifier());</span>
+<span class="nc" id="L355">            X509Certificate x509Certificate = validator.issueCertificate(medicalOrgInfo, certificateRenewRequestPojo.getNoAfter());</span>
+<span class="nc" id="L356">            CertificateManager.store(x509Certificate);</span>
+<span class="nc" id="L357">            result.write(x509Certificate.getEncoded());</span>
+        }
+
+<span class="nc" id="L360">        return result.toByteArray();</span>
+    }
+
+
+    /*
+     * return list of information of medical organizations authorized by this authority
+     */
+    public ArrayList&lt;MedicalOrgShortInfoPojo&gt; loadAllMedicalOrgShortInfoAuthorizedByThisAuthority() throws BlockChainObjectParsingException, IOException {
+<span class="nc" id="L368">        ArrayList&lt;MedicalOrgShortInfo&gt; simplifiedMedicalOrgInfos = validator.getAllMedicalOrgShortInfoAuthorizedBy(validator.getMyIdentifier());</span>
+<span class="nc" id="L369">        ArrayList&lt;MedicalOrgShortInfoPojo&gt; medicalOrgShortInfoPojos = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L371" title="All 2 branches missed.">        for (MedicalOrgShortInfo medicalOrgShortInfo : simplifiedMedicalOrgInfos) {</span>
+<span class="nc" id="L372">            MedicalOrgShortInfoPojo medicalOrgShortInfoPojo = new MedicalOrgShortInfoPojo();</span>
+<span class="nc" id="L373">            medicalOrgShortInfoPojo.setName(medicalOrgShortInfo.getName());</span>
+<span class="nc" id="L374">            medicalOrgShortInfoPojo.setIdentifier(medicalOrgShortInfo.getIdentifier());</span>
+
+<span class="nc" id="L376">            medicalOrgShortInfoPojos.add(medicalOrgShortInfoPojo);</span>
+<span class="nc" id="L377">        }</span>
+
+<span class="nc" id="L379">        return medicalOrgShortInfoPojos;</span>
+    }
+
+    /*
+     * return the corresponding encoded X509 certificate
+     */
+    public byte[] getCertificate(byte[] identifier) throws CertificateEncodingException, BadRequest, NotFound {
+<span class="nc bnc" id="L386" title="All 4 branches missed.">        if (identifier == null || identifier.length != Configuration.IDENTIFIER_LENGTH)</span>
+<span class="nc" id="L387">            throw new BadRequest(&quot;Bad data&quot;);</span>
+
+<span class="nc bnc" id="L389" title="All 2 branches missed.">        if (!CertificateManager.exist(identifier))</span>
+<span class="nc" id="L390">            throw new NotFound(&quot;The requested cerificate couldn't be found&quot;);</span>
+
+<span class="nc" id="L392">        return CertificateManager.get(identifier).getEncoded();</span>
+    }
+
+
+    /*
+     * return list of short information of the patient
+     */
+    public ArrayList&lt;PatientShortInfoPojo&gt; getPatientShortInfoList(byte[] patientIdentifier) throws IOException, BlockChainObjectParsingException, NotFound, BadRequest {
+
+<span class="nc bnc" id="L401" title="All 4 branches missed.">        if (patientIdentifier == null</span>
+                || patientIdentifier.length != Configuration.IDENTIFIER_LENGTH)
+<span class="nc" id="L403">            throw new BadRequest();</span>
+
+<span class="nc" id="L405">        ArrayList&lt;PatientShortInfo&gt; patientShortInfos = validator.getPatientShortInfoList(patientIdentifier);</span>
+
+<span class="nc bnc" id="L407" title="All 2 branches missed.">        if (patientShortInfos == null)</span>
+<span class="nc" id="L408">            throw new NotFound();</span>
+
+<span class="nc" id="L410">        ArrayList&lt;PatientShortInfoPojo&gt; patientShortInfoPojos = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L412" title="All 2 branches missed.">        for (PatientShortInfo patientShortInfo : patientShortInfos) {</span>
+<span class="nc" id="L413">            PatientShortInfoPojo patientShortInfoPojo = new PatientShortInfoPojo();</span>
+<span class="nc" id="L414">            LocationPojo locationPojo = new LocationPojo();</span>
+<span class="nc" id="L415">            locationPojo.setBlockHash(patientShortInfo.getLocation().getBlockHash());</span>
+<span class="nc" id="L416">            locationPojo.setTargetIdentifier(patientShortInfo.getLocation().getTargetIdentifier());</span>
+<span class="nc" id="L417">            patientShortInfoPojo.setLocation(locationPojo);</span>
+<span class="nc" id="L418">            patientShortInfoPojo.setTimestamp(patientShortInfo.getTimestamp());</span>
+<span class="nc" id="L419">            patientShortInfoPojos.add(patientShortInfoPojo);</span>
+<span class="nc" id="L420">        }</span>
+
+<span class="nc" id="L422">        return patientShortInfoPojos;</span>
+    }
+
+    /*
+     * return list of the requested patient information contents
+     */
+    public ArrayList&lt;PatientInfoContentPojo&gt; getPatientInfoContentsList(ArrayList&lt;LocationPojo&gt; locationPojos) throws IOException, BlockChainObjectParsingException, BadRequest, NotFound {
+
+<span class="nc" id="L430">        ArrayList&lt;PatientInfoContentPojo&gt; patientInfoContentPojos = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L432" title="All 2 branches missed.">        for (LocationPojo locationPojo : locationPojos) {</span>
+
+<span class="nc bnc" id="L434" title="All 2 branches missed.">            if (locationPojo == null</span>
+<span class="nc bnc" id="L435" title="All 2 branches missed.">                    || locationPojo.getBlockHash() == null</span>
+<span class="nc bnc" id="L436" title="All 2 branches missed.">                    || locationPojo.getBlockHash().length != Configuration.HASH_LENGTH</span>
+<span class="nc bnc" id="L437" title="All 2 branches missed.">                    || locationPojo.getTargetIdentifier() == null</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">                    || locationPojo.getTargetIdentifier().length != Configuration.HASH_LENGTH) {</span>
+<span class="nc" id="L439">                throw new BadRequest();</span>
+            }
+
+<span class="nc" id="L442">            byte[] encryptedInfo = Validator.getRunningValidator().getPatientEncryptedInfo(new Location(locationPojo.getBlockHash(), locationPojo.getTargetIdentifier()));</span>
+
+<span class="nc bnc" id="L444" title="All 2 branches missed.">            if (encryptedInfo == null) {</span>
+<span class="nc" id="L445">                throw new NotFound(&quot;One or more of the requested information couldn't be found&quot;);</span>
+            }
+
+<span class="nc" id="L448">            patientInfoContentPojos.add(new PatientInfoContentPojo(encryptedInfo));</span>
+<span class="nc" id="L449">        }</span>
+
+<span class="nc" id="L451">        return patientInfoContentPojos;</span>
+    }
+
+
+    public boolean isValidUserLevelToken(String token) throws IOException {
+<span class="nc bnc" id="L456" title="All 2 branches missed.">        return SessionManager.isValidLevelToken(token, Configuration.USER_LEVEL)</span>
+<span class="nc bnc" id="L457" title="All 2 branches missed.">                || SessionManager.isValidLevelToken(token, Configuration.ROOT_USER_LEVEL);</span>
+    }
+
+    public boolean isValidRootLevelToken(String token) throws IOException {
+<span class="nc" id="L461">        return SessionManager.isValidLevelToken(token, Configuration.ROOT_USER_LEVEL);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

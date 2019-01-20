@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MedicalOrgInfoManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">blockchain.manager</a> &gt; <span class="el_source">MedicalOrgInfoManager.java</span></div><h1>MedicalOrgInfoManager.java</h1><pre class="source lang-java linenums">package blockchain.manager;
+
+import blockchain.block.Block;
+import exception.BlockChainObjectParsingException;
+import blockchain.internal.AuthorityInfoForInternal;
+import blockchain.internal.MedicalOrgInfoForInternal;
+import blockchain.block.MedicalOrgInfo;
+import blockchain.manager.datastructure.MedicalOrgShortInfo;
+import config.Configuration;
+import exception.FileCorruptionException;
+import general.utility.GeneralHelper;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+
+<span class="nc" id="L18">public class MedicalOrgInfoManager {</span>
+
+
+    // blockHash(32 bytes) || authorityIdentifier(20 bytes) || medicalOrg name length(1 byte) || medicalOrg name (length byte) -authorization file
+
+    // 1 (1 byte -representing authorization) || blockHash(32 bytes)||  authority identifier (20 bytes)||medicalOrg identifier (20 bytes)
+    // || medicalOrgName length(1 byte) || medicalOrgName(length byte) - record list
+    public static void authorize(byte[] blockHash, MedicalOrgInfo medicalOrgInfo, byte[] authorityIdentifier) throws IOException {
+
+<span class="nc" id="L27">        String medicalOrgIdentifierString = GeneralHelper.bytesToStringHex(medicalOrgInfo.getIdentifier());</span>
+
+<span class="nc" id="L29">        File medicalOrgFolder = new File(Configuration.MEDICAL_ORGANIZATION_FOLDER, medicalOrgIdentifierString.charAt(0) + &quot;/&quot; + medicalOrgIdentifierString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L30">                + medicalOrgIdentifierString.charAt(2) + &quot;/&quot; + medicalOrgIdentifierString.charAt(3) + &quot;/&quot; + medicalOrgIdentifierString.charAt(4) + &quot;/&quot; + medicalOrgIdentifierString + &quot;/&quot;);</span>
+<span class="nc" id="L31">        File authorizationFile = new File(medicalOrgFolder, &quot;authorization&quot;);</span>
+
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (!medicalOrgFolder.exists()) {</span>
+<span class="nc" id="L34">            medicalOrgFolder.mkdirs();</span>
+        }
+
+<span class="nc" id="L37">        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(authorizationFile, true));</span>
+<span class="nc" id="L38">             BufferedOutputStream bos2 = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true))) {</span>
+
+            //write to authorize
+<span class="nc" id="L41">            bos.write(blockHash);</span>
+<span class="nc" id="L42">            bos.write(authorityIdentifier);</span>
+<span class="nc" id="L43">            bos.write(medicalOrgInfo.getName().length());</span>
+<span class="nc" id="L44">            bos.write(medicalOrgInfo.getName().getBytes());</span>
+<span class="nc" id="L45">            bos.close();</span>
+
+<span class="nc" id="L47">            bos2.write(1);</span>
+<span class="nc" id="L48">            bos2.write(blockHash);</span>
+<span class="nc" id="L49">            bos2.write(authorityIdentifier);</span>
+<span class="nc" id="L50">            bos2.write(medicalOrgInfo.getIdentifier());</span>
+<span class="nc" id="L51">            bos2.write(medicalOrgInfo.getName().length());</span>
+<span class="nc" id="L52">            bos2.write(medicalOrgInfo.getName().getBytes());</span>
+        }
+<span class="nc" id="L54">    }</span>
+
+    // blockHash(32 bytes) -revocation file
+    // 0 (0 byte -representing revocation) || blockHash(32 bytes)||medicalOrg identifier (20 bytes)- record list
+    //check whether it could be revoked or not
+    public static void revoke(byte[] blockHash, byte[] medicalOrgIdentifier) throws IOException {
+<span class="nc" id="L60">        String medicalOrgIdentifierString = GeneralHelper.bytesToStringHex(medicalOrgIdentifier);</span>
+
+<span class="nc" id="L62">        File revocationFile = new File(Configuration.MEDICAL_ORGANIZATION_FOLDER, medicalOrgIdentifierString.charAt(0) + &quot;/&quot; + medicalOrgIdentifierString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L63">                + medicalOrgIdentifierString.charAt(2) + &quot;/&quot; + medicalOrgIdentifierString.charAt(3) + &quot;/&quot; + medicalOrgIdentifierString.charAt(4) + &quot;/&quot; + medicalOrgIdentifierString + &quot;/revocation&quot;);</span>
+
+<span class="nc" id="L65">        try (FileOutputStream os = new FileOutputStream(revocationFile, true);</span>
+<span class="nc" id="L66">             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true))) {</span>
+            //write to revocation file
+<span class="nc" id="L68">            os.write(blockHash);</span>
+
+            //write to record file
+<span class="nc" id="L71">            bos.write(0);</span>
+<span class="nc" id="L72">            bos.write(blockHash);</span>
+<span class="nc" id="L73">            bos.write(medicalOrgIdentifier);</span>
+        }
+
+<span class="nc" id="L76">    }</span>
+
+    public static ArrayList&lt;MedicalOrgShortInfo&gt; loadEveryShortInfo(byte[] blockHash, byte[] authorityIdentifier) throws BlockChainObjectParsingException, IOException {
+
+
+<span class="nc" id="L81">        ArrayList&lt;MedicalOrgShortInfo&gt; medicalOrgShortInfos = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (!Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE.exists())</span>
+<span class="nc" id="L84">            return medicalOrgShortInfos;</span>
+
+<span class="nc" id="L86">        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE))) {</span>
+
+
+            // 1 (1 byte -representing authorization) || blockHash(32 bytes)||  authority identifier (20 bytes)||medicalOrg identifier (20 bytes)
+            // || medicalOrgName length(1 byte) || medicalOrgName(length byte) - record list
+<span class="nc" id="L91">            byte[] authorizationReadArray = new byte[Configuration.HASH_LENGTH + 2 * Configuration.IDENTIFIER_LENGTH + 1];</span>
+
+            // 0 (0 byte -representing revocation) || blockHash(32 bytes)||medicalOrg identifier (20 bytes)- record list
+<span class="nc" id="L94">            byte[] revocationReadArray = new byte[Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH];</span>
+
+            byte authorize;
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            while ((authorize = (byte) bis.read()) != -1) {</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">                if (authorize == 1) {</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">                    if (bis.read(authorizationReadArray) != authorizationReadArray.length)</span>
+<span class="nc" id="L100">                        throw new BlockChainObjectParsingException();</span>
+<span class="nc" id="L101">                    byte[] processingBlockHash = Arrays.copyOfRange(authorizationReadArray, 0, Configuration.HASH_LENGTH);</span>
+<span class="nc" id="L102">                    byte[] processingAuthorityIdentifier = Arrays.copyOfRange(authorizationReadArray, Configuration.HASH_LENGTH, Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH);</span>
+<span class="nc" id="L103">                    byte[] processingMedicalOrgIdentifier = Arrays.copyOfRange(authorizationReadArray, Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH, authorizationReadArray.length - 1);</span>
+<span class="nc" id="L104">                    byte[] processingMedicalOrgNameBytes = new byte[authorizationReadArray[authorizationReadArray.length - 1]];</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">                    if (bis.read(processingMedicalOrgNameBytes) != processingMedicalOrgNameBytes.length)</span>
+<span class="nc" id="L106">                        throw new BlockChainObjectParsingException();</span>
+<span class="nc" id="L107">                    String processingMedicalOrgName = new String(processingMedicalOrgNameBytes);</span>
+
+<span class="nc bnc" id="L109" title="All 4 branches missed.">                    if (Arrays.equals(processingAuthorityIdentifier, authorityIdentifier) &amp;&amp; BlockChainManager.isThisBlockOnTheChain(blockHash, processingBlockHash)) {</span>
+<span class="nc" id="L110">                        medicalOrgShortInfos.add(new MedicalOrgShortInfo(processingMedicalOrgName, processingMedicalOrgIdentifier));</span>
+                    }
+<span class="nc" id="L112">                } else {</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">                    if (bis.read(revocationReadArray) != revocationReadArray.length)</span>
+<span class="nc" id="L114">                        throw new BlockChainObjectParsingException();</span>
+<span class="nc" id="L115">                    byte[] processingBlockHash = Arrays.copyOfRange(authorizationReadArray, 0, Configuration.HASH_LENGTH);</span>
+<span class="nc" id="L116">                    byte[] processingMedicalOrgIdentifier = Arrays.copyOfRange(authorizationReadArray, Configuration.HASH_LENGTH, revocationReadArray.length - 1);</span>
+
+<span class="nc" id="L118">                    MedicalOrgShortInfo processingMedicalOrgShortInfo = new MedicalOrgShortInfo(&quot;&quot;, processingMedicalOrgIdentifier);</span>
+
+<span class="nc bnc" id="L120" title="All 4 branches missed.">                    if (medicalOrgShortInfos.contains(processingMedicalOrgShortInfo) &amp;&amp; BlockChainManager.isThisBlockOnTheChain(blockHash, processingBlockHash)) {</span>
+<span class="nc" id="L121">                        medicalOrgShortInfos.remove(processingMedicalOrgShortInfo);</span>
+                    }
+<span class="nc" id="L123">                }</span>
+
+            }
+        }
+
+<span class="nc" id="L128">        return medicalOrgShortInfos;</span>
+    }
+
+    public static boolean isRevoked(byte[] blockHash, byte[] medicalOrgIdentifier) throws BlockChainObjectParsingException, IOException {
+
+<span class="nc" id="L133">        String medicalOrgIdentifierString = GeneralHelper.bytesToStringHex(medicalOrgIdentifier);</span>
+<span class="nc" id="L134">        File medicalOrgFolder = new File(Configuration.MEDICAL_ORGANIZATION_FOLDER, medicalOrgIdentifierString.charAt(0) + &quot;/&quot; + medicalOrgIdentifierString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L135">                + medicalOrgIdentifierString.charAt(2) + &quot;/&quot; + medicalOrgIdentifierString.charAt(3) + &quot;/&quot; + medicalOrgIdentifierString.charAt(4) + &quot;/&quot; + medicalOrgIdentifierString + &quot;/&quot;);</span>
+<span class="nc" id="L136">        File revocationFile = new File(medicalOrgFolder, &quot;revocation&quot;);</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (!revocationFile.exists()) {</span>
+<span class="nc" id="L138">            return false;</span>
+        }
+
+        // if revocation exist within the same chain return null
+<span class="nc" id="L142">        byte[] revocationAllBytes = Files.readAllBytes(revocationFile.toPath());</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (revocationAllBytes.length % Configuration.HASH_LENGTH != 0)</span>
+<span class="nc" id="L144">            throw new BlockChainObjectParsingException();</span>
+
+        //blockHash(32 bytes)
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        for (int i = revocationAllBytes.length / Configuration.HASH_LENGTH; i &gt; 0; --i) {</span>
+<span class="nc" id="L148">            byte[] revokedBlockHash = Arrays.copyOfRange(revocationAllBytes, (i - 1) * Configuration.HASH_LENGTH, i * Configuration.HASH_LENGTH);</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">            if (BlockChainManager.isThisBlockOnTheChain(blockHash, revokedBlockHash))</span>
+<span class="nc" id="L150">                return true;</span>
+        }
+
+
+<span class="nc" id="L154">        return false;</span>
+    }
+
+    // revoked medicalOrg also returns null
+    // if revoked because the authority got untrusted - has to check again(lazy revocation)
+    // return {block hash of authorization, authorityidentifier}
+    public static MedicalOrgInfoForInternal load(byte[] blockHash, byte[] medicalOrgIdentifier) throws BlockChainObjectParsingException, IOException, FileCorruptionException {
+<span class="nc" id="L161">        String medicalOrgIdentifierString = GeneralHelper.bytesToStringHex(medicalOrgIdentifier);</span>
+
+<span class="nc" id="L163">        File medicalOrgFolder = new File(Configuration.MEDICAL_ORGANIZATION_FOLDER, medicalOrgIdentifierString.charAt(0) + &quot;/&quot; + medicalOrgIdentifierString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L164">                + medicalOrgIdentifierString.charAt(2) + &quot;/&quot; + medicalOrgIdentifierString.charAt(3) + &quot;/&quot; + medicalOrgIdentifierString.charAt(4) + &quot;/&quot; + medicalOrgIdentifierString + &quot;/&quot;);</span>
+<span class="nc" id="L165">        File authorizationFile = new File(medicalOrgFolder, &quot;authorization&quot;);</span>
+
+<span class="nc bnc" id="L167" title="All 4 branches missed.">        if (!medicalOrgFolder.exists() || !authorizationFile.exists())</span>
+<span class="nc" id="L168">            return null;</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        if (isRevoked(blockHash, medicalOrgIdentifier))</span>
+<span class="nc" id="L170">            return null;</span>
+
+
+        //read authorization file - if authorization exist within the chain return the info
+<span class="nc" id="L174">        byte[] authorizationAllBytes = Files.readAllBytes(authorizationFile.toPath());</span>
+
+<span class="nc" id="L176">        int offset = 0;</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        while (offset &lt; authorizationAllBytes.length) {</span>
+<span class="nc" id="L178">            byte[] authorizedBlockHash = Arrays.copyOfRange(authorizationAllBytes, offset, offset + Configuration.HASH_LENGTH);</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">            if (BlockChainManager.isThisBlockOnTheChain(blockHash, authorizedBlockHash)) {</span>
+<span class="nc" id="L180">                byte[] authorityIdentifier = Arrays.copyOfRange(authorizationAllBytes, offset + Configuration.HASH_LENGTH</span>
+                        , offset + Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH);
+
+                //lazy revocation
+<span class="nc" id="L184">                AuthorityInfoForInternal infoForInternal = AuthorityInfoManager.load(blockHash, authorityIdentifier);</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">                if (infoForInternal == null)</span>
+<span class="nc" id="L186">                    throw new FileCorruptionException();</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">                else if (infoForInternal.getUntrustedBlock() != null) {</span>
+<span class="nc" id="L188">                    MedicalOrgInfoManager.revoke(infoForInternal.getUntrustedBlock(), medicalOrgIdentifier);</span>
+<span class="nc" id="L189">                    return null;</span>
+                }
+<span class="nc" id="L191">                Block curBlock = BlockManager.loadBlock(authorizedBlockHash);</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">                for (MedicalOrgInfo info : curBlock.getContent().getMedicalOrgAuthorizationList()) {</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">                    if (Arrays.equals(info.getIdentifier(), medicalOrgIdentifier))</span>
+<span class="nc" id="L194">                        return new MedicalOrgInfoForInternal(info, authorityIdentifier);</span>
+                }
+<span class="nc" id="L196">            } else {</span>
+                // blockHash(32 bytes) || authorityIdentifier(20 bytes) || medicalOrg name length(1 byte) || medicalOrg name (length byte)
+<span class="nc" id="L198">                offset += Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH;</span>
+<span class="nc" id="L199">                offset += 1 + authorizationAllBytes[offset];</span>
+            }
+<span class="nc" id="L201">        }</span>
+
+<span class="nc" id="L203">        return null;</span>
+
+    }
+
+    // revoked medicalOrg also returns null
+    // if revoked because the authority got untrusted - has to check again(lazy revocation)
+    // return {block hash of authorization, authorityidentifier}
+    public static String loadName(byte[] blockHash, byte[] medicalOrgIdentifier) throws BlockChainObjectParsingException, IOException {
+
+<span class="nc" id="L212">        String medicalOrgIdentifierString = GeneralHelper.bytesToStringHex(medicalOrgIdentifier);</span>
+
+<span class="nc" id="L214">        File medicalOrgFolder = new File(Configuration.MEDICAL_ORGANIZATION_FOLDER, medicalOrgIdentifierString.charAt(0) + &quot;/&quot; + medicalOrgIdentifierString.charAt(1) + &quot;/&quot;</span>
+<span class="nc" id="L215">                + medicalOrgIdentifierString.charAt(2) + &quot;/&quot; + medicalOrgIdentifierString.charAt(3) + &quot;/&quot; + medicalOrgIdentifierString.charAt(4) + &quot;/&quot; + medicalOrgIdentifierString + &quot;/&quot;);</span>
+<span class="nc" id="L216">        File authorizationFile = new File(medicalOrgFolder, &quot;authorization&quot;);</span>
+
+<span class="nc bnc" id="L218" title="All 4 branches missed.">        if (!medicalOrgFolder.exists() || !authorizationFile.exists())</span>
+<span class="nc" id="L219">            return null;</span>
+
+
+        //read authorization file - if authorization exist within the chain chain return the signer
+<span class="nc" id="L223">        byte[] authorizationAllBytes = new byte[0];</span>
+        try {
+<span class="nc" id="L225">            authorizationAllBytes = Files.readAllBytes(authorizationFile.toPath());</span>
+<span class="nc" id="L226">        } catch (IOException e) {</span>
+<span class="nc" id="L227">            e.printStackTrace();</span>
+<span class="nc" id="L228">        }</span>
+
+
+<span class="nc" id="L231">        int offset = 0;</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        while (offset &lt; authorizationAllBytes.length) {</span>
+<span class="nc" id="L233">            byte[] authorizedBlockHash = Arrays.copyOfRange(authorizationAllBytes, offset, offset + Configuration.HASH_LENGTH);</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            if (BlockChainManager.isThisBlockOnTheChain(blockHash, authorizedBlockHash)) {</span>
+<span class="nc" id="L235">                offset += Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH;</span>
+<span class="nc" id="L236">                int length = authorizationAllBytes[offset++];</span>
+<span class="nc" id="L237">                return new String(Arrays.copyOfRange(authorizationAllBytes, offset, offset + length));</span>
+            }
+
+<span class="nc" id="L240">        }</span>
+
+
+<span class="nc" id="L243">        return null;</span>
+
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

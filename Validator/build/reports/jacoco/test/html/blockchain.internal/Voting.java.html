@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="ko"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Voting.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DIP1</a> &gt; <a href="index.source.html" class="el_package">blockchain.internal</a> &gt; <span class="el_source">Voting.java</span></div><h1>Voting.java</h1><pre class="source lang-java linenums">package blockchain.internal;
+
+import blockchain.block.AuthorityInfo;
+import blockchain.interfaces.Raw;
+import blockchain.utility.ByteArrayReader;
+import config.Configuration;
+import exception.BlockChainObjectParsingException;
+import general.utility.GeneralHelper;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Objects;
+import java.util.SortedSet;
+import java.util.TreeSet;
+
+public class Voting implements Raw{
+	
+	private AuthorityInfo beneficiary;
+	private boolean add; // true:add, false:remove
+<span class="nc" id="L21">	private SortedSet&lt;byte[]&gt; agree= new TreeSet&lt;&gt;(new GeneralHelper.byteArrayComparator());</span>
+<span class="nc" id="L22">	private SortedSet&lt;byte[]&gt; disagree= new TreeSet&lt;&gt;(new GeneralHelper.byteArrayComparator());</span>
+
+
+	public Voting(AuthorityInfo beneficiary, boolean add)
+<span class="nc" id="L26">	{</span>
+<span class="nc" id="L27">		this.beneficiary=beneficiary;</span>
+<span class="nc" id="L28">		this.add = add;</span>
+<span class="nc" id="L29">	}</span>
+
+	public Voting()
+<span class="nc" id="L32">	{</span>
+
+<span class="nc" id="L34">	}</span>
+
+	public void setBeneficiary(AuthorityInfo beneficiary) {
+<span class="nc" id="L37">		this.beneficiary = beneficiary;</span>
+<span class="nc" id="L38">	}</span>
+
+	public void setAdd(boolean add) {
+<span class="nc" id="L41">		this.add = add;</span>
+<span class="nc" id="L42">	}</span>
+
+	public void setAgree(SortedSet&lt;byte[]&gt; agree) {
+<span class="nc" id="L45">		this.agree = agree;</span>
+<span class="nc" id="L46">	}</span>
+
+	public void setDisagree(SortedSet&lt;byte[]&gt; disagree) {
+<span class="nc" id="L49">		this.disagree = disagree;</span>
+<span class="nc" id="L50">	}</span>
+
+	public SortedSet&lt;byte[]&gt; getAgree() {
+<span class="nc" id="L53">		return agree;</span>
+	}
+
+	public SortedSet&lt;byte[]&gt; getDisagree() {
+<span class="nc" id="L57">		return disagree;</span>
+	}
+
+	public boolean isExistingVoter(byte[] voter)
+	{
+<span class="nc bnc" id="L62" title="All 4 branches missed.">		return agree.contains(voter)||disagree.contains(voter);</span>
+	}
+	
+	public void addAgree(byte[] voter)
+	{
+<span class="nc" id="L67">		agree.add(voter);</span>
+<span class="nc" id="L68">	}</span>
+
+	public void removeAgree(byte[] voter)
+	{
+<span class="nc" id="L72">		agree.remove(voter);</span>
+<span class="nc" id="L73">	}</span>
+	
+	public void addDisagree(byte[] voter)
+	{
+<span class="nc" id="L77">		disagree.add(voter);</span>
+<span class="nc" id="L78">	}</span>
+
+	public void removeDisagree(byte[] voter)
+	{
+<span class="nc" id="L82">		disagree.remove(voter);</span>
+<span class="nc" id="L83">	}</span>
+
+	public AuthorityInfo getBeneficiary()
+	{
+<span class="nc" id="L87">		return beneficiary;</span>
+	}
+	
+	public boolean isAdd()
+	{
+<span class="nc" id="L92">		return add;</span>
+	}
+
+
+	public int getNumAgree()
+	{
+<span class="nc" id="L98">		return agree.size();</span>
+	}
+
+	public int getNumDisagree()
+	{
+<span class="nc" id="L103">		return disagree.size();</span>
+	}
+
+
+	public byte[] getRaw()
+	{
+<span class="nc" id="L109">		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();</span>
+
+		try {
+<span class="nc" id="L112">			byteArrayOutputStream.write(beneficiary.getRaw());</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">			byteArrayOutputStream.write((byte)(add?1:0));</span>
+
+<span class="nc" id="L115">			byteArrayOutputStream.write(GeneralHelper.intToBytes(agree.size()));</span>
+<span class="nc" id="L116">			Iterator&lt;byte[]&gt; iterator = agree.iterator();</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">			while(iterator.hasNext()) {</span>
+<span class="nc" id="L118">				byte[] element = iterator.next();</span>
+<span class="nc" id="L119">				byteArrayOutputStream.write(element);</span>
+<span class="nc" id="L120">			}</span>
+
+<span class="nc" id="L122">			byteArrayOutputStream.write(GeneralHelper.intToBytes(disagree.size()));</span>
+<span class="nc" id="L123">			iterator = disagree.iterator();</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">			while(iterator.hasNext()) {</span>
+<span class="nc" id="L125">				byte[] element = iterator.next();</span>
+<span class="nc" id="L126">				byteArrayOutputStream.write(element);</span>
+<span class="nc" id="L127">			}</span>
+		}
+<span class="nc" id="L129">		catch (IOException e)</span>
+		{
+<span class="nc" id="L131">			e.printStackTrace();</span>
+<span class="nc" id="L132">		}</span>
+
+<span class="nc" id="L134">		return byteArrayOutputStream.toByteArray();</span>
+	}
+
+
+	public static Voting parse(ByteArrayReader byteArrayReader) throws BlockChainObjectParsingException {
+<span class="nc" id="L139">		Voting voting = new Voting();</span>
+
+<span class="nc" id="L141">		voting.setBeneficiary(AuthorityInfo.parse(byteArrayReader));</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">		voting.setAdd(byteArrayReader.readByte()==1);</span>
+
+<span class="nc" id="L144">		int length = byteArrayReader.readInt();</span>
+<span class="nc" id="L145">		SortedSet&lt;byte[]&gt; agreeSet= new TreeSet&lt;&gt;(new GeneralHelper.byteArrayComparator());</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">		for(int i=0;i&lt;length;++i)</span>
+		{
+<span class="nc" id="L148">			agreeSet.add(byteArrayReader.readBytes(Configuration.IDENTIFIER_LENGTH));</span>
+		}
+<span class="nc" id="L150">		voting.setAgree(agreeSet);</span>
+
+<span class="nc" id="L152">		length = byteArrayReader.readInt();</span>
+<span class="nc" id="L153">		SortedSet&lt;byte[]&gt; disagreeSet= new TreeSet&lt;&gt;(new GeneralHelper.byteArrayComparator());</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">		for(int i=0;i&lt;length;++i)</span>
+		{
+<span class="nc" id="L156">			disagreeSet.add(byteArrayReader.readBytes(Configuration.IDENTIFIER_LENGTH));</span>
+		}
+<span class="nc" id="L158">		voting.setDisagree(disagreeSet);</span>
+
+<span class="nc" id="L160">		return voting;</span>
+	}
+
+	@Override
+	public boolean equals(Object o) {
+<span class="nc bnc" id="L165" title="All 2 branches missed.">		if (this == o) return true;</span>
+<span class="nc bnc" id="L166" title="All 4 branches missed.">		if (o == null || getClass() != o.getClass()) return false;</span>
+<span class="nc" id="L167">		Voting voting = (Voting) o;</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">		return add == voting.add &amp;&amp;</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">				Objects.equals(beneficiary, voting.beneficiary) &amp;&amp;</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">				Objects.equals(agree, voting.agree) &amp;&amp;</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">				Objects.equals(disagree, voting.disagree);</span>
+	}
+
+	@Override
+	public int hashCode() {
+<span class="nc" id="L176">		return Objects.hash(beneficiary, add, agree, disagree);</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.1.201803210924</span></div></body></html>

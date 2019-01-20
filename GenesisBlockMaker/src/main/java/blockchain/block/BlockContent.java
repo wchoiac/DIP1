@@ -19,17 +19,15 @@ public class BlockContent implements Raw {
     private AuthorityInfo[] initialAuthorities; //for genesis block
     private MedicalOrgInfo[] medicalOrgAuthorizationList;
     private byte[][] medicalOrgRevocationList; // list of identifier
-    private PatientRegistrationInfo[] patientRegistrationList;
-    private PatientUpdateInfo[] patientUpdateList;
+    private PatientInfo[] patientInfoList;
     private Transaction[] transactions;
 
-    public BlockContent(AuthorityInfo[] validators, MedicalOrgInfo[] medicalOrgAuthorizationList, byte[][] medicalOrgRevocationList, PatientRegistrationInfo[] patientRegistrationList,PatientUpdateInfo[] patientUpdateInfos, Transaction[] transactions) {
+    public BlockContent(AuthorityInfo[] validators, MedicalOrgInfo[] medicalOrgAuthorizationList, byte[][] medicalOrgRevocationList, PatientInfo[] patientInfoList, Transaction[] transactions) {
 
         this.setInitialAuthorities(validators);
         this.medicalOrgAuthorizationList=medicalOrgAuthorizationList;
         this.medicalOrgRevocationList=medicalOrgRevocationList;
-        this.patientRegistrationList=patientRegistrationList;
-        this.patientUpdateList =patientUpdateInfos;
+        this.patientInfoList = patientInfoList;
         this.transactions = transactions;
     }
 
@@ -64,15 +62,9 @@ public class BlockContent implements Raw {
                     byteArrayOutputStream.write(rovokedIdentifier);
             }
 
-            if (getPatientRegistrationList() != null) {
-                byteArrayOutputStream.write(GeneralHelper.intToBytes(getPatientRegistrationList().length));
-                for (PatientRegistrationInfo info : getPatientRegistrationList())
-                    byteArrayOutputStream.write(info.getRaw());
-            }
-
-            if (getPatientUpdateList() != null) {
-                byteArrayOutputStream.write(GeneralHelper.intToBytes(getPatientUpdateList().length));
-                for (PatientUpdateInfo info : getPatientUpdateList())
+            if (getPatientInfoList() != null) {
+                byteArrayOutputStream.write(GeneralHelper.intToBytes(getPatientInfoList().length));
+                for (PatientInfo info : getPatientInfoList())
                     byteArrayOutputStream.write(info.getRaw());
             }
 
@@ -96,8 +88,7 @@ public class BlockContent implements Raw {
         int length;
         ArrayList<AuthorityInfo> authorityInfos = new ArrayList<>();
         ArrayList<MedicalOrgInfo> medicalOrgInfosForAuthorization = new ArrayList<>();
-        ArrayList<PatientRegistrationInfo> patientRegistrationInfos = new ArrayList<>();
-        ArrayList<PatientUpdateInfo> patientUpdateInfos = new ArrayList<>();
+        ArrayList<PatientInfo> patientInfos = new ArrayList<>();
         ArrayList<Transaction> transactions = new ArrayList<>();
 
         //initial authority list
@@ -143,22 +134,10 @@ public class BlockContent implements Raw {
             if (length < 0)
                 throw new BlockChainObjectParsingException();
             for (int i = 0; i < length; ++i) {
-                patientRegistrationInfos.add(PatientRegistrationInfo.parse(byteArrayReader));
+                patientInfos.add(PatientInfo.parse(byteArrayReader));
             }
-            blockContent.setPatientRegistrationList(patientRegistrationInfos.isEmpty() ? null : patientRegistrationInfos.toArray(new PatientRegistrationInfo[0]));
-            patientRegistrationInfos.clear();
-        }
-
-        //patient registration list
-        if(GeneralHelper.isBitSet(structureIndicator,Configuration.PATIENT_INFO_UPDATE_BIT_POSITION)) {
-            length = GeneralHelper.bytesToInt(byteArrayReader.readBytes(Integer.BYTES));
-            if (length < 0)
-                throw new BlockChainObjectParsingException();
-            for (int i = 0; i < length; ++i) {
-                patientUpdateInfos.add(PatientUpdateInfo.parse(byteArrayReader));
-            }
-            blockContent.setPatientUpdateList(patientUpdateInfos.isEmpty() ? null : patientUpdateInfos.toArray(new PatientUpdateInfo[0]));
-            patientUpdateInfos.clear();
+            blockContent.setPatientInfoList(patientInfos.isEmpty() ? null : patientInfos.toArray(new PatientInfo[0]));
+            patientInfos.clear();
         }
 
         //transactions
@@ -202,17 +181,16 @@ public class BlockContent implements Raw {
     {
         byte contentStructureIndicator=0;
 
-        if(initialAuthorities!=null)
+        if(initialAuthorities!=null&&initialAuthorities.length!=0)
             contentStructureIndicator=(byte)(contentStructureIndicator|(1<<Configuration.INITIAL_AUTHORITIES_BIT_POSITION));
-        if(medicalOrgAuthorizationList!=null)
+        if(medicalOrgAuthorizationList!=null&&medicalOrgAuthorizationList.length!=0)
             contentStructureIndicator=(byte)(contentStructureIndicator|(1<<Configuration.AUTHORIZATION_BIT_POSITION));
-        if(medicalOrgRevocationList!=null)
+        if(medicalOrgRevocationList!=null&&medicalOrgRevocationList.length!=0)
             contentStructureIndicator=(byte)(contentStructureIndicator|(1<<Configuration.REVOCATION_BIT_POSITION));
-        if(patientRegistrationList!=null)
+        if(patientInfoList !=null&&patientInfoList.length!=0)
             contentStructureIndicator=(byte)(contentStructureIndicator|(1<<Configuration.PATIENT_REGISTRATION_BIT_POSITION));
-        if(patientUpdateList!=null)
-            contentStructureIndicator=(byte)(contentStructureIndicator|(1<<Configuration.PATIENT_INFO_UPDATE_BIT_POSITION));
-
+        if(transactions!=null&&transactions.length!=0)
+            contentStructureIndicator=(byte)(contentStructureIndicator|(1<<Configuration.TRANSACTION_BIT_POSITION));
         return contentStructureIndicator;
     }
 
@@ -221,10 +199,25 @@ public class BlockContent implements Raw {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         BlockContent that = (BlockContent) o;
+
+        if(getMedicalOrgRevocationList()!=null && that.medicalOrgRevocationList==null
+                ||getMedicalOrgRevocationList()==null && that.medicalOrgRevocationList!=null )
+            return false;
+
+        if(getMedicalOrgRevocationList()!=null) {
+            if (getMedicalOrgRevocationList().length != that.medicalOrgRevocationList.length)
+                return false;
+
+            for (int i = 0; i < getMedicalOrgRevocationList().length; ++i) {
+                if (!Arrays.equals(getMedicalOrgRevocationList()[i], that.medicalOrgRevocationList[0]))
+                    return false;
+            }
+        }
+
+
         return Arrays.equals(getInitialAuthorities(), that.getInitialAuthorities()) &&
                 Arrays.equals(getMedicalOrgAuthorizationList(), that.getMedicalOrgAuthorizationList()) &&
-                Arrays.equals(getMedicalOrgRevocationList(), that.getMedicalOrgRevocationList()) &&
-                Arrays.equals(getPatientRegistrationList(), that.getPatientRegistrationList()) &&
+                Arrays.equals(getPatientInfoList(), that.getPatientInfoList()) &&
                 Arrays.equals(getTransactions(), that.getTransactions());
     }
 
@@ -233,7 +226,7 @@ public class BlockContent implements Raw {
         int result = Arrays.hashCode(getInitialAuthorities());
         result = 31 * result + Arrays.hashCode(getMedicalOrgAuthorizationList());
         result = 31 * result + Arrays.hashCode(getMedicalOrgRevocationList());
-        result = 31 * result + Arrays.hashCode(getPatientRegistrationList());
+        result = 31 * result + Arrays.hashCode(getPatientInfoList());
         result = 31 * result + Arrays.hashCode(getTransactions());
         return result;
     }
@@ -243,8 +236,8 @@ public class BlockContent implements Raw {
     }
 
 
-    public void setPatientRegistrationList(PatientRegistrationInfo[] patientRegistrationList) {
-        this.patientRegistrationList = patientRegistrationList;
+    public void setPatientInfoList(PatientInfo[] patientInfoList) {
+        this.patientInfoList = patientInfoList;
     }
 
     public void setTransactions(Transaction[] transactions) {
@@ -264,8 +257,8 @@ public class BlockContent implements Raw {
     }
 
 
-    public PatientRegistrationInfo[] getPatientRegistrationList() {
-        return patientRegistrationList;
+    public PatientInfo[] getPatientInfoList() {
+        return patientInfoList;
     }
 
     public Transaction[] getTransactions() {
@@ -280,11 +273,4 @@ public class BlockContent implements Raw {
         this.medicalOrgRevocationList = medicalOrgRevocationList;
     }
 
-    public PatientUpdateInfo[] getPatientUpdateList() {
-        return patientUpdateList;
-    }
-
-    public void setPatientUpdateList(PatientUpdateInfo[] patientUpdateList) {
-        this.patientUpdateList = patientUpdateList;
-    }
 }
