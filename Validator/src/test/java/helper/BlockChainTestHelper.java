@@ -65,7 +65,6 @@ public class BlockChainTestHelper {
             genesisChainInfoSave(genesisBlock);
             genesisStateInfoSave(genesisBlock);
             genesisVotingSave(blockHash);
-            System.out.println("Successful: Genesis block is processed.");
         } else {
             System.out.println("Error: Data folder already exists, if genesis block needs to be loaded again, please delete the folder first.");
             return;

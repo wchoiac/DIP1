@@ -366,17 +366,6 @@ public class BlockChainManager {
         boolean authorityListChanged = false;
         boolean votingListChanged =false;
 
-
-        if(block.getContent().getMedicalOrgAuthorizationList() !=null)
-            processAuthorization(blockHash, block.getHeader().getValidatorIdentifier(), block.getContent().getMedicalOrgAuthorizationList());
-        if(block.getContent().getMedicalOrgRevocationList() !=null)
-            processRevocation(blockHash, block.getContent().getMedicalOrgRevocationList());
-        if(block.getContent().getPatientInfoList() !=null)
-            processRegistration(blockHash, block.getContent().getPatientInfoList());
-        if(block.getContent().getTransactions() !=null)
-            processTransactions(blockHash, block.getContent().getTransactions());
-
-
         if(block.getHeader().getVote() !=null) {
             votingListChanged=true;
             authorityListChanged = processVote(blockHash, block.getHeader().getPrevHash(), block.getHeader().getValidatorIdentifier(),
@@ -391,6 +380,18 @@ public class BlockChainManager {
 
         StateInfoManager.save(block,authorityListChanged,votingListChanged);
         ChainInfoManager.save(block);
+
+
+
+        if(block.getContent().getMedicalOrgAuthorizationList() !=null)
+            processAuthorization(blockHash, block.getHeader().getValidatorIdentifier(), block.getContent().getMedicalOrgAuthorizationList());
+        if(block.getContent().getMedicalOrgRevocationList() !=null)
+            processRevocation(blockHash, block.getContent().getMedicalOrgRevocationList());
+        if(block.getContent().getPatientInfoList() !=null)
+            processRegistration(blockHash, block.getContent().getPatientInfoList());
+        if(block.getContent().getTransactions() !=null)
+            processTransactions(blockHash, block.getContent().getTransactions());
+
 
 
         int newTotalScore = prevBlockStateInfo.getTotalScore() + block.getHeader().getScore();
