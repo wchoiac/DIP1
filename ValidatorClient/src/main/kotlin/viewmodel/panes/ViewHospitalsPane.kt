@@ -35,6 +35,8 @@ object ViewHospitalsPane : BorderPane() {
     private val warningText = Label()
 
     init {
+        listView.isFocusTraversable = false
+        listView.isMouseTransparent = false
         listView.fixedCellSize = 50.0
         connectComponents()
         styleComponents()

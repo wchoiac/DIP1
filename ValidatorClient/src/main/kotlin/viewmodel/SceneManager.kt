@@ -12,12 +12,19 @@ object SceneManager {
     private val qrScene = Scene(QRCodePane, Config.WIDTH, Config.HEIGHT)
     private val hospitalScene = Scene(ViewHospitalsPane, Config.WIDTH, Config.HEIGHT)
     private val addHospitalScene = Scene(AddHospitalPane, Config.WIDTH / 2, Config.HEIGHT / 2)
+    private val addRemoveValidatorScene = Scene(AddRemoveValidatorsPane, Config.WIDTH / 2, Config.HEIGHT / 2)
+    private val viewValidatorsScene = Scene(ViewValidatorsPane, Config.WIDTH, Config.HEIGHT)
+    private val voteValidatorsScene = Scene(VoteValidatorsPane, Config.WIDTH, Config.HEIGHT)
     private var stage: Stage? = null
     private var lastPatientInfoScene : Scene? = null
-    var lastPateintPane : PatientInfoPane? = null
+    var lastPatientPane : PatientInfoPane? = null
 
     init {
-        val scenes = arrayOf(logInScene, mainMenuScene, scanScene, qrScene, hospitalScene, addHospitalScene)
+        val scenes = arrayOf(
+                logInScene, mainMenuScene, scanScene,
+                qrScene, hospitalScene, addHospitalScene,
+                addRemoveValidatorScene, viewValidatorsScene, voteValidatorsScene
+        )
         addStylesheets(*scenes)
     }
 
@@ -70,7 +77,7 @@ object SceneManager {
 
     fun showPatientInfoScene(infoPane: PatientInfoPane) {
         val scene = Scene(infoPane, Config.WIDTH, Config.HEIGHT)
-        lastPateintPane = infoPane
+        lastPatientPane = infoPane
         lastPatientInfoScene = scene
         addStylesheets(scene)
         showScene(scene)
@@ -83,4 +90,19 @@ object SceneManager {
     fun showAddHospitalScene() {
         showScene(addHospitalScene)
     }
+
+    fun showAddRemoveValidatorScene() {
+        showScene(addRemoveValidatorScene)
+    }
+
+    fun showVoteValidatorsScene() {
+        VoteValidatorsPane.loadList()
+        showScene(voteValidatorsScene)
+    }
+
+    fun showViewValidatorsScene() {
+        ViewValidatorsPane.loadList()
+        showScene(viewValidatorsScene)
+    }
+
 }
