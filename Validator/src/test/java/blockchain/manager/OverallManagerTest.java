@@ -5,6 +5,8 @@ import blockchain.block.*;
 import blockchain.block.transaction.Transaction;
 import blockchain.internal.AuthorityInfoForInternal;
 import blockchain.internal.MedicalOrgInfoForInternal;
+import blockchain.manager.datastructure.Location;
+import blockchain.manager.datastructure.RecordShortInfo;
 import blockchain.utility.BlockChainSecurityHelper;
 import config.Configuration;
 import exception.BlockChainObjectParsingException;
@@ -20,6 +22,7 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -380,7 +383,6 @@ public class OverallManagerTest {
             assertTrue(BlockChainManager.checkBlock(testBlock));
             BlockChainManager.storeBlock(testBlock);
 
-            System.out.println(GeneralHelper.bytesToStringHex(testBlock.calculateHash()));
 
             //test for transaction
             long timestamp = System.currentTimeMillis();
@@ -409,6 +411,16 @@ public class OverallManagerTest {
             BlockChainManager.storeBlock(testBlock2);
 
             assertFalse(TransactionManager.isTransactionUnique(testBlock2.calculateHash(),testTransaction.calculateHash(),testPatientInfo.getPatientIdentifier()));
+            assertEquals(TransactionManager.load(new Location(testBlock2.calculateHash(),testTransaction.calculateHash())),testTransaction);
+
+            ArrayList<RecordShortInfo> recordShortInfos =TransactionManager.loadEveryRecordShortInfo(testBlock2.calculateHash(),testPatientInfo.getPatientIdentifier());
+
+            assertEquals(recordShortInfos.size(),1);
+            assertArrayEquals(recordShortInfos.get(0).getLocation().getBlockHash(),testBlock2.calculateHash());
+            assertArrayEquals(recordShortInfos.get(0).getLocation().getTargetIdentifier(),testTransaction.calculateHash());
+            assertEquals(recordShortInfos.get(0).getTimestamp(),testTransaction.getTimestamp());
+            assertEquals(recordShortInfos.get(0).getMedicalOrgName(),testMedicalOrgInfo.getName());
+
 
         } finally {
             BlockChainTestHelper.endTest();

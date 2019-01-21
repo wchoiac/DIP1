@@ -232,7 +232,6 @@ public class MedicalOrgInfoManager {
         while (offset < authorizationAllBytes.length) {
             byte[] authorizedBlockHash = Arrays.copyOfRange(authorizationAllBytes, offset, offset + Configuration.HASH_LENGTH);
 
-            System.out.println(GeneralHelper.bytesToStringHex(authorizedBlockHash));
             if (BlockChainManager.isThisBlockOnTheChain(blockHash, authorizedBlockHash)) {
                 offset += Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH;
                 int length = authorizationAllBytes[offset++];
