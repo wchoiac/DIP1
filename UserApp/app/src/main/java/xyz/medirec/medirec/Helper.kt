@@ -8,8 +8,8 @@ import android.widget.ImageView
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.util.encoders.Hex
+import org.spongycastle.jce.provider.BouncyCastleProvider
+import org.spongycastle.util.encoders.Hex
 import java.io.*
 import java.security.MessageDigest
 import java.security.*
@@ -19,12 +19,12 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.SecretKey
 import javax.crypto.SecretKeyFactory
 import java.security.PrivateKey
-import org.bouncycastle.crypto.digests.SHA256Digest
-import org.bouncycastle.crypto.params.ECDomainParameters
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters
-import org.bouncycastle.crypto.signers.ECDSASigner
-import org.bouncycastle.crypto.signers.HMacDSAKCalculator
-import org.bouncycastle.jce.ECNamedCurveTable
+import org.spongycastle.crypto.digests.SHA256Digest
+import org.spongycastle.crypto.params.ECDomainParameters
+import org.spongycastle.crypto.params.ECPrivateKeyParameters
+import org.spongycastle.crypto.signers.ECDSASigner
+import org.spongycastle.crypto.signers.HMacDSAKCalculator
+import org.spongycastle.jce.ECNamedCurveTable
 import java.security.interfaces.ECPrivateKey
 import java.security.spec.ECGenParameterSpec
 import javax.crypto.spec.IvParameterSpec
@@ -33,7 +33,7 @@ import javax.crypto.spec.IvParameterSpec
 object Helper {
 
     init {
-        Security.addProvider(BouncyCastleProvider())
+        Security.insertProviderAt(BouncyCastleProvider(), 1)
     }
 
     fun serialize(any: Any): ByteArray {
@@ -63,8 +63,8 @@ object Helper {
         return Base64.decode(base64String, Base64.NO_WRAP)
     }
 
-    fun generateKeyPair(algorithm: String, provider: String = "BC"): KeyPair {
-        val keyGen = KeyPairGenerator.getInstance(algorithm, provider)
+    fun generateKeyPair(algorithm: String): KeyPair {
+        val keyGen = KeyPairGenerator.getInstance(algorithm)
         val keySize = if(algorithm == "ECDSA" || algorithm == "EC") 256 else 2048
         if(algorithm == "EC")
             keyGen.initialize(ECGenParameterSpec("secp256k1"))
@@ -123,14 +123,14 @@ object Helper {
         return bitmap
     }
 
-    fun generateSecretKey(password: CharArray, salt: ByteArray, provider: String = "BC"): SecretKey {
-        val keyFact = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256", provider)
-        val hmacKey = keyFact.generateSecret(PBEKeySpec(password, salt, 16384, 256))
+    fun generateSecretKey(password: CharArray, salt: ByteArray): SecretKey {
+        val keyFact = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+        val hmacKey = keyFact.generateSecret(PBEKeySpec(password, salt, 1024, 256))
         return SecretKeySpec(hmacKey.encoded, "AES")
     }
 
-    private fun getHash(bytes: ByteArray, provider: String = "BC"): String {
-        return byteToHex(MessageDigest.getInstance("SHA-256", provider).digest(bytes))
+    private fun getHash(bytes: ByteArray): String {
+        return byteToHex(MessageDigest.getInstance("SHA256").digest(bytes))
     }
 
     private fun byteToHex(byteArray: ByteArray): String {
@@ -147,8 +147,8 @@ object Helper {
         return b
     }
 
-    fun getHash(string: String, provider: String = "BC"): String {
-        return getHash(string.toByteArray(), provider)
+    fun getHash(string: String): String {
+        return getHash(string.toByteArray())
     }
 
     fun createECDSASignatureWithContent(signerPrivateKey: ECPrivateKey, content: ByteArray): ByteArray {

@@ -9,92 +9,47 @@
         tools:showIn="@layout/activity_main"
         tools:context=".MainActivity" android:layout_gravity="center">
 
-    <TextView
-            android:text="@string/main_header"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:id="@+id/register_header"
-            app:layout_constraintStart_toStartOf="parent" app:layout_constraintHorizontal_bias="0.5"
-            app:layout_constraintEnd_toEndOf="parent" android:gravity="center"
-            android:textSize="30sp" app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintVertical_bias="0.1"/>
+    <TextView android:text="@string/main_header" android:id="@+id/register_header" android:textSize="15pt" 
+              android:layout_width="wrap_content" android:layout_height="wrap_content" 
+              app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" 
+              app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent" 
+              app:layout_constraintVertical_bias="0.1"/>
 
-    <TableLayout
-            android:layout_width="wrap_content"
-            app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent" app:layout_constraintHorizontal_bias="0.5"
-            app:layout_constraintEnd_toEndOf="parent" android:gravity="center" android:weightSum="10"
-            android:layout_height="0dp" android:id="@+id/tableLayout2">
-
-        <TableRow android:layout_width="match_parent" android:gravity="center" android:layout_height="wrap_content">
-            <Button
-                    android:text="@string/button"
-                    android:id="@+id/button1"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
-            <Button
-                    android:text="@string/button"
-                    android:id="@+id/button2"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
-            <Button
-                    android:text="@string/button"
-                    tools:layout_editor_absoluteY="159dp"
-                    tools:layout_editor_absoluteX="52dp" android:id="@+id/button3"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
+    <TableLayout app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent"
+                 app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+                 android:layout_width="wrap_content" android:layout_height="match_parent" android:weightSum="10"
+                 android:gravity="center" app:layout_constraintVertical_bias="0.55">
+        <TableRow android:minHeight="60dp" android:layout_weight="1">
+            <Button android:text="@string/button" android:id="@+id/button1" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
+            <Button android:text="@string/button" android:id="@+id/button2" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
+            <Button android:text="@string/button" android:id="@+id/button3" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
         </TableRow>
-        <TableRow android:layout_width="match_parent" android:gravity="center" android:layout_height="wrap_content">
-            <Button
-                    android:text="@string/button"
-                    android:id="@+id/button4"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
-            <Button
-                    android:text="@string/button"
-                    android:id="@+id/button5"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
-            <Button
-                    android:text="@string/button"
-                    tools:layout_editor_absoluteY="159dp"
-                    tools:layout_editor_absoluteX="147dp" android:id="@+id/button6"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
+        <TableRow android:minHeight="60dp" android:layout_weight="1">
+            <Button android:text="@string/button" android:id="@+id/button4" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
+            <Button android:text="@string/button" android:id="@+id/button5" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
+            <Button android:text="@string/button" android:id="@+id/button6" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
         </TableRow>
-        <TableRow android:layout_width="match_parent" android:gravity="center" android:layout_height="wrap_content">
-            <Button
-                    android:text="@string/button"
-                    android:id="@+id/button7"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
-            <Button
-                    android:text="@string/button"
-                    android:id="@+id/button8"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
-            <Button
-                    android:text="@string/button"
-                    android:id="@+id/button9"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"/>
+        <TableRow android:minHeight="60dp" android:layout_weight="1">
+            <Button android:text="@string/button" android:id="@+id/button7" style="?android:attr/buttonStyle" 
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
+            <Button android:text="@string/button" android:id="@+id/button8" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
+            <Button android:text="@string/button" android:id="@+id/button9" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
         </TableRow>
-        <TableRow android:layout_width="match_parent" android:gravity="center" android:layout_height="wrap_content">
-            <Button
-                    android:id="@+id/blankButton1"
-                    style="?android:attr/buttonStyle" android:text="@string/clearAll"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"
-                    android:longClickable="false" android:linksClickable="false" android:clickable="false"/>
-            <Button
-                    android:text="@string/button"
-                    android:id="@+id/button0"
-                    style="?android:attr/buttonStyle"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"
-            />
-            <Button
-                    android:id="@+id/blankButton2"
-                    style="?android:attr/buttonStyle" android:text="@string/clear"
-                    android:layout_width="match_parent" android:layout_weight="1" android:layout_height="100sp"
-                    android:longClickable="false"/>
+        <TableRow android:minHeight="60dp" android:layout_weight="1">
+            <Button android:text="@string/clearAll" android:id="@+id/blankButton1" style="?android:attr/buttonStyle" 
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
+            <Button android:text="@string/button" android:id="@+id/button0" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
+            <Button android:text="@string/clear" android:id="@+id/blankButton2" style="?android:attr/buttonStyle"
+                    android:layout_width="match_parent" android:layout_height="match_parent"/>
         </TableRow>
     </TableLayout>
 </android.support.constraint.ConstraintLayout>
