@@ -40,7 +40,9 @@ class GenesisBlockMaker {
         }
 
         byte[] zeros = new byte[Configuration.HASH_LENGTH];
-        Block genesisBlock = new Block(null, null, initialAuthorities, 0, (byte) 0, zeros, null, null, null, null,null, null);
+        Block genesisBlock = new Block(null, null, initialAuthorities
+                , 0, (byte) 0, zeros, null
+                , null, null, null,null);
 
         try (FileOutputStream os = new FileOutputStream(Configuration.GENESISBLOCK_FILE)){
             os.write(genesisBlock.getRaw());

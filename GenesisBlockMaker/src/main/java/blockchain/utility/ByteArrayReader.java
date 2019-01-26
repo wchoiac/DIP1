@@ -24,11 +24,18 @@ public class ByteArrayReader {
     {
         byte[] result = Arrays.copyOfRange(content,currOffset,currOffset+length);
         currOffset+=length;
+
+       // System.out.println(GeneralHelper.bytesToStringHex(result)); // debug
+
         return result;
     }
 
     public byte readByte()
     {
+//        int result = content[currOffset++];// debug
+//        System.out.println(result); // debug
+//        return (byte)result;// debug
+
         return content[currOffset++];
     }
 

@@ -114,7 +114,7 @@ public class TransactionManager {
                     offset += Configuration.HASH_LENGTH;
                     long timestamp = GeneralHelper.bytesToLong(Arrays.copyOfRange(allBytes, offset, offset + Long.BYTES));
                     offset += Long.BYTES;
-                    String name = new String(Arrays.copyOfRange(allBytes, offset + 1, allBytes[offset]));
+                    String name = new String(Arrays.copyOfRange(allBytes, offset + 1,offset+1+ allBytes[offset]));
                     recordShortInfos.add(new RecordShortInfo(new Location(processingBlockHash, transactionHash), timestamp, name));
                     break;
                 }

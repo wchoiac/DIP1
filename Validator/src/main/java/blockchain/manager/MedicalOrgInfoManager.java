@@ -231,10 +231,17 @@ public class MedicalOrgInfoManager {
         int offset = 0;
         while (offset < authorizationAllBytes.length) {
             byte[] authorizedBlockHash = Arrays.copyOfRange(authorizationAllBytes, offset, offset + Configuration.HASH_LENGTH);
+
             if (BlockChainManager.isThisBlockOnTheChain(blockHash, authorizedBlockHash)) {
                 offset += Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH;
                 int length = authorizationAllBytes[offset++];
                 return new String(Arrays.copyOfRange(authorizationAllBytes, offset, offset + length));
+            }
+            else
+            {
+                offset += Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH;
+                int length = authorizationAllBytes[offset++];
+                offset+=length;
             }
 
         }

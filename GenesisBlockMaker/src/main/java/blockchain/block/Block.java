@@ -15,9 +15,9 @@ public class Block implements Raw {
 	private BlockHeader header;
 	private BlockContent content;
 	
-	public Block(ECPrivateKey validatorPrivate, Vote vote, AuthorityInfo[] validators, int blockNumber, byte score, byte[] prevHash, ECPublicKey validatorPublicKey, MedicalOrgInfo[] medicalOrgAuthorizationList, byte[][] medicalOrgRevocationList, PatientRegistrationInfo[] patientRegistrationList, PatientUpdateInfo[] patientUpdateInfos, Transaction[] transactions ) {
+	public Block(ECPrivateKey validatorPrivate, Vote vote, AuthorityInfo[] validators, int blockNumber, byte score, byte[] prevHash, ECPublicKey validatorPublicKey, MedicalOrgInfo[] medicalOrgAuthorizationList, byte[][] medicalOrgRevocationList, PatientInfo[] patientRegistrationList, Transaction[] transactions ) {
 
-		this.setContent(new BlockContent(validators,medicalOrgAuthorizationList,medicalOrgRevocationList,patientRegistrationList,patientUpdateInfos,transactions));
+		this.setContent(new BlockContent(validators,medicalOrgAuthorizationList,medicalOrgRevocationList,patientRegistrationList,transactions));
 		this.setHeader(new BlockHeader(content.getContentStructureIndicator(),
 				validatorPrivate,vote,blockNumber,score,prevHash,validatorPublicKey, getContent().calculateHash()));
 	}

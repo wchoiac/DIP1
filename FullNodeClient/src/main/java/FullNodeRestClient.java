@@ -142,8 +142,8 @@ public class FullNodeRestClient {
      * If successful, return list of the requested records' contents
      * Else, throws exception
      */
-    public RecordContentPojo[] getRecordShortInfoList(ArrayList<LocationPojo> locationPojos) throws UnAuthorized, NotFound, BadRequest, ServerError {
-        WebTarget webTarget = base.path("record/get-record-short-info-list");
+    public RecordContentPojo[] getRecordContentsList(ArrayList<LocationPojo> locationPojos) throws UnAuthorized, NotFound, BadRequest, ServerError {
+        WebTarget webTarget = base.path("record/get-record-contents-list");
 
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
 

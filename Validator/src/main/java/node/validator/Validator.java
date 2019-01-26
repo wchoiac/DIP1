@@ -1473,7 +1473,7 @@ public class Validator {
             }
         } catch (IOException e) {
             blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
-            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message\"+ message.number+\" but failed due to IOException. So, closing the connection"); //#debug
+            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
             connectionManager.close();
         }
 
@@ -1519,7 +1519,7 @@ public class Validator {
             }
         } catch (IOException e) {
             blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
-            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message\"+ message.number+\" but failed due to IOException. So, closing the connection"); //#debug
+            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
             connectionManager.close();
         }
 
@@ -1545,7 +1545,7 @@ public class Validator {
                 ++totalSize;
             } catch (IOException e) {
                 blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
-                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message\"+ message.number+\" but failed due to IOException. So, closing the connection"); //#debug
+                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
                 connectionManager.close();
             }
         }
@@ -1564,7 +1564,7 @@ public class Validator {
                 ++totalSize;
             } catch (IOException e) {
                 blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
-                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message\"+ message.number+\" but failed due to IOException. So, closing the connection"); //#debug
+                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
                 connectionManager.close();
             }
         }

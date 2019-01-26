@@ -236,6 +236,12 @@ public class MedicalOrgInfoManager {
                 int length = authorizationAllBytes[offset++];
                 return new String(Arrays.copyOfRange(authorizationAllBytes, offset, offset + length));
             }
+            else
+            {
+                offset += Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH;
+                int length = authorizationAllBytes[offset++];
+                offset+=length;
+            }
 
         }
 

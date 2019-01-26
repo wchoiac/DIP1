@@ -77,7 +77,8 @@ public class BlockChainManager {
             if(expectedScore!= header.getScore())
                 return -1;
 
-            if(header.getTimestamp() -prevBlockTimeStemp<(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
+            if(header.getTimestamp()> System.currentTimeMillis()||
+                    header.getTimestamp() -prevBlockTimeStemp<(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
                 return -1;
 
 
@@ -93,11 +94,11 @@ public class BlockChainManager {
 
                 if (header.getVote().isAdd()) // return false if authorizing a validator but already in the validator list
                 {
-                    if (GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList) != -1)
+                    if (GeneralHelper.getIndexFromArrayList(header.getVote().getBeneficiary().getIdentifier(), tempOverallAuthorityList) != -1)
                         return -1;
                 } else // return false if deauthorizing a validator but not in the validator list
                 {
-                    if (GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList) == -1)
+                    if (GeneralHelper.getIndexFromArrayList(header.getVote().getBeneficiary().getIdentifier(), tempOverallAuthorityList) == -1)
                         return -1;
                 }
                 // this ensures that only one voting about one beneficiary to exist
@@ -188,7 +189,8 @@ public class BlockChainManager {
         if(prevBlockHeader==null)
             return false;
 
-        if(block.getHeader().getTimestamp() - prevBlockHeader.getTimestamp() <(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
+        if(block.getHeader().getTimestamp()> System.currentTimeMillis()||
+                block.getHeader().getTimestamp() - prevBlockHeader.getTimestamp() <(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
             return false;
 
         if(block.getHeader().getVote() !=null) {
@@ -263,6 +265,9 @@ public class BlockChainManager {
 
             for (PatientInfo patientInfo : block.getContent().getPatientInfoList()) {
 
+                if(patientInfo.getTimestamp()>block.getHeader().getTimestamp())
+                    return false;
+
                 if(!patientInfo.verify())
                     return false;
 
@@ -292,6 +297,9 @@ public class BlockChainManager {
             for (Transaction transaction : block.getContent().getTransactions()) {
                 MedicalOrgInfoForInternal medicalOrgInfoForInternal = MedicalOrgInfoManager.load(prevBlockHash, transaction.getMedicalOrgIdentifier());
                 if (medicalOrgInfoForInternal == null)
+                    return false;
+
+                if(transaction.getTimestamp()>block.getHeader().getTimestamp())
                     return false;
 
                 if (!TransactionManager.isTransactionUnique(block.getHeader().getPrevHash(), transaction.calculateHash(), transaction.getPatientIdentifier()))
@@ -358,17 +366,6 @@ public class BlockChainManager {
         boolean authorityListChanged = false;
         boolean votingListChanged =false;
 
-
-        if(block.getContent().getMedicalOrgAuthorizationList() !=null)
-            processAuthorization(blockHash, block.getHeader().getValidatorIdentifier(), block.getContent().getMedicalOrgAuthorizationList());
-        if(block.getContent().getMedicalOrgRevocationList() !=null)
-            processRevocation(blockHash, block.getContent().getMedicalOrgRevocationList());
-        if(block.getContent().getPatientInfoList() !=null)
-            processRegistration(blockHash, block.getContent().getPatientInfoList());
-        if(block.getContent().getTransactions() !=null)
-            processTransactions(blockHash, block.getContent().getTransactions());
-
-
         if(block.getHeader().getVote() !=null) {
             votingListChanged=true;
             authorityListChanged = processVote(blockHash, block.getHeader().getPrevHash(), block.getHeader().getValidatorIdentifier(),
@@ -383,6 +380,18 @@ public class BlockChainManager {
 
         StateInfoManager.save(block,authorityListChanged,votingListChanged);
         ChainInfoManager.save(block);
+
+
+
+        if(block.getContent().getMedicalOrgAuthorizationList() !=null)
+            processAuthorization(blockHash, block.getHeader().getValidatorIdentifier(), block.getContent().getMedicalOrgAuthorizationList());
+        if(block.getContent().getMedicalOrgRevocationList() !=null)
+            processRevocation(blockHash, block.getContent().getMedicalOrgRevocationList());
+        if(block.getContent().getPatientInfoList() !=null)
+            processRegistration(blockHash, block.getContent().getPatientInfoList());
+        if(block.getContent().getTransactions() !=null)
+            processTransactions(blockHash, block.getContent().getTransactions());
+
 
 
         int newTotalScore = prevBlockStateInfo.getTotalScore() + block.getHeader().getScore();
