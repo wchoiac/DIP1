@@ -4,10 +4,7 @@ import com.github.kittinunf.fuel.core.FuelManager
 import com.github.kittinunf.fuel.httpPost
 import javafx.event.Event
 import javafx.geometry.Pos
-import javafx.scene.control.Button
-import javafx.scene.control.Label
-import javafx.scene.control.PasswordField
-import javafx.scene.control.TextField
+import javafx.scene.control.*
 import javafx.scene.input.KeyCode
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
@@ -28,6 +25,9 @@ object LogInPane : BorderPane() {
 
     private val container: VBox = VBox(35.0)
     private val title = Label("SIGN IN")
+    private val ipLabel = Label("IP Address")
+    private val ssl = CheckBox("TLS/SSL")
+    private val ip = TextField()
     private val usernameLabel = Label("Username")
     private val username = TextField()
     private val passwordLabel = Label("Password")
@@ -37,8 +37,11 @@ object LogInPane : BorderPane() {
 
     init {
         container.alignment = Pos.CENTER
+        ip.promptText = "API IP Address"
         username.promptText = "Username"
         password.promptText = "Password"
+        ip.text = "25.30.118.78"
+        ssl.isSelected = true
         invalidWarning.visibleProperty().value = false
         connectComponents()
         styleComponents()
@@ -48,12 +51,17 @@ object LogInPane : BorderPane() {
     }
 
     private fun connectComponents() {
+        val invisibleLabel = Label("TLS/SSL")
+        invisibleLabel.isVisible = false
+        val hBox0 = HBox(20.0, invisibleLabel, ipLabel, ip, ssl)
+        hBox0.alignment = Pos.CENTER
         val hBox1 = HBox(20.0, usernameLabel, username)
         hBox1.alignment = Pos.CENTER
         val hBox2 = HBox(20.0, passwordLabel, password)
         hBox2.alignment = Pos.CENTER
         container.children.addAll(
             title,
+            hBox0,
             hBox1,
             hBox2,
             invalidWarning,
@@ -79,9 +87,15 @@ object LogInPane : BorderPane() {
         }
 
         submitBtn.setOnMouseClicked {
+            val ip = this.ip.text
             val username = this.username.text
             val password = this.password.text
             when {
+                ip == "" || !ip.contains(Regex("[0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}")) -> {
+                    this.ip.requestFocus()
+                    invalidWarning.visibleProperty().value = true
+                    invalidWarning.text = Config.IP_WARNING
+                }
                 username == "" -> {
                     this.username.requestFocus()
                     invalidWarning.visibleProperty().value = true
@@ -105,10 +119,13 @@ object LogInPane : BorderPane() {
                     }
                     bis.close()
 
+                    Config.BASE_URL = "http${if(ssl.isSelected) "s" else ""}://$ip/api"
+                    val currentTime = System.currentTimeMillis()
                     val response = "${Config.BASE_URL}/user/login"
                         .httpPost()
                         .header(mapOf("Content-Type" to "application/json; charset=utf-8"))
-                        .body("""{ "username": "$username", "password": "$password"}""", UTF_8)
+                        .body("""{"username":"$username","password":"$password"}""", UTF_8)
+                        .timeout(500)
                         .responseString()
 
                     if(response.third.component1() != null && response.third.component1() != "") {
@@ -116,9 +133,9 @@ object LogInPane : BorderPane() {
                         Helper.token = response.third.component1()!!
                         SceneManager.showMainMenuScene()
                     } else {
-                        println("FAILED TO SIGN IN")
                         invalidWarning.visibleProperty().value = true
-                        invalidWarning.text = Config.WRONG_WARNING
+                        invalidWarning.text =
+                                if(System.currentTimeMillis() - currentTime > 500) Config.TIMEOUT else Config.WRONG_WARNING
                     }
                 }
             }

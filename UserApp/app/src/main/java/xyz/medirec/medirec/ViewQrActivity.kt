@@ -20,6 +20,10 @@ class ViewQrActivity : AppCompatActivity() {
         }
     }
 
+    override fun onBackPressed() {
+        goToMenu()
+    }
+
     private fun createQRcode(keyPair: KeyPair, timeList: LongArray, randomString: String) {
         val secretKeyList = mutableListOf<ByteArray>()
         timeList.forEach { secretKeyList.add(Helper.getAESKey(keyPair.private, it.toString(), randomString).encoded) }

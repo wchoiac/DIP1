@@ -53,11 +53,12 @@ class MainActivity : AppCompatActivity() {
         
         blankButton1.setOnClickListener {
             pinNumber.clear()
-            register_header.text = getString(R.string.PIN)
+            updateStar()
         }
 
         blankButton2.setOnClickListener {
-            pinNumber.removeAt(pinNumber.size - 1)
+            if(pinNumber.isNotEmpty())
+                pinNumber.removeAt(pinNumber.size - 1)
             updateStar()
         }
     }

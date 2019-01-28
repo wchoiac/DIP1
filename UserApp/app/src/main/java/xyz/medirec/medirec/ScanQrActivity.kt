@@ -72,6 +72,10 @@ class ScanQrActivity : AppCompatActivity() {
         }
     }
 
+    override fun onBackPressed() {
+        goToMenu()
+    }
+
     private fun goToMenu() {
         startActivity(Intent(this, MenuActivity::class.java))
     }
