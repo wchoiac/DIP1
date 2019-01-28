@@ -11,10 +11,12 @@ import javafx.scene.input.MouseEvent
 import javafx.scene.layout.BorderPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
+import javafx.stage.FileChooser
 import main.Helper
 import viewmodel.Config
 import viewmodel.SceneManager
 import java.io.BufferedInputStream
+import java.io.File
 import java.nio.file.Paths
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
@@ -22,12 +24,16 @@ import kotlin.text.Charsets.UTF_8
 
 
 object LogInPane : BorderPane() {
-
-    private val container: VBox = VBox(35.0)
+    private val container: VBox = VBox(25.0)
     private val title = Label("SIGN IN")
     private val ipLabel = Label("IP Address")
     private val ssl = CheckBox("TLS/SSL")
     private val ip = TextField()
+    private val certInvisibleLabel = Label("")
+    private val certificateLabel = Label("Certificate")
+    private val certificateBtn = Button("Import Certificate")
+    private var certFile = Paths.get(Config.CERT_URL.toURI()).toFile()
+    private val certFileLabel = Label("")
     private val usernameLabel = Label("Username")
     private val username = TextField()
     private val passwordLabel = Label("Password")
@@ -42,6 +48,8 @@ object LogInPane : BorderPane() {
         password.promptText = "Password"
         ip.text = "25.30.118.78"
         ssl.isSelected = true
+        certFileLabel.text = certFile.name
+        certInvisibleLabel.text = certFile.name
         invalidWarning.visibleProperty().value = false
         connectComponents()
         styleComponents()
@@ -55,15 +63,16 @@ object LogInPane : BorderPane() {
         invisibleLabel.isVisible = false
         val hBox0 = HBox(20.0, invisibleLabel, ipLabel, ip, ssl)
         hBox0.alignment = Pos.CENTER
-        val hBox1 = HBox(20.0, usernameLabel, username)
+        certInvisibleLabel.isVisible = false
+        val hBox1 = HBox(20.0, certInvisibleLabel, certificateLabel, certificateBtn, certFileLabel)
         hBox1.alignment = Pos.CENTER
-        val hBox2 = HBox(20.0, passwordLabel, password)
+        val hBox2 = HBox(20.0, usernameLabel, username)
         hBox2.alignment = Pos.CENTER
+        val hBox3 = HBox(20.0, passwordLabel, password)
+        hBox3.alignment = Pos.CENTER
         container.children.addAll(
             title,
-            hBox0,
-            hBox1,
-            hBox2,
+            hBox1, hBox0, hBox2, hBox3,
             invalidWarning,
             submitBtn
         )
@@ -73,6 +82,7 @@ object LogInPane : BorderPane() {
 
     private fun styleComponents() {
         invalidWarning.styleClass.add("warning-text")
+        certificateBtn.styleClass.add("small-button")
     }
 
     private fun setCallbacks() {
@@ -84,6 +94,20 @@ object LogInPane : BorderPane() {
                         true, true, true, true,
                         true, true, true, null)
                 )
+        }
+
+        certificateBtn.setOnAction {
+            val fc = FileChooser()
+            fc.title = "Import Certificate"
+            fc.initialDirectory = File(System.getProperty("user.home"))
+            fc.extensionFilters.clear()
+            fc.extensionFilters.addAll(FileChooser.ExtensionFilter("cer files", "*.cer"))
+            val file = fc.showOpenDialog(SceneManager.getStage())
+            if(file != null) {
+                certFile = file
+                certFileLabel.text = file.name
+                certInvisibleLabel.text = file.name
+            }
         }
 
         submitBtn.setOnMouseClicked {
@@ -110,14 +134,16 @@ object LogInPane : BorderPane() {
                     FuelManager.instance.keystore = KeyStore.getInstance("pkcs12", Helper.getProvider())
                     val keyStore = FuelManager.instance.keystore!!
                     keyStore.load(null)
-                    val fis = Paths.get(Config.CERT_URL.toURI()).toFile().inputStream()
-                    val bis = BufferedInputStream(fis)
-                    val cf = CertificateFactory.getInstance("X.509")
-                    while (bis.available() > 0) {
-                        val cert = cf.generateCertificate(bis)
-                        keyStore.setCertificateEntry("MediRec"+bis.available(), cert)
+                    if(certFile != null) {
+                        val fis = certFile.inputStream()
+                        val bis = BufferedInputStream(fis)
+                        val cf = CertificateFactory.getInstance("X.509")
+                        while (bis.available() > 0) {
+                            val cert = cf.generateCertificate(bis)
+                            keyStore.setCertificateEntry("MediRec" + bis.available(), cert)
+                        }
+                        bis.close()
                     }
-                    bis.close()
 
                     Config.BASE_URL = "http${if(ssl.isSelected) "s" else ""}://$ip/api"
                     val currentTime = System.currentTimeMillis()
