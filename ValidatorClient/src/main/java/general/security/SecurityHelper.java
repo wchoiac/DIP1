@@ -29,6 +29,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.bouncycastle.util.io.pem.PemWriter;
+import viewmodel.Config;
 
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
@@ -123,11 +124,11 @@ public class SecurityHelper {
 
 
     // SHA256withECDSA implementation
-    // input content unlike createECDSASignatureWithHash - automatically hashes
-    public static byte[] createECDSASignatureWithContent(ECPrivateKey signerPrivateKey, byte[] content, String hashAlgo) throws NoSuchAlgorithmException {
+    // input content unlike createRawECDSASignatureWithHash - automatically hashes
+    public static byte[] createRawECDSASignatureWithContent(ECPrivateKey signerPrivateKey, byte[] content, String hashAlgo, String curveName, int coordinateLength) throws NoSuchAlgorithmException {
 
         byte[] hash = hash(content, hashAlgo);
-        ECParameterSpec ecParameterSpec = ECNamedCurveTable.getParameterSpec(Configuration.ELIPTIC_CURVE);
+        ECParameterSpec ecParameterSpec = ECNamedCurveTable.getParameterSpec(curveName);
         ECCurve curve = ecParameterSpec.getCurve();
         ECDomainParameters domainParameters = new ECDomainParameters(curve, ecParameterSpec.getG(), ecParameterSpec.getN(), ecParameterSpec.getH());
         ECPrivateKeyParameters privateKeyParameters = new ECPrivateKeyParameters(signerPrivateKey.getS(), domainParameters);
@@ -139,14 +140,17 @@ public class SecurityHelper {
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         try {
+            // for adjusting length so that each point is 32 byte (pad or remove leading zero)
             for (BigInteger bigInteger : bigIntegers) {
                 byte[] tempBytes = bigInteger.toByteArray();
-                if (tempBytes.length == 31) {
-                    byteArrayOutputStream.write(0);
-                } else if (tempBytes.length == 32) {
+                if (tempBytes.length < coordinateLength) {
+                    for (int i = 0; i < coordinateLength - tempBytes.length; ++i)
+                        byteArrayOutputStream.write(0);
                     byteArrayOutputStream.write(tempBytes);
-                } else {
-                    byteArrayOutputStream.write(tempBytes, tempBytes.length - 32, 32);
+                } else if (tempBytes.length == coordinateLength) {
+                    byteArrayOutputStream.write(tempBytes);
+                } else {//leading zero
+                    byteArrayOutputStream.write(tempBytes, tempBytes.length - coordinateLength, coordinateLength);
                 }
 
             }
@@ -160,9 +164,9 @@ public class SecurityHelper {
 
     // NONEwithECDSA implementation
     // input "hash" not the content
-    public static byte[] createECDSASignatureWithHash(ECPrivateKey signerPrivateKey, byte[] hash) throws IOException {
+    public static byte[] createRawECDSASignatureWithHash(ECPrivateKey signerPrivateKey, byte[] hash, String curveName, int coordinateLength) {
 
-        ECParameterSpec ecParameterSpec = ECNamedCurveTable.getParameterSpec(Configuration.ELIPTIC_CURVE);
+        ECParameterSpec ecParameterSpec = ECNamedCurveTable.getParameterSpec(curveName);
         ECCurve curve = ecParameterSpec.getCurve();
         ECDomainParameters domainParameters = new ECDomainParameters(curve, ecParameterSpec.getG(), ecParameterSpec.getN(), ecParameterSpec.getH());
         ECPrivateKeyParameters privateKeyParameters = new ECPrivateKeyParameters(signerPrivateKey.getS(), domainParameters);
@@ -173,17 +177,23 @@ public class SecurityHelper {
         BigInteger[] bigIntegers = ecdsaSigner.generateSignature(hash);
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        for (BigInteger bigInteger : bigIntegers) {
-            byte[] tempBytes = bigInteger.toByteArray();
-            System.out.println(tempBytes.length);
-            if (tempBytes.length == 31) {
-                byteArrayOutputStream.write(0);
-            } else if (tempBytes.length == 32) {
-                byteArrayOutputStream.write(tempBytes);
-            } else {
-                byteArrayOutputStream.write(tempBytes, tempBytes.length - 32, 32);
-            }
+        try {
+            // for adjusting length so that each point is 32 byte (pad or remove leading zero)
+            for (BigInteger bigInteger : bigIntegers) {
+                byte[] tempBytes = bigInteger.toByteArray();
+                if (tempBytes.length < coordinateLength) {
+                    for (int i = 0; i < coordinateLength - tempBytes.length; ++i)
+                        byteArrayOutputStream.write(0);
+                    byteArrayOutputStream.write(tempBytes);
+                } else if (tempBytes.length == coordinateLength) {
+                    byteArrayOutputStream.write(tempBytes);
+                } else {//leading zero
+                    byteArrayOutputStream.write(tempBytes, tempBytes.length - coordinateLength, coordinateLength);
+                }
 
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         return byteArrayOutputStream.toByteArray();
@@ -413,8 +423,8 @@ public class SecurityHelper {
         KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
         ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
         byte[] hash = hash(new byte[]{0}, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
-        byte[] sig = createECDSASignatureWithHash(privateKey, hash);
-        byte[] sig2 = createECDSASignatureWithContent(privateKey, new byte[]{0},"SHA256");
+        byte[] sig = createRawECDSASignatureWithHash(privateKey, hash, Configuration.ELIPTIC_CURVE,Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
+        byte[] sig2 = createRawECDSASignatureWithContent(privateKey, new byte[]{0},"SHA256",Configuration.ELIPTIC_CURVE,Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
         byte[] sig3 = createDigitalSignature(privateKey, new byte[]{0}, "SHA256withECDSA");
 
         System.out.println(GeneralHelper.bytesToStringHex(sig));
