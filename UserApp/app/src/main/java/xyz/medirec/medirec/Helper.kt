@@ -73,16 +73,19 @@ object Helper {
         return keyGen.generateKeyPair()
     }
 
-    fun drawQRCode(view: ImageView, byteArray: ByteArray, windowManager: WindowManager) {
+    fun drawQRCode(view: ImageView, string: String, windowManager: WindowManager) {
         val displayMetrics = DisplayMetrics()
         windowManager.defaultDisplay.getMetrics(displayMetrics)
         val height = (displayMetrics.heightPixels * 0.5).toInt()
         val width = kotlin.math.min(height, displayMetrics.widthPixels)
 
-        val bitMatrix = QRCodeWriter().encode(Helper.encodeToString(byteArray),
-            BarcodeFormat.QR_CODE, height, width)
+        val bitMatrix = QRCodeWriter().encode(string, BarcodeFormat.QR_CODE, height, width)
         val bitMap = encodeAsBitmap(bitMatrix) ?: return
         view.setImageBitmap(bitMap)
+    }
+
+    fun drawQRCode(view: ImageView, byteArray: ByteArray, windowManager: WindowManager) {
+        drawQRCode(view, Helper.encodeToString(byteArray), windowManager)
     }
 
     fun getAESKey(key: PrivateKey, index: String, randomString: String) : SecretKey {
@@ -162,18 +165,28 @@ object Helper {
 
         val bigIntegers = ecdsaSigner.generateSignature(content)
         val byteArrayOutputStream = ByteArrayOutputStream()
-        try {
-            for (bigInteger in bigIntegers) {
-                val tempBytes = bigInteger.toByteArray()
-                when {
-                    tempBytes.size == 31 -> byteArrayOutputStream.write(0)
-                    tempBytes.size == 32 -> byteArrayOutputStream.write(tempBytes)
-                    else -> byteArrayOutputStream.write(tempBytes, tempBytes.size - 32, 32)
+        val coordinateLength = 32
+        for (bigInteger in bigIntegers) {
+            val tempBytes = bigInteger.toByteArray()
+            when {
+                tempBytes.size < coordinateLength -> {
+                    for (i in 0 until coordinateLength - tempBytes.size)
+                        byteArrayOutputStream.write(0)
+                    byteArrayOutputStream.write(tempBytes)
                 }
+                tempBytes.size == coordinateLength -> byteArrayOutputStream.write(tempBytes)
+                else -> byteArrayOutputStream.write(tempBytes, tempBytes.size - coordinateLength, coordinateLength)
             }
-        } catch (e: IOException) {
-            e.printStackTrace()
         }
+
+//            for (bigInteger in bigIntegers) {
+//                val tempBytes = bigInteger.toByteArray()
+//                when {
+//                    tempBytes.size == 31 -> byteArrayOutputStream.write(0)
+//                    tempBytes.size == 32 -> byteArrayOutputStream.write(tempBytes)
+//                    else -> byteArrayOutputStream.write(tempBytes, tempBytes.size - 32, 32)
+//                }
+//            }
 
         return byteArrayOutputStream.toByteArray()
     }
