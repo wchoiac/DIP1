@@ -165,18 +165,28 @@ object Helper {
 
         val bigIntegers = ecdsaSigner.generateSignature(content)
         val byteArrayOutputStream = ByteArrayOutputStream()
-        try {
-            for (bigInteger in bigIntegers) {
-                val tempBytes = bigInteger.toByteArray()
-                when {
-                    tempBytes.size == 31 -> byteArrayOutputStream.write(0)
-                    tempBytes.size == 32 -> byteArrayOutputStream.write(tempBytes)
-                    else -> byteArrayOutputStream.write(tempBytes, tempBytes.size - 32, 32)
+        val coordinateLength = 32
+        for (bigInteger in bigIntegers) {
+            val tempBytes = bigInteger.toByteArray()
+            when {
+                tempBytes.size < coordinateLength -> {
+                    for (i in 0 until coordinateLength - tempBytes.size)
+                        byteArrayOutputStream.write(0)
+                    byteArrayOutputStream.write(tempBytes)
                 }
+                tempBytes.size == coordinateLength -> byteArrayOutputStream.write(tempBytes)
+                else -> byteArrayOutputStream.write(tempBytes, tempBytes.size - coordinateLength, coordinateLength)
             }
-        } catch (e: IOException) {
-            e.printStackTrace()
         }
+
+//            for (bigInteger in bigIntegers) {
+//                val tempBytes = bigInteger.toByteArray()
+//                when {
+//                    tempBytes.size == 31 -> byteArrayOutputStream.write(0)
+//                    tempBytes.size == 32 -> byteArrayOutputStream.write(tempBytes)
+//                    else -> byteArrayOutputStream.write(tempBytes, tempBytes.size - 32, 32)
+//                }
+//            }
 
         return byteArrayOutputStream.toByteArray()
     }
