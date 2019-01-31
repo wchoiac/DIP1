@@ -70,7 +70,7 @@ public class FullNodeResource {
      * transaction id:
      * hash of the transaction
      *
-     * To note, signature = signature( GeneralHelper.longToBytes(getTimestamp()) | encryptedRecord|medicalOrgIdentifier ) ), "|" means concatenate
+     * To note, signature = signature( GeneralHelper.longToBytes(getTimestamp()) | encryptedRecord | medicalOrgIdentifier ), "|" means concatenate
      */
 
     @PUT
