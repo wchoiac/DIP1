@@ -28,6 +28,11 @@ VBox, HBox {
     -fx-pref-height: 30;
 }
 
+.small-button {
+    -fx-pref-width: 190;
+    -fx-pref-height: 30;
+}
+
 .warning-text {
     -fx-text-fill: red;
     -fx-font-size: 15;
