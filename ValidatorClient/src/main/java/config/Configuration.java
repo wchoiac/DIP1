@@ -13,7 +13,7 @@ public class Configuration {
     public static final String BLOCKCHAIN_HASH_ALGORITHM ="SHA256";
 
 
-
+    public static final int ELIPTIC_CURVE_COORDINATE_LENGTH=32;
     public static final int MAX_NAME_LENGTH= Byte.MAX_VALUE;
     public static final int HASH_LENGTH =32;
     public static final int SIGNATURE_LENGTH=64;
