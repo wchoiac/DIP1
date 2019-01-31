@@ -35,7 +35,7 @@ class MenuActivity : AppCompatActivity() {
         askForPermission(
             Manifest.permission.CAMERA,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            Manifest.permission.READ_EXTERNAL_STORAGE
+            Manifest.permission.NFC
         )
 
         if (intent.getStringExtra("FROM_ACTIVITY") == "MAIN") {
@@ -59,8 +59,6 @@ class MenuActivity : AppCompatActivity() {
                 generateAndSaveSalt() else getSharedPreferences("UserData", MODE_PRIVATE).getString("salt", "")!!
 
         val password = Helper.generateSecretKey(pinNumber!!.toCharArray(), salt!!.toByteArray())
-        println("PIN: $pinNumber, SALT: $salt")
-        println("password: " + Helper.encodeToString(password.encoded ?:ByteArray(0)))
 
         if(keyPair == null)
             keyPair = if(keyPairEncrypted == "") generateAndSaveKeyPair() else {
@@ -179,7 +177,6 @@ class MenuActivity : AppCompatActivity() {
     }
 
     private fun generateAndSaveSalt(): String {
-        println("SALT GENERATED")
         val salt = Helper.encodeToString(SecureRandom().generateSeed(64))
         val editor = getSharedPreferences("UserData", Context.MODE_PRIVATE).edit()
         editor.putString("salt", salt)
@@ -188,7 +185,6 @@ class MenuActivity : AppCompatActivity() {
     }
 
     private fun generateAndSaveRandomString(): String {
-        println("RANDOM STRING GENERATED")
         val randomString = RandomStringUtils.random(128, true, true)
         val password = Helper.generateSecretKey(pinNumber!!.toCharArray(), salt!!.toByteArray())
         val stringEncrypted = Helper.encrypt(randomString.toByteArray(), password)
@@ -199,7 +195,6 @@ class MenuActivity : AppCompatActivity() {
     }
 
     private fun generateAndSaveKeyPair(): KeyPair {
-        println("KEYPAIR GENERATED")
         val keyPair = Helper.generateKeyPair("EC")
         val password = Helper.generateSecretKey(pinNumber!!.toCharArray(), salt!!.toByteArray())
         val keyPairEncrypted = Helper.encrypt(Helper.serialize(keyPair), password)

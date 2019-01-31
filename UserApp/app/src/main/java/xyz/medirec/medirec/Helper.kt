@@ -73,16 +73,19 @@ object Helper {
         return keyGen.generateKeyPair()
     }
 
-    fun drawQRCode(view: ImageView, byteArray: ByteArray, windowManager: WindowManager) {
+    fun drawQRCode(view: ImageView, string: String, windowManager: WindowManager) {
         val displayMetrics = DisplayMetrics()
         windowManager.defaultDisplay.getMetrics(displayMetrics)
         val height = (displayMetrics.heightPixels * 0.5).toInt()
         val width = kotlin.math.min(height, displayMetrics.widthPixels)
 
-        val bitMatrix = QRCodeWriter().encode(Helper.encodeToString(byteArray),
-            BarcodeFormat.QR_CODE, height, width)
+        val bitMatrix = QRCodeWriter().encode(string, BarcodeFormat.QR_CODE, height, width)
         val bitMap = encodeAsBitmap(bitMatrix) ?: return
         view.setImageBitmap(bitMap)
+    }
+
+    fun drawQRCode(view: ImageView, byteArray: ByteArray, windowManager: WindowManager) {
+        drawQRCode(view, Helper.encodeToString(byteArray), windowManager)
     }
 
     fun getAESKey(key: PrivateKey, index: String, randomString: String) : SecretKey {
