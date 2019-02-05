@@ -100,10 +100,12 @@ public class BlockChain {
 
             if (i > height - 100)
                 --i;
-            else if (i == 0)
-                break;
             else
-                i /= 2;
+                break;
+//            else if (i == 0)
+//                break;
+//            else
+//                i /= 2;
         }
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();

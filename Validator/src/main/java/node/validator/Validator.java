@@ -230,7 +230,7 @@ public class Validator {
                     public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException {
 
                         ArrayList<Lock> usingLockList = new ArrayList<>();
-                        ReadLock myChainReadLock = myChainLock.readLock();
+                        ReadLock readMyChainLock = myChainLock.readLock();
 
                         try {
                             System.out.println("Start checking client's cert");
@@ -242,13 +242,13 @@ public class Validator {
                             if (certs.length != 2)
                                 throw new CertificateException("Not sufficient chain length");
 
-                            if (certs[1].getPublicKey().equals(myPublicKey))  //##################### need to check
+                            if (certs[1].getPublicKey().equals(myPublicKey))
                                 throw new CertificateException("It's me");
 
                             if (certs[0].getKeyUsage()[5])
                                 throw new CertificateException("The certificate is for signing");
 
-                            GeneralHelper.lockForMe(usingLockList, myChainReadLock);
+                            GeneralHelper.lockForMe(usingLockList, readMyChainLock);
                             byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);
                             boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);
                             AuthorityInfo issuerInfo = null;
@@ -272,6 +272,7 @@ public class Validator {
                             } else
                                 throw new CertificateException("The signing cert's issuer is not a valid authority");
 
+
                             System.out.println("Finished checking client's cert");
                         } catch (CertificateException e) {
                             throw e;
@@ -285,7 +286,7 @@ public class Validator {
                     public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException {
 
                         ArrayList<Lock> usingLockList = new ArrayList<>();
-                        ReadLock myChainReadLock = myChainLock.readLock();
+                        ReadLock readMyChainLock = myChainLock.readLock();
 
                         try {
                             System.out.println("Start checking client's cert");
@@ -303,7 +304,7 @@ public class Validator {
                             if (certs[0].getKeyUsage()[5])
                                 throw new CertificateException("The certificate is for signing");
 
-                            GeneralHelper.lockForMe(usingLockList, myChainReadLock);
+                            GeneralHelper.lockForMe(usingLockList, readMyChainLock);
                             byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);
                             boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);
                             AuthorityInfo issuerInfo = null;
@@ -352,8 +353,6 @@ public class Validator {
     private void removeFromConnectionList(PeerInfo peerInfo) {
         if (peerInfo == null)
             return;
-
-
         outBoundConnectionTobeRemoved.remove(peerInfo);
         inBoundConnectionTobeRemoved.remove(peerInfo);
 
@@ -1277,9 +1276,11 @@ public class Validator {
 
                             GeneralHelper.lockForMe(usingLockList, readMyChainLock);
                             long currentTime = System.currentTimeMillis();
-                            if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && System.currentTimeMillis() - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) > Configuration.SYNC_PERIOD) {
+                            if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && currentTime - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) > Configuration.SYNC_PERIOD) {
                                 lastBroadCastHeadersRequestTime = currentTime;
-                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()), null);
+                                byte[] hashLocator =myMainChain.getCurrentChainHashLocator();
+                                GeneralHelper.lockForMe(usingLockList, readConnectionLock);
+                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, hashLocator), null);
                             }
                         }
                     }

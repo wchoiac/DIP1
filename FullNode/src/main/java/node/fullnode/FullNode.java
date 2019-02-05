@@ -5,6 +5,7 @@ import blockchain.Status;
 import blockchain.block.*;
 import blockchain.block.transaction.Transaction;
 import blockchain.internal.ChainInfo;
+import blockchain.internal.MedicalOrgInfoForInternal;
 import blockchain.manager.*;
 import blockchain.manager.datastructure.Location;
 import blockchain.manager.datastructure.PatientShortInfo;
@@ -21,6 +22,7 @@ import general.utility.GeneralHelper;
 import node.ConnectionManager;
 import node.Message;
 import node.PeerInfo;
+import rest.server.FullNodeRestServer;
 
 import javax.net.ssl.*;
 import java.io.ByteArrayOutputStream;
@@ -1260,12 +1262,13 @@ public class FullNode {
                             }
                         } else {
                             GeneralHelper.unLockForMe(usingLockList);
-
                             GeneralHelper.lockForMe(usingLockList, readMyChainLock);
                             long currentTime = System.currentTimeMillis();
-                            if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && System.currentTimeMillis() - myMainChain.getLatestBlockTimeStamp() > Configuration.SYNC_PERIOD) {
+                            if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && currentTime - myMainChain.getLatestBlockTimeStamp() > Configuration.SYNC_PERIOD) {
                                 lastBroadCastHeadersRequestTime = currentTime;
-                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()), null);
+                                byte[] hashLocator =myMainChain.getCurrentChainHashLocator();
+                                GeneralHelper.lockForMe(usingLockList, readConnectionLock);
+                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, hashLocator), null);
                             }
                         }
                     }
@@ -1541,10 +1544,11 @@ public class FullNode {
 
         ReadLock readMyChainLock = myChainLock.readLock();
         WriteLock writeRecordLock = transactionLock.writeLock();
+        ReadLock readConnectionLock = connectionLock.readLock();
 
         ArrayList<Lock> usingLock = new ArrayList<>();
 
-        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRecordLock);
+        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRecordLock,readConnectionLock);
 
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -1557,6 +1561,7 @@ public class FullNode {
         }
         else{
             transactionPool.add(transaction);
+            broadcastMessage(new Message(Configuration.MESSAGE_TRANSACTION, transaction.getRaw()), null);
             byteArrayOutputStream.write(0);
             byteArrayOutputStream.write(transaction.calculateHash());
         }

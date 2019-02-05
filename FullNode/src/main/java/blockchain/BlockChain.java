@@ -12,6 +12,7 @@ import exception.BlockChainObjectParsingException;
 import exception.FileCorruptionException;
 import general.security.SecurityHelper;
 import general.utility.GeneralHelper;
+import rest.server.FullNodeRestServer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -78,10 +79,12 @@ public class BlockChain {
 
             if (i > height - 100)
                 --i;
-            else if (i == 0)
-                break;
             else
-                i /= 2;
+                break;
+//            else if (i == 0)
+//                break;
+//            else
+//                i /= 2;
         }
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
