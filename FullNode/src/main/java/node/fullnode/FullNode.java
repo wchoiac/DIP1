@@ -1149,12 +1149,15 @@ public class FullNode {
                     e.printStackTrace();
                 }
             }
+            System.out.println("startRequestingPeerNodes terminated"); //debug
+
         }).start();
     }
 
 
     private void startRequestingConnection() {
         new Thread(() -> {
+            ArrayList<Lock> usingLockList = new ArrayList<>();
             try {
                 while (!isTerminated) {
                     // get peer nodes list of the peer nodes and attempt to connect with the nodes
@@ -1163,7 +1166,6 @@ public class FullNode {
 
                     ReadLock readConnectionLock = connectionLock.readLock();
                     WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();
-                    ArrayList<Lock> usingLockList = new ArrayList<>();
 
                     GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
 
@@ -1186,11 +1188,16 @@ public class FullNode {
                 e.printStackTrace();
                 shutdown();
             }
+            finally {
+                System.out.println("startRequestingConnection terminated"); //debug
+                GeneralHelper.unLockForMe(usingLockList);
+            }
         }).start();
     }
 
     private void startRequestingBlocksAndBlockHeaders() {
         new Thread(() -> {
+            ArrayList<Lock> usingLockList = new ArrayList<>();
             try {
                 while (!isTerminated) {
 
@@ -1199,7 +1206,6 @@ public class FullNode {
                     WriteLock writeToBeRequestedHeadersLock = toBeRequestedHeadersLock.writeLock();
                     WriteLock writeRequestedHeaderLock = requestedHeaderLock.writeLock();
                     ReadLock readConnectionLock = connectionLock.readLock();
-                    ArrayList<Lock> usingLockList = new ArrayList<>();
 
                     GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock, writeToBeRequestedHeadersLock, writeRequestedHeaderLock, readConnectionLock);
                     if (!toBeRequestedHeaders.isEmpty() || !requestedHeaders.isEmpty()) {
@@ -1282,6 +1288,10 @@ public class FullNode {
             } catch (Exception e) {
                 e.printStackTrace();
                 shutdown();
+            }
+            finally {
+                System.out.println("startRequestingConnection terminated"); //debug
+                GeneralHelper.unLockForMe(usingLockList);
             }
         }).start();
     }

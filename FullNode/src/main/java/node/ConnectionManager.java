@@ -13,6 +13,7 @@ public class ConnectionManager {
     private final DataInputStream is;
     private SSLSocket socket;
     private boolean isConfirmed;
+    private boolean isClosed=false;
 
     public boolean isConfirmed() {
         return isConfirmed;
@@ -38,6 +39,7 @@ public class ConnectionManager {
         this.os = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
         this.is = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         this.isConfirmed =isConfirmed;
+        this.isClosed=false;
     }
 
     public void close(){
@@ -45,9 +47,18 @@ public class ConnectionManager {
        if(!isClosed())
        {
            try {
-               socket.close();
-           } catch (IOException e) {
-               e.printStackTrace();
+               try {
+                   is.close();
+               } finally {
+                   try {
+                       os.close();
+                   } finally {
+                       socket.close();
+                   }
+               }
+           }
+           catch (Exception e)
+           {
            }
 
        }
@@ -55,7 +66,7 @@ public class ConnectionManager {
 
     public boolean isClosed()
     {
-        return socket.isClosed();
+        return isClosed;
     }
 
 

@@ -1158,12 +1158,15 @@ public class Validator {
                     e.printStackTrace();
                 }
             }
+
+            System.out.println("startRequestingPeerNodes terminated"); //debug
         }).start();
     }
 
 
     private void startRequestingConnection() {
         new Thread(() -> {
+            ArrayList<Lock> usingLockList = new ArrayList<>();
             try {
                 while (!isTerminated) {
                     // get peer nodes list of the peer nodes and attempt to connect with the nodes
@@ -1172,7 +1175,6 @@ public class Validator {
 
                     ReadLock readConnectionLock = connectionLock.readLock();
                     WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();
-                    ArrayList<Lock> usingLockList = new ArrayList<>();
 
                     GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
 
@@ -1188,20 +1190,26 @@ public class Validator {
 
                     GeneralHelper.unLockForMe(usingLockList);
 
-                    connectWithPeers(potentialPeer); //## for debug
+                    connectWithPeers(potentialPeer);
 
                     Thread.sleep(20000);
 
                 }
+
             } catch (Exception e) {
                 e.printStackTrace();
                 shutdown();
+            }
+            finally {
+                System.out.println("startRequestingConnection terminated"); //debug
+                GeneralHelper.unLockForMe(usingLockList);
             }
         }).start();
     }
 
     private void startRequestingBlocksAndBlockHeaders() {
         new Thread(() -> {
+            ArrayList<Lock> usingLockList = new ArrayList<>();
             try {
                 while (!isTerminated) {
 
@@ -1210,7 +1218,6 @@ public class Validator {
                     WriteLock writeToBeRequestedHeadersLock = toBeRequestedHeadersLock.writeLock();
                     WriteLock writeRequestedHeaderLock = requestedHeaderLock.writeLock();
                     ReadLock readConnectionLock = connectionLock.readLock();
-                    ArrayList<Lock> usingLockList = new ArrayList<>();
 
                     GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock, writeToBeRequestedHeadersLock, writeRequestedHeaderLock, readConnectionLock);
                     if (!toBeRequestedHeaders.isEmpty() || !requestedHeaders.isEmpty()) {
@@ -1293,8 +1300,10 @@ public class Validator {
                 }
             } catch (InterruptedException | BlockChainObjectParsingException | IOException e) {
                 e.printStackTrace();
-            } finally {
                 shutdown();
+            } finally {
+                System.out.println("startRequestingConnection terminated"); //debug
+                GeneralHelper.unLockForMe(usingLockList);
             }
         }).start();
     }
@@ -1423,6 +1432,7 @@ public class Validator {
                 e.printStackTrace();
                 shutdown();
             } finally {
+                System.out.println("startValidation terminated"); //debug
                 GeneralHelper.unLockForMe(usingLockList);
             }
 
@@ -1473,7 +1483,7 @@ public class Validator {
                 System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number); //#debug
             }
         } catch (IOException e) {
-            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
+            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
             System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
             connectionManager.close();
         }
@@ -1519,7 +1529,7 @@ public class Validator {
                 System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number); //#debug
             }
         } catch (IOException e) {
-            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
+            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
             System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
             connectionManager.close();
         }
@@ -1545,7 +1555,7 @@ public class Validator {
                 connectionManager.write(message);
                 ++totalSize;
             } catch (IOException e) {
-                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
+                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
                 System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
                 connectionManager.close();
             }
