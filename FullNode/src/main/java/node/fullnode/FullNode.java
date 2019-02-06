@@ -847,9 +847,9 @@ public class FullNode {
                                         authorizeMedicalOrg(medicalOrgInfo.getIdentifier(), block7.getHeader().getValidatorIdentifier());
                                 }
 
-                                System.out.println(peerAddressString + ":Stored and added block(" + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
+                                System.out.println("Stored and added block(" + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
                                         + ")\nCurrent total score: " + myMainChain.getTotalScore() + "\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber());//debug
-                                blockChainLogger.info(peerAddressString + ":Stored and added block(" + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
+                                blockChainLogger.info("Stored and added block(" + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
                                         + ")\nCurrent total score: " + myMainChain.getTotalScore() + "\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber());
 
                                 if (System.currentTimeMillis() - block7.getHeader().getTimestamp() < Configuration.SYNC_PERIOD) {
@@ -883,9 +883,9 @@ public class FullNode {
                                             }
 
 
-                                            System.out.println(peerAddressString + ":Stored and added orphan block(" + GeneralHelper.bytesToStringHex(processedBlock.calculateHash())
+                                            System.out.println("Stored and added orphan block(" + GeneralHelper.bytesToStringHex(processedBlock.calculateHash())
                                                     + ")\nCurrent total score: " + myMainChain.getTotalScore() + "\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber());//debug
-                                            blockChainLogger.info(peerAddressString + ":Stored and added orphan block(" + GeneralHelper.bytesToStringHex(processedBlock.calculateHash())
+                                            blockChainLogger.info("Stored and added orphan block(" + GeneralHelper.bytesToStringHex(processedBlock.calculateHash())
                                                     + ")\nCurrent total score: " + myMainChain.getTotalScore() + "\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber());
 
                                             if (System.currentTimeMillis() - processedBlock.getHeader().getTimestamp() < Configuration.SYNC_PERIOD) {
@@ -915,9 +915,9 @@ public class FullNode {
                                 }
 
                                 int newTotalScore = BlockChainManager.storeBlock(block7);
-                                System.out.println(peerAddressString + ":Stored block(" + GeneralHelper.bytesToStringHex(block7.calculateHash())
+                                System.out.println("Stored block(" + GeneralHelper.bytesToStringHex(block7.calculateHash())
                                         + ")\nBlock number: " + block7.getHeader().getBlockNumber());//debug
-                                blockChainLogger.info(peerAddressString + ":Stored block(" + GeneralHelper.bytesToStringHex(block7.calculateHash())
+                                blockChainLogger.info("Stored block(" + GeneralHelper.bytesToStringHex(block7.calculateHash())
                                         + ")\nBlock number: " + block7.getHeader().getBlockNumber());
 
                                 Block processed = block7;
@@ -930,9 +930,9 @@ public class FullNode {
 
                                             newTotalScore = BlockChainManager.storeBlock(processed);
 
-                                            System.out.println(peerAddressString + ":Stored orphan block(" + GeneralHelper.bytesToStringHex(processed.calculateHash())
+                                            System.out.println("Stored orphan block(" + GeneralHelper.bytesToStringHex(processed.calculateHash())
                                                     + ")\nBlock number: " + processed.getHeader().getBlockNumber());//debug
-                                            blockChainLogger.info(peerAddressString + ":Stored orphan block(" + GeneralHelper.bytesToStringHex(processed.calculateHash())
+                                            blockChainLogger.info("Stored orphan block(" + GeneralHelper.bytesToStringHex(processed.calculateHash())
                                                     + ")\nBlock number: " + processed.getHeader().getBlockNumber());
 
                                             if (System.currentTimeMillis() - processed.getHeader().getTimestamp() < Configuration.SYNC_PERIOD) {
@@ -961,9 +961,9 @@ public class FullNode {
                                     myMainChain.loadCurrentBest(transactionPool);
                                     refreshConnection(); // disconnect/connect based on current authority list and medical org list
 
-                                    System.out.println(peerAddressString + ":Changed Chain.\nCurrent latest block hash: " + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
+                                    System.out.println("Changed Chain.\nCurrent latest block hash: " + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
                                             + "\nScore: " + myMainChain.getTotalScore() + "\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber()); //debug
-                                    blockChainLogger.info(peerAddressString + ":Changed Chain.\nCurrent latest block hash: " + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
+                                    blockChainLogger.info("Changed Chain.\nCurrent latest block hash: " + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
                                             + "\nScore: " + myMainChain.getTotalScore() + "\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber());
 
                                 }
@@ -976,9 +976,9 @@ public class FullNode {
                                 orphanBlockList.add(block7);
                                 Collections.sort(orphanBlockList, new GeneralHelper.blockComparator());
 
-                                System.out.println(peerAddressString + ":Orphan block(" + GeneralHelper.bytesToStringHex(block7.calculateHash())
+                                System.out.println("Orphan block(" + GeneralHelper.bytesToStringHex(block7.calculateHash())
                                         + ")\nBlock number: " + block7.getHeader().getBlockNumber());//debug
-                                blockChainLogger.info(peerAddressString + ":Orphan block(" + GeneralHelper.bytesToStringHex(block7.calculateHash())
+                                blockChainLogger.info("Orphan block(" + GeneralHelper.bytesToStringHex(block7.calculateHash())
                                         + ")\nBlock number: " + block7.getHeader().getBlockNumber());
 
                             }
@@ -1007,9 +1007,9 @@ public class FullNode {
                                         authorizeMedicalOrg(medicalOrgInfo.getIdentifier(), block7.getHeader().getValidatorIdentifier());
                                 }
 
-                                System.out.println(peerAddressString + ":Stored and added block(" + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
+                                System.out.println("Stored and added block(" + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
                                         + ")\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber() + "\nScore: " + myMainChain.getTotalScore());//debug
-                                blockChainLogger.info(peerAddressString + ":Stored and added block(" + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
+                                blockChainLogger.info("Stored and added block(" + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
                                         + ")\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber() + "\nScore: " + myMainChain.getTotalScore());
 
                                 if (System.currentTimeMillis() - block7.getHeader().getTimestamp() < Configuration.SYNC_PERIOD) {
@@ -1035,9 +1035,9 @@ public class FullNode {
                                     myMainChain.loadCurrentBest(transactionPool);
                                     refreshConnection(); // disconnect/connect based on current authority list and medical org list
 
-                                    System.out.println(peerAddressString + ":Changed Chain.\nCurrent latest block hash: " + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
+                                    System.out.println("Changed Chain.\nCurrent latest block hash: " + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
                                             + "\nScore: " + myMainChain.getTotalScore() + "\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber()); //debug
-                                    blockChainLogger.info(peerAddressString + ":Changed Chain.\nCurrent latest block hash: " + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
+                                    blockChainLogger.info("Changed Chain.\nCurrent latest block hash: " + GeneralHelper.bytesToStringHex(myMainChain.getLatestBlockHash())
                                             + "\nScore: " + myMainChain.getTotalScore() + "\nCurrent latest block number: " + myMainChain.getCurrentLatestBlockNumber());
 
 
