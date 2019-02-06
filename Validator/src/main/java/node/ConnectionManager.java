@@ -1,12 +1,6 @@
 package node;
 
-import blockchain.Status;
-import blockchain.block.Block;
-import blockchain.block.BlockHeader;
-import blockchain.block.transaction.Transaction;
-import blockchain.utility.RawTranslator;
 import config.Configuration;
-import exception.BlockChainObjectParsingException;
 import exception.InvalidBlockChainMessageException;
 
 import javax.net.ssl.SSLSocket;
@@ -65,8 +59,9 @@ public class ConnectionManager {
            }
            catch (Exception e)
            {
+               e.printStackTrace();
            }
-
+           isClosed=true;
        }
     }
 
@@ -136,7 +131,7 @@ public class ConnectionManager {
                 break;
             case Configuration.MESSAGE_PEER_NODE_LIST:
                 break;
-            case Configuration.MESSAGE_HEADER_LIST:
+            case Configuration.MESSAGE_HEADER_REQUEST_REPLY:
                 break;
             case Configuration.MESSAGE_TRANSACTION:
                 break;

@@ -96,6 +96,7 @@ public class Configuration {
     public static final int MAX_OUT_BOUND_CONNECTION= 5;
     public static final int MAX_IN_BOUND_CONNECTION= 100;
     public static final int MAX_HEADER_NUMBER_PER_REQUEST=1000;
+    public static final int MAX_HASH_LOCATOR_LENGTH=1000;
 
     //message number
     public static final byte MESSAGE_STATUS=0;
@@ -103,7 +104,7 @@ public class Configuration {
     public static final byte MESSAGE_HEADER_REQUEST=2;
     public static final byte MESSAGE_BLOCK_REQUEST=3;
     public static final byte MESSAGE_PEER_NODE_LIST=4;
-    public static final byte MESSAGE_HEADER_LIST=5;
+    public static final byte MESSAGE_HEADER_REQUEST_REPLY=5;
     public static final byte MESSAGE_TRANSACTION=6;
     public static final byte MESSAGE_BLOCK=7;
 

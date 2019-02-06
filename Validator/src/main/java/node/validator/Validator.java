@@ -610,7 +610,7 @@ public class Validator {
             System.out.println("Peer status:\n Score: " + peerStatus.getTotalScore() + "\nLatest block hash: " + GeneralHelper.bytesToStringHex(peerStatus.getLatestBlockHash())); //debug
 
             if (peerStatus.getTotalScore() > myMainChain.getTotalScore()) {
-                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()));
+                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator(null, Configuration.MAX_HASH_LOCATOR_LENGTH)));
             }
             GeneralHelper.unLockForMe(usingLockList);
 
@@ -625,9 +625,9 @@ public class Validator {
 
                 Message message = connectionManager.read();
                 int messageNumber = message.number;
-                Object content;
+                Object parsedContent;
                 try {
-                    content = message.parse();
+                    parsedContent = message.parse();
                 } catch (BlockChainObjectParsingException ps) {
                     ps.printStackTrace();
                     throw new InvalidBlockChainMessageException(peerAddressString, messageNumber);
@@ -649,19 +649,20 @@ public class Validator {
                             break;
 
                         GeneralHelper.lockForMe(usingLockList, readMyChainLock);
-                        byte[][] hashesFromHashLocator = (byte[][]) content;
-                        if (Arrays.equals(myMainChain.getLatestBlockHash(), hashesFromHashLocator[0])) {
+                        byte[][] hashLocator = (byte[][]) parsedContent;
+                        if (Arrays.equals(myMainChain.getLatestBlockHash(), hashLocator[0])) {
                             GeneralHelper.unLockForMe(usingLockList);
                             break;
                         }
 
                         ByteArrayOutputStream headers = new ByteArrayOutputStream();
-                        for (byte[] hash : hashesFromHashLocator) {
+                        for (byte[] hash : hashLocator) {
                             ChainInfo info = ChainInfoManager.load(hash);
                             if (info == null)
                                 continue;
                             if (info.isBestChain()) {
                                 int i = 0;
+                                headers.write((byte) 0);
                                 byte[] curBlockHash = info.getNextBlockHash();
                                 while (curBlockHash != null && i <= Configuration.MAX_HEADER_NUMBER_PER_REQUEST) {
                                     headers.write(BlockManager.loadBlockHeader(curBlockHash).getRaw());
@@ -670,19 +671,21 @@ public class Validator {
                                 }
                                 break;
                             }
-
                         }
+
                         GeneralHelper.unLockForMe(usingLockList);
 
-                        if (headers.size() == 0)
-                            break;
+                        if (headers.size() == 0) {
+                            headers.write((byte) 1);
+                            headers.write(hashLocator[hashLocator.length - 1]);
+                        }
 
-                        connectionManager.write(new Message(Configuration.MESSAGE_HEADER_LIST, headers.toByteArray()));
+                        connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST_REPLY, headers.toByteArray()));
                         blockChainLogger.info(peerAddressString + ": Sent block headers");
                         break;
 
                     case Configuration.MESSAGE_BLOCK_REQUEST:  // block request
-                        byte[] blockHash = (byte[]) content;
+                        byte[] blockHash = (byte[]) parsedContent;
 
                         blockChainLogger.info(peerAddressString + ": Received block(" + GeneralHelper.bytesToStringHex(blockHash) + ") request");
 
@@ -697,7 +700,7 @@ public class Validator {
                         break;
 
                     case Configuration.MESSAGE_PEER_NODE_LIST: //peer node list
-                        InetAddress[] receivedAddresses = (InetAddress[])(content);
+                        InetAddress[] receivedAddresses = (InetAddress[])(parsedContent);
                         ArrayList<String> newPotentialAddressStrings = new ArrayList<>();
 
                         for(InetAddress receivedAddress: receivedAddresses)
@@ -732,40 +735,52 @@ public class Validator {
 
                         break;
 
-                    case Configuration.MESSAGE_HEADER_LIST: //block headers
+                    case Configuration.MESSAGE_HEADER_REQUEST_REPLY: //block headers
 
-                        BlockHeader[] receivedBlockHeaders = (BlockHeader[]) content;
-
-                        blockChainLogger.info(peerAddressString + ": Received block headers");
-
-                        GeneralHelper.lockForMe(usingLockList, readMyChainLock);
-
-
-                        ArrayList<BlockHeader> blockHeaders = new ArrayList<>();
-
-
-                        for (BlockHeader tempHeader : receivedBlockHeaders) {
-                            if (!BlockChainManager.hasBlock(tempHeader.calculateHash())) {
-                                blockHeaders.add(tempHeader);
+                        if (message.content[0] == 1) {
+                            GeneralHelper.lockForMe(usingLockList, readMyChainLock);
+                            byte[] lastSearchedHash = (byte[]) parsedContent;
+                            byte[] newHashLocatorMerged = myMainChain.getCurrentChainHashLocator(lastSearchedHash, Configuration.MAX_HASH_LOCATOR_LENGTH);
+                            if (newHashLocatorMerged == null) {
+                                GeneralHelper.unLockForMe(usingLockList);
+                                return;
                             }
+                            connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, newHashLocatorMerged));
                         }
+                        else {
+                            BlockHeader[] receivedBlockHeaders = (BlockHeader[]) parsedContent;
 
-                        if (!blockHeaders.isEmpty()) {
-                            int totalScore = myMainChain.isNextBlockHeader(blockHeaders.get(0)) ? myMainChain.checkHeaders(blockHeaders.toArray(new BlockHeader[0])) : BlockChainManager.checkBlockHeaders(blockHeaders.toArray(new BlockHeader[0]));
-                            if (totalScore == -1) {
-                                throw new InvalidBlockChainException(peerAddressString);
+                            blockChainLogger.info(peerAddressString + ": Received block headers");
+
+                            GeneralHelper.lockForMe(usingLockList, readMyChainLock);
+
+
+                            ArrayList<BlockHeader> blockHeaders = new ArrayList<>();
+
+
+                            for (BlockHeader tempHeader : receivedBlockHeaders) {
+                                if (!BlockChainManager.hasBlock(tempHeader.calculateHash())) {
+                                    blockHeaders.add(tempHeader);
+                                }
                             }
 
-                            GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock);
-                            pendingHeadersList.add(blockHeaders);
-                        }
+                            if (!blockHeaders.isEmpty()) {
+                                int totalScore = myMainChain.isNextBlockHeader(blockHeaders.get(0)) ? myMainChain.checkHeaders(blockHeaders.toArray(new BlockHeader[0])) : BlockChainManager.checkBlockHeaders(blockHeaders.toArray(new BlockHeader[0]));
+                                if (totalScore == -1) {
+                                    throw new InvalidBlockChainException(peerAddressString);
+                                }
 
-                        GeneralHelper.unLockForMe(usingLockList);
+                                GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock);
+                                pendingHeadersList.add(blockHeaders);
+                            }
+
+                            GeneralHelper.unLockForMe(usingLockList);
+                        }
                         break;
 
                     case Configuration.MESSAGE_TRANSACTION:
 
-                        Transaction transaction = (Transaction) content;
+                        Transaction transaction = (Transaction) parsedContent;
 
                         String transactionIdentifier = GeneralHelper.bytesToStringHex(transaction.calculateHash());
 
@@ -788,7 +803,7 @@ public class Validator {
 
                         break;
                     case Configuration.MESSAGE_BLOCK:
-                        Block block7 = (Block) content;
+                        Block block7 = (Block) parsedContent;
 
                         if (!Arrays.equals(block7.getHeader().getContentHash(), block7.getContent().calculateHash())) {
                             blockChainLogger.info(peerAddressString + ": Received an invalid block");
@@ -1056,7 +1071,7 @@ public class Validator {
                                 }
                             } else {
                                 // not requested and I don't hold its prevblock => send blockheaders request
-                                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()));
+                                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator(null, Configuration.MAX_HASH_LOCATOR_LENGTH)));
                             }
                         }
 
@@ -1285,9 +1300,9 @@ public class Validator {
                             long currentTime = System.currentTimeMillis();
                             if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && currentTime - myMainChain.getTimeStampForValidatorSyncCheck(myIdentifier) > Configuration.SYNC_PERIOD) {
                                 lastBroadCastHeadersRequestTime = currentTime;
-                                byte[] hashLocator =myMainChain.getCurrentChainHashLocator();
+                                byte[] hashLocatorMerged =myMainChain.getCurrentChainHashLocator(null, Configuration.MAX_HASH_LOCATOR_LENGTH);
                                 GeneralHelper.lockForMe(usingLockList, readConnectionLock);
-                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, hashLocator), null);
+                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, hashLocatorMerged), null);
                             }
                         }
                     }
@@ -1375,7 +1390,7 @@ public class Validator {
 
                                 Thread.sleep(randomOffset);
 
-                                GeneralHelper.lockForMe(usingLockList, writeMyChainLock);
+                                GeneralHelper.lockForMe(usingLockList,writeChainInfoFilesLock, writeMyChainLock);
                             }
 
 

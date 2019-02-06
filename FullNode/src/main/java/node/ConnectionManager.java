@@ -59,8 +59,9 @@ public class ConnectionManager {
            }
            catch (Exception e)
            {
+               e.printStackTrace();
            }
-
+           isClosed=true;
        }
     }
 
@@ -130,7 +131,7 @@ public class ConnectionManager {
                 break;
             case Configuration.MESSAGE_PEER_NODE_LIST:
                 break;
-            case Configuration.MESSAGE_HEADER_LIST:
+            case Configuration.MESSAGE_HEADER_REQUEST_REPLY:
                 break;
             case Configuration.MESSAGE_TRANSACTION:
                 break;
