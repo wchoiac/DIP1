@@ -4,6 +4,7 @@ import java.net.*;
 import java.security.*;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 import java.io.*;
 import java.security.cert.CertificateException;
@@ -26,6 +27,7 @@ import blockchain.manager.*;
 import blockchain.manager.datastructure.Location;
 import blockchain.manager.datastructure.MedicalOrgShortInfo;
 import blockchain.manager.datastructure.PatientShortInfo;
+import blockchain.manager.datastructure.RecordShortInfo;
 import blockchain.utility.BlockChainSecurityHelper;
 import blockchain.utility.RawTranslator;
 import config.Configuration;
@@ -2012,5 +2014,17 @@ public class Validator {
         return patientShortInfos;
     }
 
+    public ArrayList<RecordShortInfo> getRecordShortInfoList(byte[] patienIdentifier) throws InvalidKeySpecException, BlockChainObjectParsingException, IOException {
+
+        ReadLock readMyChainLock = myChainLock.readLock();
+
+        readMyChainLock.lock();
+
+        ArrayList<RecordShortInfo> transactionLocations = TransactionManager.loadEveryRecordShortInfo(myMainChain.getLatestBlockHash(), patienIdentifier);
+
+        readMyChainLock.unlock();
+
+        return transactionLocations;
+    }
 
 }

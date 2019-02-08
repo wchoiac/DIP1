@@ -4,6 +4,8 @@ import blockchain.block.Block;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -172,6 +174,11 @@ public class GeneralHelper {
             lock.unlock();
         }
         lockList.clear();
+    }
+    public static String getStackTrace(Throwable e) {
+        StringWriter stringWriter = new StringWriter();
+        e.printStackTrace(new PrintWriter(stringWriter));
+        return stringWriter.toString();
     }
 
     public static void main(String[] args) {

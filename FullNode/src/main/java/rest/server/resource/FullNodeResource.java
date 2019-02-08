@@ -244,10 +244,12 @@ public class FullNodeResource {
     @SecuredUserLevel
     @Produces(MediaType.APPLICATION_JSON)
     @Path("medical-org/get-identifier")
-    public Response getMedicalOrgIdentifier() {
+    public Response getMedicalOrgIdentifier(@Context Request request) {
 
-        return Response.ok(new ByteArrayWrapper(FullNodeRestServer.getRunningServer().getAPIResolver().getMedicalOrgIdentifier())
-                , MediaType.APPLICATION_JSON).build();
+
+        ByteArrayWrapper result =new ByteArrayWrapper(FullNodeRestServer.getRunningServer().getAPIResolver().getMedicalOrgIdentifier());
+        FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+        return Response.ok(result, MediaType.APPLICATION_JSON).build();
 
     }
 
