@@ -8,6 +8,8 @@ import blockchain.utility.RawTranslator;
 import config.Configuration;
 import exception.BlockChainObjectParsingException;
 
+import java.util.Arrays;
+
 public class Message{
     public final byte number;
     public final int length;
@@ -47,8 +49,11 @@ public class Message{
                     return content;
                 case Configuration.MESSAGE_PEER_NODE_LIST:
                     return RawTranslator.parseAddresses(content);
-                case Configuration.MESSAGE_HEADER_LIST:
-                    return BlockHeader.parseArray(content);
+                case Configuration.MESSAGE_HEADER_REQUEST_REPLY:
+                    if (content[0] == 0)
+                        return BlockHeader.parseArray(Arrays.copyOfRange(content,1,content.length));
+                    else
+                        return Arrays.copyOfRange(content,1,content.length);
                 case Configuration.MESSAGE_TRANSACTION:
                     return Transaction.parse(content);
                 case Configuration.MESSAGE_BLOCK:

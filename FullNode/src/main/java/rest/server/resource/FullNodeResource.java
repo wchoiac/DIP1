@@ -70,7 +70,7 @@ public class FullNodeResource {
      * transaction id:
      * hash of the transaction
      *
-     * To note, signature = signature( GeneralHelper.longToBytes(getTimestamp()) | encryptedRecord|medicalOrgIdentifier ) ), "|" means concatenate
+     * To note, signature = signature( GeneralHelper.longToBytes(getTimestamp()) | encryptedRecord | medicalOrgIdentifier ), "|" means concatenate
      */
 
     @PUT
@@ -89,7 +89,7 @@ public class FullNodeResource {
             FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (BadRequest e) {
-            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST"+GeneralHelper.getStackTrace(e));
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         } catch(Exception e)
         {
@@ -142,7 +142,7 @@ public class FullNodeResource {
     @SecuredUserLevel
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @Path("record/get-record-contents-listget-record-contents-list")
+    @Path("record/get-record-contents-list")
     public Response getRecordContentsList( @Context Request request,ArrayList<LocationPojo> locationPojos) {
 
 
@@ -244,10 +244,12 @@ public class FullNodeResource {
     @SecuredUserLevel
     @Produces(MediaType.APPLICATION_JSON)
     @Path("medical-org/get-identifier")
-    public Response getMedicalOrgIdentifier() {
+    public Response getMedicalOrgIdentifier(@Context Request request) {
 
-        return Response.ok(new ByteArrayWrapper(FullNodeRestServer.getRunningServer().getAPIResolver().getMedicalOrgIdentifier())
-                , MediaType.APPLICATION_JSON).build();
+
+        ByteArrayWrapper result =new ByteArrayWrapper(FullNodeRestServer.getRunningServer().getAPIResolver().getMedicalOrgIdentifier());
+        FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+        return Response.ok(result, MediaType.APPLICATION_JSON).build();
 
     }
 

@@ -1,4 +1,5 @@
 
+import blockchain.BlockChainSecurityHelper;
 import exception.*;
 import general.security.SecurityHelper;
 import general.utility.GeneralHelper;
@@ -245,14 +246,14 @@ public class ValidatorRestClient {
      * @SecuredUserLevel
      */
 
-    public void registerPatientInfo(long timstamp, ECPublicKey publicKey, byte[] encryptedInfo, byte[] signature, boolean isSignatureDEREncoded) throws Unsuccessful, UnAuthorized, BadRequest, NotFound, ServerError {
+    public void registerPatientInfo(long timestamp, ECPublicKey publicKey, byte[] encryptedInfo, byte[] signature, boolean isSignatureDEREncoded) throws Unsuccessful, UnAuthorized, BadRequest, NotFound, ServerError {
 
 
         WebTarget webTarget = base.path("patient/register");
 
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.TEXT_PLAIN).header(HttpHeaders.AUTHORIZATION, token);
 
-        PatientInfoPojo patientInfoPojo = new PatientInfoPojo(timstamp, publicKey.getEncoded(), encryptedInfo, signature, true
+        PatientInfoPojo patientInfoPojo = new PatientInfoPojo(timestamp, publicKey.getEncoded(), encryptedInfo, signature, true
                 , isSignatureDEREncoded);
 
 
@@ -468,6 +469,29 @@ public class ValidatorRestClient {
             throw new ServerError(); // not expected if status (not HTTP status code) code is 0
         }
     }
+
+
+    /*
+     * If successful, returns list of short information of the patient's records
+     * (each short info includes timestamp, medical org name and location of the record in the blockchain )
+     * Else, throws exception
+     */
+    public RecordShortInfoPojo[] getRecordShortInfoList(byte[] patientIdentifier) throws UnAuthorized, NotFound, BadRequest, ServerError {
+        WebTarget webTarget = base.path("record/get-record-short-info-list");
+
+        Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON).header(HttpHeaders.AUTHORIZATION, token);
+
+        ByteArrayWrapper byteArrayWrapper = new ByteArrayWrapper(patientIdentifier);
+        Response response = invocationBuilder.post(Entity.json(byteArrayWrapper));
+        checkException(response);
+        RecordShortInfoPojo[] result = response.readEntity(RecordShortInfoPojo[].class);
+
+
+        response.close();
+
+        return result;
+    }
+
 
     private void checkException(Response response) throws UnAuthorized, BadRequest, NotFound, ServerError {
         if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode())

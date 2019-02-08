@@ -5,6 +5,7 @@ import blockchain.block.*;
 import blockchain.manager.datastructure.Location;
 import blockchain.manager.datastructure.MedicalOrgShortInfo;
 import blockchain.manager.datastructure.PatientShortInfo;
+import blockchain.manager.datastructure.RecordShortInfo;
 import config.Configuration;
 import exception.BlockChainObjectParsingException;
 import exception.FileCorruptionException;
@@ -449,6 +450,36 @@ public class ValidatorAPIResolver {
         }
 
         return patientInfoContentPojos;
+    }
+
+    /*
+     * return list of record's short information of the patient
+     */
+    public ArrayList<RecordShortInfoPojo> getRecordShortInfoList(byte[] patientIdentifier) throws BlockChainObjectParsingException, InvalidKeySpecException, IOException, BadRequest, NotFound {
+
+        if(patientIdentifier==null||patientIdentifier.length!= Configuration.IDENTIFIER_LENGTH)
+            throw new BadRequest();
+
+        ArrayList<RecordShortInfo> recordShortInfos =validator.getRecordShortInfoList(patientIdentifier);
+
+        if(recordShortInfos==null)
+            throw new NotFound();
+
+        ArrayList<RecordShortInfoPojo> recordShortInfoPojos = new ArrayList<>();
+
+        for(RecordShortInfo recordShortInfo : recordShortInfos)
+        {
+            RecordShortInfoPojo recordShortInfoPojo = new RecordShortInfoPojo();
+            LocationPojo locationPojo= new LocationPojo();
+            locationPojo.setBlockHash(recordShortInfo.getLocation().getBlockHash());
+            locationPojo.setTargetIdentifier(recordShortInfo.getLocation().getTargetIdentifier());
+            recordShortInfoPojo.setLocationPojo(locationPojo);
+            recordShortInfoPojo.setTimestamp(recordShortInfo.getTimestamp());
+            recordShortInfoPojo.setMedicalOrgName(recordShortInfo.getMedicalOrgName());
+            recordShortInfoPojos.add(recordShortInfoPojo);
+        }
+
+        return recordShortInfoPojos;
     }
 
 

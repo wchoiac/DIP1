@@ -1,8 +1,10 @@
 package rest.server.resource;
 
 import blockchain.block.PatientInfo;
+import blockchain.manager.datastructure.MedicalOrgShortInfo;
 import exception.BlockChainObjectParsingException;
 import exception.FileCorruptionException;
+import general.utility.GeneralHelper;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.glassfish.grizzly.http.server.Request;
 import rest.pojo.*;
@@ -62,18 +64,18 @@ public class ValidatorResource {
         try {
             token = ValidatorRestServer.getRunningServer().getAPIResolver().apiLogin(userInfoPojo);
         } catch (IOException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (BadRequest e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         } catch (InvalidUserInfo e) {
-            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ": login fail " + userInfoPojo.getUsername());
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: UNAUTHORIZED\n"+" login fail due to invalid input" + userInfoPojo.getUsername());
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
 
-        ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ": login success(" + userInfoPojo.getUsername() + ")");
+        ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK\nlogin success(" + userInfoPojo.getUsername() + ")");
         return Response.ok(token,MediaType.TEXT_PLAIN).build();
-
     }
 
     /*
@@ -83,12 +85,14 @@ public class ValidatorResource {
     @SecuredRootLevel
     @Produces(MediaType.APPLICATION_JSON) // Read with AuthorityInfoPojo[]
     @Path("authority/get-overall-list")
-    public Response getOverallList() {
+    public Response getOverallList(@Context Request request) {
 
         try {
-            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getOverallList(), MediaType.APPLICATION_JSON).build();
+            ArrayList<AuthorityInfoPojo> result =ValidatorRestServer.getRunningServer().getAPIResolver().getOverallList();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.APPLICATION_JSON).build();
         } catch (IOException | BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         }
     }
@@ -101,10 +105,11 @@ public class ValidatorResource {
     @SecuredRootLevel
     @Produces(MediaType.APPLICATION_JSON) // Read with VotePojo[]
     @Path("authority/vote/get-processing-list")
-    public Response getMyVotes() {
+    public Response getMyVotes(@Context Request request) {
 
-        return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getMyVotes()
-                , MediaType.APPLICATION_JSON).build();
+        ArrayList<VotePojo> result =ValidatorRestServer.getRunningServer().getAPIResolver().getMyVotes();
+        ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+        return Response.ok(result, MediaType.APPLICATION_JSON).build();
 
     }
 
@@ -116,10 +121,11 @@ public class ValidatorResource {
     @SecuredRootLevel
     @Produces(MediaType.APPLICATION_JSON) //Read with VotingPojo[]
     @Path("authority/vote/get-current-list")
-    public Response getCurrentVotingList() {
+    public Response getCurrentVotingList(@Context Request request) {
 
-        return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getCurrentVotingList()
-                , MediaType.APPLICATION_JSON).build();
+        ArrayList<VotingPojo> result =ValidatorRestServer.getRunningServer().getAPIResolver().getCurrentVotingList();
+        ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+        return Response.ok(result, MediaType.APPLICATION_JSON).build();
 
     }
 
@@ -135,14 +141,17 @@ public class ValidatorResource {
     @Produces(MediaType.TEXT_PLAIN)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("authority/vote/cast")
-    public Response castVote(VotePojo votePojo) {
+    public Response castVote(@Context Request request, VotePojo votePojo) {
         try {
-            return Response.ok("" + ValidatorRestServer.getRunningServer().getAPIResolver().castVote(votePojo), MediaType.TEXT_PLAIN).build();
+
+            String result ="" + ValidatorRestServer.getRunningServer().getAPIResolver().castVote(votePojo);
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.TEXT_PLAIN).build();
         } catch (IOException | BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (InvalidKeySpecException | BadRequest e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -155,19 +164,21 @@ public class ValidatorResource {
     @Produces(MediaType.APPLICATION_JSON) // Read with PatientShortInfoPojo[]
     @Consumes(MediaType.APPLICATION_JSON) // {"content": <Patient's identifier - byte array>} - use ByteArrayWrapper
     @Path("patient/get-patient-short-info-list")
-    public Response getPatientShortInfoList(ByteArrayWrapper wrapper) {
+    public Response getPatientShortInfoList(@Context Request request, ByteArrayWrapper wrapper) {
 
         try {
-            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getPatientShortInfoList(wrapper.getContent())
-                    , MediaType.APPLICATION_JSON).build();
+
+            ArrayList<PatientShortInfoPojo> result =ValidatorRestServer.getRunningServer().getAPIResolver().getPatientShortInfoList(wrapper.getContent());
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.APPLICATION_JSON).build();
         } catch (IOException | BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (BadRequest e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         } catch (NotFound e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
@@ -182,19 +193,21 @@ public class ValidatorResource {
     @Produces(MediaType.APPLICATION_JSON) // read with PatientInfoContentPojo[]
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("patient/get-patient-info-content-list")
-    public Response getPatientInfoContentsList(ArrayList<LocationPojo> locationPojos) {
+    public Response getPatientInfoContentsList(@Context Request request, ArrayList<LocationPojo> locationPojos) {
 
         try {
-            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().getPatientInfoContentsList(locationPojos)
-                    , MediaType.APPLICATION_JSON).build();
+
+            ArrayList<PatientInfoContentPojo> result =ValidatorRestServer.getRunningServer().getAPIResolver().getPatientInfoContentsList(locationPojos);
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.APPLICATION_JSON).build();
         } catch (IOException | BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (NotFound e) {
-            e.printStackTrace();// may be just bad request
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.NOT_FOUND).build();
         } catch (BadRequest e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
 
@@ -213,15 +226,18 @@ public class ValidatorResource {
     @Produces(MediaType.TEXT_PLAIN)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("patient/register")
-    public Response register(PatientInfoPojo patientInfoPojo) {
+    public Response register(@Context Request request, PatientInfoPojo patientInfoPojo) {
 
         try {
-            return Response.ok("" + ValidatorRestServer.getRunningServer().getAPIResolver().register(patientInfoPojo)
-                    , MediaType.TEXT_PLAIN).build();
+
+            String result ="" + ValidatorRestServer.getRunningServer().getAPIResolver().register(patientInfoPojo);
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.TEXT_PLAIN).build();
         } catch (ServerError|IOException | BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (InvalidKeySpecException | BadRequest e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         }
 
@@ -241,16 +257,17 @@ public class ValidatorResource {
     @Produces(MediaType.TEXT_PLAIN)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("patient/update")
-    public Response update(PatientInfoPojo patientInfoPojo) {
+    public Response update(@Context Request request, PatientInfoPojo patientInfoPojo) {
 
         try {
-            return Response.ok("" + ValidatorRestServer.getRunningServer().getAPIResolver().update(patientInfoPojo)
-                    , MediaType.TEXT_PLAIN).build();
+            String result ="" + ValidatorRestServer.getRunningServer().getAPIResolver().update(patientInfoPojo);
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.TEXT_PLAIN).build();
         } catch (ServerError|IOException | BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (InvalidKeySpecException | BadRequest e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
     }
@@ -266,17 +283,21 @@ public class ValidatorResource {
     @Produces(MediaType.TEXT_PLAIN)
     @Consumes(MediaType.APPLICATION_JSON) //{"content": <Medical organization's identifier - byte array>}
     @Path("medical-org/revoke")
-    public Response revoke(ByteArrayWrapper byteArrayWrapper) {
+    public Response revoke(@Context Request request, ByteArrayWrapper byteArrayWrapper) {
 
         try {
-            return Response.ok("" + ValidatorRestServer.getRunningServer().getAPIResolver().revoke(byteArrayWrapper.getContent())
-                    , MediaType.TEXT_PLAIN).build();
+
+            String result ="" + ValidatorRestServer.getRunningServer().getAPIResolver().revoke(byteArrayWrapper.getContent());
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.TEXT_PLAIN).build();
         } catch (IOException | BlockChainObjectParsingException|FileCorruptionException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (BadRequest e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
-        }  catch (NotFound notFound) {
+        }  catch (NotFound e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
@@ -294,16 +315,19 @@ public class ValidatorResource {
     @Produces(MediaType.APPLICATION_JSON)// {"content": <Status code(1 byte) + DER encoded certificate(if success) - byte array>} - use ByteArrayWrapper
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("medical-org/authorize")
-    public Response authorize(AuthorizationRequestPojo authorizationRequestPojo) {
+    public Response authorize(@Context Request request, AuthorizationRequestPojo authorizationRequestPojo) {
 
 
         try {
-            return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().authorize(authorizationRequestPojo))
-                    , MediaType.APPLICATION_JSON).build();
+
+            ByteArrayWrapper result =new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().authorize(authorizationRequestPojo));
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.APPLICATION_JSON).build();
         } catch (FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (InvalidKeySpecException | BadRequest e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         }
     }
@@ -315,13 +339,15 @@ public class ValidatorResource {
     @SecuredUserLevel
     @Produces(MediaType.APPLICATION_JSON) // Read with MedicalOrgShortInfoPojo[]
     @Path("medical-org/get-authorization-list")
-    public Response loadAllMedicalOrgShortInfoAuthorizedByMe() {
+    public Response loadAllMedicalOrgShortInfoAuthorizedByMe(@Context Request request) {
 
         try {
-            return Response.ok(ValidatorRestServer.getRunningServer().getAPIResolver().loadAllMedicalOrgShortInfoAuthorizedByThisAuthority()
-                    , MediaType.APPLICATION_JSON).build();
+
+            ArrayList<MedicalOrgShortInfoPojo> result =ValidatorRestServer.getRunningServer().getAPIResolver().loadAllMedicalOrgShortInfoAuthorizedByThisAuthority();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.APPLICATION_JSON).build();
         } catch (BlockChainObjectParsingException | IOException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         }
 
@@ -335,20 +361,21 @@ public class ValidatorResource {
     @Produces(MediaType.APPLICATION_JSON) // {"content": <DER encoded X509 certificate - byte array>} - Read with ByteArrayWrapper
     @Consumes(MediaType.APPLICATION_JSON) // {"content": <Medical organization's identifier - byte array>} - use ByteArrayWrapper
     @Path("medical-org/get-certificate")
-    public Response getCertificate(ByteArrayWrapper wrapper) {
+    public Response getCertificate(@Context Request request, ByteArrayWrapper wrapper) {
 
 
         try {
-            byte[] result = ValidatorRestServer.getRunningServer().getAPIResolver().getCertificate(wrapper.getContent());
-            return Response.ok(new ByteArrayWrapper(result), MediaType.APPLICATION_JSON).build();
+            ByteArrayWrapper result = new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().getCertificate(wrapper.getContent()));
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.APPLICATION_JSON).build();
         } catch (CertificateEncodingException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (NotFound e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.NOT_FOUND).build();
         } catch (BadRequest e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
 
@@ -366,17 +393,54 @@ public class ValidatorResource {
     @Produces(MediaType.APPLICATION_JSON)// {"content": <Status code(1 byte) + DER encoded certificate(if success) - byte array>} - Read with ByteArrayWrapper
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("medical-org/renew-certificate")
-    public Response renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) {
+    public Response renewCertificate(@Context Request request, CertificateRenewRequestPojo certificateRenewRequestPojo) {
 
 
         try {
-            return Response.ok(new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().renewCertificate(certificateRenewRequestPojo))
-                    , MediaType.APPLICATION_JSON).build();
+
+            ByteArrayWrapper result =new ByteArrayWrapper(ValidatorRestServer.getRunningServer().getAPIResolver().renewCertificate(certificateRenewRequestPojo));
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.APPLICATION_JSON).build();
         } catch ( FileCorruptionException|OperatorCreationException | BlockChainObjectParsingException | NoSuchAlgorithmException | IOException | CertificateException e) {
-            e.printStackTrace();
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (BadRequest e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+
+    }
+
+    /*
+     * return list of short information of the patient's records
+     */
+    @POST
+    @SecuredUserLevel
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path("record/get-record-short-info-list")
+    public Response getRecordShortInfoList(@Context Request request, ByteArrayWrapper byteArrayWrapper) {
+
+
+        try {
+
+            ArrayList<RecordShortInfoPojo> recordShortInfoPojos =ValidatorRestServer.getRunningServer().getAPIResolver().getRecordShortInfoList(byteArrayWrapper.getContent());
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(recordShortInfoPojos, MediaType.APPLICATION_JSON).build();
+
+        } catch (BlockChainObjectParsingException|IOException e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+ GeneralHelper.getStackTrace(e));
+            return Response.serverError().build();
+        } catch (InvalidKeySpecException|BadRequest e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch (NotFound e) {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
+            return Response.status(Response.Status.NOT_FOUND).build(); //patient doesn't exist
+        } catch(Exception e)
+        {
+            ValidatorRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
+            return Response.serverError().build();
         }
 
     }

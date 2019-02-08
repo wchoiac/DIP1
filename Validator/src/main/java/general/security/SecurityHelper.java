@@ -21,6 +21,7 @@ import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.crypto.signers.HMacDSAKCalculator;
+import org.bouncycastle.jcajce.provider.asymmetric.X509;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECParameterSpec;
@@ -32,6 +33,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.bouncycastle.util.io.pem.PemWriter;
+import rest.pojo.CertificateRenewRequestPojo;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.Mac;
@@ -639,9 +641,11 @@ public class SecurityHelper {
 //        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
 //        System.out.println(DerivePubKeyFromPrivKey((ECPrivateKey) keyPair.getPrivate()).equals(keyPair.getPublic()));
 
-        keyStoreTest();
+       // keyStoreTest();
 
-
+        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
+        Certificate cert =selfSignCertOnlyForPatientKeyStore(keyPair.getPublic(),keyPair.getPrivate(), "SHA3-256withECDSA");
+        writeX509ToDER((X509Certificate) cert,new File("1"));
 
     }
 

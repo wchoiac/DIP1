@@ -65,34 +65,29 @@ public class BlockChain {
         return totalScore;
     }
 
-    public byte[] getCurrentChainHashLocator() throws BlockChainObjectParsingException, IOException {
-        BlockHeader latestBlockHeader = cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader();
+    public byte[] getCurrentChainHashLocator(byte[] highestBlockHash, int length) throws BlockChainObjectParsingException, IOException {
 
-        int height = latestBlockHeader.getBlockNumber();
-
-        ArrayList<Integer> targets = new ArrayList<>();
-
-        int i = height;
-        while (i >= 0) {
-            targets.add(i);
-
-            if (i > height - 100)
-                --i;
-            else if (i == 0)
-                break;
-            else
-                i /= 2;
+        BlockHeader highestBlockHeader;
+        if(highestBlockHash==null) {
+            highestBlockHeader = cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader();
+        }
+        else
+        {
+            highestBlockHeader = BlockManager.loadBlockHeader(highestBlockHash);
+            if(highestBlockHeader==null)
+                return null;
         }
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        BlockHeader processingHeader = latestBlockHeader;
+        BlockHeader processingHeader = highestBlockHeader;
 
-        for (int currentTarget : targets) {
-            while (currentTarget != processingHeader.getBlockNumber())
-                processingHeader = BlockManager.loadBlockHeader(processingHeader.getPrevHash());
+        for (int i=0;i< length;++i) {
             byteArrayOutputStream.write(processingHeader.calculateHash());
+            if(processingHeader.getBlockNumber()!=0)
+                processingHeader = BlockManager.loadBlockHeader(processingHeader.getPrevHash());
+            else
+                break;
         }
-
 
         return byteArrayOutputStream.toByteArray();
     }
