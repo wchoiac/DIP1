@@ -102,7 +102,7 @@ object LogInPane : BorderPane() {
             fc.initialDirectory = File(System.getProperty("user.home"))
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("cer files", "*.cer"))
-            val file = fc.showOpenDialog(SceneManager.getStage())
+            val file = fc.showOpenDialog(SceneManager.stage)
             if(file != null) {
                 certFile = file
                 certFileLabel.text = file.name
@@ -145,13 +145,13 @@ object LogInPane : BorderPane() {
                         bis.close()
                     }
 
-                    Config.BASE_URL = "http${if(ssl.isSelected) "s" else ""}://$ip/api"
+                    Config.BASE_URL = "http${if(ssl.isSelected) "s" else ""}://$ip:443/api"
                     val currentTime = System.currentTimeMillis()
                     val response = "${Config.BASE_URL}/user/login"
                         .httpPost()
                         .header(mapOf("Content-Type" to "application/json; charset=utf-8"))
                         .body("""{"username":"$username","password":"$password"}""", UTF_8)
-                        .timeout(500)
+                        .timeout(1000)
                         .responseString()
 
                     if(response.third.component1() != null && response.third.component1() != "") {

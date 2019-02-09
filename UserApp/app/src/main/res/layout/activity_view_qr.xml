@@ -10,13 +10,20 @@
         tools:context=".ViewQrActivity"
 >
 
-    <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+    <Button android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:id="@+id/scanTimestamp" app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.875" app:layout_constraintHorizontal_bias="0.2"
+            app:layout_constraintRight_toRightOf="parent"
+            android:height="70dp" android:width="120dp" android:text="@string/scanTimestamp"/>
+
+    <Button android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:id="@+id/GoToMenuButton" app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintTop_toTopOf="parent" app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintVertical_bias="0.875" app:layout_constraintRight_toRightOf="parent"
-            android:height="60dp" android:width="100dp" android:text="@string/back"/>
+            app:layout_constraintVertical_bias="0.875" app:layout_constraintHorizontal_bias="0.8"
+            app:layout_constraintRight_toRightOf="parent"
+            android:height="70dp" android:width="120dp" android:text="@string/back"/>
+
     <ImageView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" app:srcCompat="@android:color/darker_gray"

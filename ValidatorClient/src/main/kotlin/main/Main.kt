@@ -6,7 +6,7 @@ import viewmodel.SceneManager
 
 class Main : Application() {
     override fun start(primaryStage: Stage) {
-        SceneManager.setStage(primaryStage)
+        SceneManager.stage = primaryStage
         SceneManager.showLogInScene()
     }
 

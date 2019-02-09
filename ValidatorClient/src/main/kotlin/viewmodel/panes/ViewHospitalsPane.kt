@@ -73,7 +73,7 @@ object ViewHospitalsPane : BorderPane() {
                     val dirChooser = DirectoryChooser()
                     dirChooser.title = "Choose directory to export"
                     dirChooser.initialDirectory = File(System.getProperty("user.home"))
-                    val directory = dirChooser.showDialog(SceneManager.getStage())
+                    val directory = dirChooser.showDialog(SceneManager.stage)
                     if(directory != null) {
                         val btnResponse = "${Config.BASE_URL}/medical-org/get-certificate"
                             .httpPost()
