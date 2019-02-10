@@ -69,7 +69,7 @@ object AddRemoveValidatorsPane : BorderPane() {
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("pem files", "*.pem"))
             try {
-                val file = fc.showOpenDialog(SceneManager.getStage())
+                val file = fc.showOpenDialog(SceneManager.stage)
                 if (file != null) {
                     publicKeyFile = file
                     publicKey = SecurityHelper.getPublicKeyFromPEM(file, "EC")

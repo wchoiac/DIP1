@@ -13,8 +13,6 @@ import android.nfc.NfcEvent
 import android.nfc.NdefRecord
 
 
-
-
 class ViewQrActivity : AppCompatActivity(), NfcAdapter.CreateNdefMessageCallback {
     var message = ""
 
@@ -34,20 +32,21 @@ class ViewQrActivity : AppCompatActivity(), NfcAdapter.CreateNdefMessageCallback
         val mAdapter = NfcAdapter.getDefaultAdapter(this)
 
         var toastText = "Please scan QR code or tap NFC reader."
-        if (mAdapter == null) {
-            toastText = "This device does not have NFC function.\nPlease use QR code."
-        } else if (!mAdapter.isEnabled) {
-            toastText = "Please enable NFC or use QR code."
-        } else {
-            mAdapter.setNdefPushMessageCallback(null, this)
+        when {
+            mAdapter == null -> toastText = "This device does not have NFC function.\nPlease use QR code."
+            !mAdapter.isEnabled -> toastText = "Please enable NFC or use QR code."
+            else -> mAdapter.setNdefPushMessageCallback(null, this)
         }
         Toast.makeText(this, toastText, Toast.LENGTH_LONG).show()
 
         GoToMenuButton.setOnClickListener {
             goToMenu()
         }
-    }
 
+        scanTimestamp.setOnClickListener {
+            startActivity(Intent(this, ScanTimestampActivity::class.java))
+        }
+    }
 
     override fun onBackPressed() {
         goToMenu()

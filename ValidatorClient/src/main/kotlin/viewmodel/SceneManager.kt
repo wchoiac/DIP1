@@ -15,7 +15,18 @@ object SceneManager {
     private val addRemoveValidatorScene = Scene(AddRemoveValidatorsPane, Config.WIDTH / 2, Config.HEIGHT / 2)
     private val viewValidatorsScene = Scene(ViewValidatorsPane, Config.WIDTH, Config.HEIGHT)
     private val voteValidatorsScene = Scene(VoteValidatorsPane, Config.WIDTH, Config.HEIGHT)
-    private var stage: Stage? = null
+    var stage: Stage? = null
+        get() = field!!
+        set(value) {
+            if(value == null) return
+            field = value
+            field!!.title = "MediRec"
+            field!!.icons.add(Image(Config.IMAGES["icon"]))
+            field!!.setOnCloseRequest {
+                println("Exiting...")
+                (scanScene.root as ScanPane).disposeWebCamCamera()
+            }
+        }
     private var lastPatientInfoScene : Scene? = null
     var lastPatientPane : PatientInfoPane? = null
 
@@ -31,20 +42,6 @@ object SceneManager {
     private fun addStylesheets(vararg scenes: Scene) {
         for (scene in scenes) {
             scene.stylesheets.add(Config.CSS_STYLES)
-        }
-    }
-
-    fun getStage() : Stage {
-        return stage!!
-    }
-
-    fun setStage(stage: Stage) {
-        this.stage = stage
-        this.stage!!.title = "MediRec"
-        this.stage!!.icons.add(Image(Config.IMAGES["icon"]))
-        stage.setOnCloseRequest {
-            println("Exiting...")
-            (scanScene.root as ScanPane).disposeWebCamCamera()
         }
     }
 

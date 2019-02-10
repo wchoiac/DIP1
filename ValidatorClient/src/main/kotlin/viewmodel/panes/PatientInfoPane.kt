@@ -5,6 +5,7 @@ import com.beust.klaxon.JsonObject
 import com.beust.klaxon.Parser
 import com.github.kittinunf.fuel.httpPost
 import com.google.gson.Gson
+import javafx.application.Platform
 import javafx.collections.FXCollections
 import main.SecurityHelper
 import javafx.geometry.Pos
@@ -80,6 +81,14 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
     private fun fillUpData() {
         try {
             val gson = Gson()
+            if(allRecordsTimestamp!!.size != keyTime.timeList.size) {
+                Platform.runLater{
+                    val timestampStr = allRecordsTimestamp!!.toList().toString()
+                    QRCodePane.drawQRCode(timestampStr)
+                    SceneManager.showQRScene()
+                }
+                return
+            }
             for (i in 0 until allRecordsTimestamp!!.size) {
                 for (j in 0 until keyTime.timeList.size) {
                     if (allRecordsTimestamp!![i] == keyTime.timeList[j]) {
