@@ -789,4 +789,138 @@ public class OverallManagerTest {
         }
     }
 
+
+    //authorize existing medical organization
+    @Test
+    void invalidBlockTest8() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, BlockChainObjectParsingException, IOException, FileCorruptionException {
+
+        try {
+
+
+            // initial authority
+            KeyPair testInitialAuthorityKeyPair = SecurityHelper.generateECKeyPair(Configuration.ELIPTIC_CURVE);
+            ECPublicKey testInitialAuthorityPublicKey = (ECPublicKey) testInitialAuthorityKeyPair.getPublic();
+            ECPrivateKey testInitialAuthorityPrivateKey = (ECPrivateKey) testInitialAuthorityKeyPair.getPrivate();
+            AuthorityInfo testInitialAuthorityInfo = new AuthorityInfo("test", testInitialAuthorityPublicKey);
+            AuthorityInfo[] initialAuthorities = new AuthorityInfo[]{testInitialAuthorityInfo};
+
+            byte[] prevBlockHash = BlockChainTestHelper.startTest(initialAuthorities);
+
+            //new patient
+            KeyPair testPatientKeyPair = SecurityHelper.generateECKeyPair(Configuration.ELIPTIC_CURVE);
+            ECPublicKey testPatientPublicKey =(ECPublicKey) testPatientKeyPair.getPublic();
+            ECPrivateKey testPatientPrivateKey =(ECPrivateKey) testPatientKeyPair.getPrivate();
+
+            //new medical org
+            KeyPair testMedicalOrgKeypair = SecurityHelper.generateECKeyPair(Configuration.ELIPTIC_CURVE);
+            ECPublicKey testMedicalOrgPublicKey =(ECPublicKey) testMedicalOrgKeypair.getPublic();
+            ECPrivateKey testMedicalOrgPrivateKey =(ECPrivateKey)testMedicalOrgKeypair.getPrivate();
+
+
+            // authorize medical org and register patient
+            byte[] encryptedInfo =new byte[10];
+            byte[] signatureCoverage= GeneralHelper.mergeByteArrays(GeneralHelper.longToBytes(Configuration.BLOCK_PERIOD),encryptedInfo);
+            byte[] signature = SecurityHelper.createRawECDSASignatureWithContent(testPatientPrivateKey, signatureCoverage
+                    , Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE,Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
+
+            PatientInfo testPatientInfo = new PatientInfo(Configuration.BLOCK_PERIOD,testPatientPublicKey,encryptedInfo,signature);
+            MedicalOrgInfo testMedicalOrgInfo = new MedicalOrgInfo("testMed", testMedicalOrgPublicKey);
+            Block testBlock = new Block(testInitialAuthorityPrivateKey, null, null, 1
+                    , Configuration.IN_ORDER, prevBlockHash, testInitialAuthorityPublicKey
+                    , new MedicalOrgInfo[]{testMedicalOrgInfo}
+                    , null
+                    , new PatientInfo[]{testPatientInfo}
+                    , null);
+            testBlock.getHeader().changeTimestamp(Configuration.BLOCK_PERIOD, testInitialAuthorityPrivateKey);
+
+            assertNotEquals(BlockChainManager.checkBlockHeaders(new BlockHeader[]{testBlock.getHeader()}),-1);
+            assertTrue(BlockChainManager.checkBlock(testBlock));
+            BlockChainManager.storeBlock(testBlock);
+
+
+            //test for transaction
+
+
+            Block testBlock2 = new Block(testInitialAuthorityPrivateKey, null, null, 2
+                    , Configuration.IN_ORDER, testBlock.calculateHash(), testInitialAuthorityPublicKey
+                    , new MedicalOrgInfo[]{testMedicalOrgInfo}
+                    , null
+                    , null
+                    , null);
+
+            assertNotEquals(BlockChainManager.checkBlockHeaders(new BlockHeader[]{testBlock2.getHeader()}),-1);
+            assertFalse(BlockChainManager.checkBlock(testBlock2));
+
+        } finally {
+            BlockChainTestHelper.endTest();
+        }
+    }
+
+
+    //revoke non-existing medical organization
+    @Test
+    void invalidBlockTest9() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, BlockChainObjectParsingException, IOException, FileCorruptionException {
+
+        try {
+
+
+            // initial authority
+            KeyPair testInitialAuthorityKeyPair = SecurityHelper.generateECKeyPair(Configuration.ELIPTIC_CURVE);
+            ECPublicKey testInitialAuthorityPublicKey = (ECPublicKey) testInitialAuthorityKeyPair.getPublic();
+            ECPrivateKey testInitialAuthorityPrivateKey = (ECPrivateKey) testInitialAuthorityKeyPair.getPrivate();
+            AuthorityInfo testInitialAuthorityInfo = new AuthorityInfo("test", testInitialAuthorityPublicKey);
+            AuthorityInfo[] initialAuthorities = new AuthorityInfo[]{testInitialAuthorityInfo};
+
+            byte[] prevBlockHash = BlockChainTestHelper.startTest(initialAuthorities);
+
+            //new patient
+            KeyPair testPatientKeyPair = SecurityHelper.generateECKeyPair(Configuration.ELIPTIC_CURVE);
+            ECPublicKey testPatientPublicKey =(ECPublicKey) testPatientKeyPair.getPublic();
+            ECPrivateKey testPatientPrivateKey =(ECPrivateKey) testPatientKeyPair.getPrivate();
+
+            //new medical org
+            KeyPair testMedicalOrgKeypair = SecurityHelper.generateECKeyPair(Configuration.ELIPTIC_CURVE);
+            ECPublicKey testMedicalOrgPublicKey =(ECPublicKey) testMedicalOrgKeypair.getPublic();
+            ECPrivateKey testMedicalOrgPrivateKey =(ECPrivateKey)testMedicalOrgKeypair.getPrivate();
+
+
+            // authorize medical org and register patient
+            byte[] encryptedInfo =new byte[10];
+            byte[] signatureCoverage= GeneralHelper.mergeByteArrays(GeneralHelper.longToBytes(Configuration.BLOCK_PERIOD),encryptedInfo);
+            byte[] signature = SecurityHelper.createRawECDSASignatureWithContent(testPatientPrivateKey, signatureCoverage
+                    , Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE,Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
+
+            PatientInfo testPatientInfo = new PatientInfo(Configuration.BLOCK_PERIOD,testPatientPublicKey,encryptedInfo,signature);
+            MedicalOrgInfo testMedicalOrgInfo = new MedicalOrgInfo("testMed", testMedicalOrgPublicKey);
+            Block testBlock = new Block(testInitialAuthorityPrivateKey, null, null, 1
+                    , Configuration.IN_ORDER, prevBlockHash, testInitialAuthorityPublicKey
+                    , new MedicalOrgInfo[]{testMedicalOrgInfo}
+                    , null
+                    , new PatientInfo[]{testPatientInfo}
+                    , null);
+            testBlock.getHeader().changeTimestamp(Configuration.BLOCK_PERIOD, testInitialAuthorityPrivateKey);
+
+            assertNotEquals(BlockChainManager.checkBlockHeaders(new BlockHeader[]{testBlock.getHeader()}),-1);
+            assertTrue(BlockChainManager.checkBlock(testBlock));
+            BlockChainManager.storeBlock(testBlock);
+
+
+            //test for transaction
+
+
+            Block testBlock2 = new Block(testInitialAuthorityPrivateKey, null, null, 2
+                    , Configuration.IN_ORDER, testBlock.calculateHash(), testInitialAuthorityPublicKey
+                    , null
+                    , new byte[][]{new byte[20]}
+                    , null
+                    , null);
+
+            assertNotEquals(BlockChainManager.checkBlockHeaders(new BlockHeader[]{testBlock2.getHeader()}),-1);
+            assertFalse(BlockChainManager.checkBlock(testBlock2));
+
+        } finally {
+            BlockChainTestHelper.endTest();
+        }
+    }
+
 }

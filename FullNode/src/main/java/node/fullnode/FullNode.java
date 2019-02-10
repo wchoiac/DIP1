@@ -1140,7 +1140,7 @@ public class FullNode {
                 GeneralHelper.unLockForMe(usingLockList);
 
                 try {
-                    Thread.sleep(60000);
+                    Thread.sleep(Configuration.PEER_NODE_LIST_REQUEST_INTERVAL);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -1177,7 +1177,7 @@ public class FullNode {
 
                     connectWithPeers(potentialPeer); //## for debug
 
-                    Thread.sleep(20000);
+                    Thread.sleep(Configuration.CONNECTION_REQUEST_INTERVAL);
 
                 }
             } catch (Exception e) {
@@ -1277,7 +1277,7 @@ public class FullNode {
                     GeneralHelper.unLockForMe(usingLockList);
 
 
-                    Thread.sleep(2000);
+                    Thread.sleep(Configuration.REQUEST_BLOCKS_INTERVAL);
 
                 }
             } catch (Exception e) {

@@ -97,6 +97,10 @@ public class Configuration {
     public static final int MAX_IN_BOUND_CONNECTION= 100;
     public static final int MAX_HEADER_NUMBER_PER_REQUEST=1000;
     public static final int MAX_HASH_LOCATOR_LENGTH=1000;
+    public static final int PEER_NODE_LIST_REQUEST_INTERVAL=60000;
+    public static final int CONNECTION_REQUEST_INTERVAL=20000;
+    public static final int REQUEST_BLOCKS_INTERVAL=2000;
+    public static final int VALIDATION_INTERVAL=100;
 
     //message number
     public static final byte MESSAGE_STATUS=0;

@@ -1170,7 +1170,7 @@ public class Validator {
                 GeneralHelper.unLockForMe(usingLockList);
 
                 try {
-                    Thread.sleep(60000);
+                    Thread.sleep(Configuration.PEER_NODE_LIST_REQUEST_INTERVAL);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -1209,7 +1209,7 @@ public class Validator {
 
                     connectWithPeers(potentialPeer);
 
-                    Thread.sleep(20000);
+                    Thread.sleep(Configuration.CONNECTION_REQUEST_INTERVAL);
 
                 }
 
@@ -1312,7 +1312,7 @@ public class Validator {
                     GeneralHelper.unLockForMe(usingLockList);
 
 
-                    Thread.sleep(2000);
+                    Thread.sleep(Configuration.REQUEST_BLOCKS_INTERVAL);
 
                 }
             } catch (InterruptedException | BlockChainObjectParsingException | IOException e) {
@@ -1440,7 +1440,7 @@ public class Validator {
 
                     GeneralHelper.unLockForMe(usingLockList);
 
-                    Thread.sleep(100);
+                    Thread.sleep(Configuration.VALIDATION_INTERVAL);
 
 
                 }
