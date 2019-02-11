@@ -2,8 +2,8 @@ package viewmodel
 
 object Config {
     var BASE_URL = "https://25.30.118.78/api"
-    const val WIDTH = 1600.0
-    const val HEIGHT = 900.0
+    var WIDTH = 1600.0
+    var HEIGHT = 900.0
 
     const val QRCODE_HEIGHT = 300.0
     const val QRCODE_WIDTH = 300.0
@@ -16,8 +16,6 @@ object Config {
     const val PASSWORD_WARNING = "Please enter your password"
     const val WRONG_WARNING = "You entered wrong Username or Password"
     const val TIMEOUT = "Failed to connect"
-
-    val CERT_URL = Config::class.java.classLoader.getResource("auth0.cer")!!
 
     val CSS_STYLES = Config::class.java.classLoader.getResource("css/styles.css").toExternalForm()!!
 

@@ -1,0 +1,1 @@
+{"certUrl":"C:/Users/gusrb/Downloads/abc/DIP1/ValidatorClient/src/main/resources/auth0.cer","secured":true"ipAddress":"25.30.118.78","username":"root","password":"1234"}

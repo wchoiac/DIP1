@@ -26,6 +26,7 @@ object QRCodePane : BorderPane() {
     }
 
     private fun connectComponents() {
+        scanButton.visibleProperty().set(false)
         val tempBox = HBox(30.0, backButton, scanButton)
         tempBox.alignment = Pos.CENTER
         container.children.addAll(

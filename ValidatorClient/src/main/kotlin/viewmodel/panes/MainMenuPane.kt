@@ -16,11 +16,11 @@ object MainMenuPane : BorderPane() {
     private val userContainer = HBox(50.0)
     private val hospitalContainer = HBox(100.0)
     private val validatorContainer = HBox(50.0)
-    private val userButtons = arrayOf(Button("Create/Update Record"), Button("Get Patient Key"), Button("View Record"))
+    private val userButtons = arrayOf(Button("Create/Update Record"), Button("Scan AES Key"), Button("View Record"))
     private val userImages = arrayOf(
         Image(Config.IMAGES["createRecord"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true),
-        Image(Config.IMAGES["modifyRecord"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true),
-        Image(Config.IMAGES["viewRecord"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true)
+        Image(Config.IMAGES["modifyRecord"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true)
+//        Image(Config.IMAGES["viewRecord"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true)
     )
     private val hospitalButtons = arrayOf(Button("Authorize Hospital"), Button("View Hospitals"))
     private val hospitalImages = arrayOf(
@@ -28,7 +28,7 @@ object MainMenuPane : BorderPane() {
 //        Image(Config.IMAGES["removeHospital"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true),
         Image(Config.IMAGES["viewHospitals"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true)
     )
-    private val validatorButtons = arrayOf(Button("Add Validator"), Button("Vote Validator"), Button("View Validators"))
+    private val validatorButtons = arrayOf(Button("Add Authority"), Button("Vote Authority"), Button("View Authorities"))
     private val validatorImages = arrayOf(
         Image(Config.IMAGES["addValidator"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true),
         Image(Config.IMAGES["voteValidator"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true),
@@ -47,7 +47,7 @@ object MainMenuPane : BorderPane() {
         val tabs = arrayOf(
             Tab("User Tool", userContainer),
             Tab("Hospital Tool", hospitalContainer),
-            Tab("Validator Tool", validatorContainer)
+            Tab("Authority Tool", validatorContainer)
         )
         tabs.forEach { it.closableProperty().set(false) }
         val tabPane = TabPane(*tabs)
@@ -97,11 +97,11 @@ object MainMenuPane : BorderPane() {
             SceneManager.showScanScene(ScanPane.TYPE.SECRET_KEY)
         }
 
-        userButtons[2].setOnAction {
-            //SCAN USER KEY -> SEARCH BLOCKCHAIN -> GET RECORD
-            ScanPane.isViewOnly = true
-            SceneManager.showScanScene(ScanPane.TYPE.PUBLIC_KEY)
-        }
+//        userButtons[2].setOnAction {
+//            //SCAN USER KEY -> SEARCH BLOCKCHAIN -> GET RECORD
+//            ScanPane.isViewOnly = true
+//            SceneManager.showScanScene(ScanPane.TYPE.PUBLIC_KEY)
+//        }
     }
 
     private fun hospitalCallbacks() {

@@ -48,10 +48,18 @@ object SceneManager {
     private fun showScene(scene: Scene) {
         if (stage == null)
             return
-
-        stage!!.hide()
         stage!!.scene = scene
-        stage!!.show()
+        if(!stage!!.isShowing)
+            stage!!.show()
+        maximize((scene != addHospitalScene && scene != logInScene && scene != addRemoveValidatorScene))
+    }
+
+    private fun maximize(maximize : Boolean) {
+        stage!!.isMaximized = false
+        if(maximize)
+            stage!!.isMaximized = true
+        else
+            stage!!.sizeToScene()
     }
 
     fun showLogInScene() {

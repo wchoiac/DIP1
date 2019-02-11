@@ -61,6 +61,7 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
         decideEditable()
         if(isViewOnly) cancelButton.text = "Back To Menu"
         name.prefColumnCount = 50
+        listView.fixedCellSize = 50.0
         identification.prefColumnCount = 50
         errorLabel.visibleProperty().set(false)
         connectComponents()
@@ -80,8 +81,7 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
 
     private fun fillUpData() {
         try {
-            val gson = Gson()
-            if(allRecordsTimestamp!!.size != keyTime.timeList.size) {
+            if(!keyTime.timeList.contains(allRecordsTimestamp!!.last())) {
                 Platform.runLater{
                     val timestampStr = allRecordsTimestamp!!.toList().toString()
                     QRCodePane.drawQRCode(timestampStr)
@@ -89,6 +89,7 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
                 }
                 return
             }
+            val gson = Gson()
             for (i in 0 until allRecordsTimestamp!!.size) {
                 for (j in 0 until keyTime.timeList.size) {
                     if (allRecordsTimestamp!![i] == keyTime.timeList[j]) {
@@ -151,7 +152,7 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
             .body("""[
                 $sb
             ]""".replace("\\s".toRegex(), ""), Charsets.UTF_8).responseString()
-//        println(response)
+
         return if(response.second.statusCode == 200) {
             val resultList = mutableListOf<String>()
             val resultArr = Parser().parse(StringBuilder(response.third.component1()!!)) as JsonArray<*>

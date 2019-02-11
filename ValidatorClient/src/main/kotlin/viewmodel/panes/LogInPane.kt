@@ -1,5 +1,7 @@
 package viewmodel.panes
 
+import com.beust.klaxon.JsonObject
+import com.beust.klaxon.Parser
 import com.github.kittinunf.fuel.core.FuelManager
 import com.github.kittinunf.fuel.httpPost
 import javafx.event.Event
@@ -17,7 +19,6 @@ import viewmodel.Config
 import viewmodel.SceneManager
 import java.io.BufferedInputStream
 import java.io.File
-import java.nio.file.Paths
 import java.security.KeyStore
 import java.security.cert.CertificateFactory
 import kotlin.text.Charsets.UTF_8
@@ -32,7 +33,7 @@ object LogInPane : BorderPane() {
     private val certInvisibleLabel = Label("")
     private val certificateLabel = Label("Certificate")
     private val certificateBtn = Button("Import Certificate")
-    private var certFile = Paths.get(Config.CERT_URL.toURI()).toFile()
+    private var certFile : File? = null
     private val certFileLabel = Label("")
     private val usernameLabel = Label("Username")
     private val username = TextField()
@@ -42,20 +43,27 @@ object LogInPane : BorderPane() {
     private val submitBtn = Button("Sign In")
 
     init {
+        val file = this.javaClass.classLoader.getResource("savedLoginInfo.txt")?.file
+        if(file != null) {
+            val fileText = File(file).readText(UTF_8)
+            val jsonObj = Parser().parse(StringBuilder(fileText)) as JsonObject
+            certFile = File(jsonObj["certUrl"] as String)
+            if(!certFile!!.exists()) certFile = null
+            certFileLabel.text = certFile?.name ?: ""
+            certInvisibleLabel.text = certFile?.name ?: ""
+            ip.text = jsonObj["ipAddress"] as String
+            ssl.isSelected = jsonObj["secured"] as Boolean
+            username.text = jsonObj["username"] as String
+            password.text = jsonObj["password"] as String
+        }
         container.alignment = Pos.CENTER
         ip.promptText = "API IP Address"
         username.promptText = "Username"
         password.promptText = "Password"
-        ip.text = "25.30.118.78"
-        ssl.isSelected = true
-        certFileLabel.text = certFile.name
-        certInvisibleLabel.text = certFile.name
         invalidWarning.visibleProperty().value = false
         connectComponents()
         styleComponents()
         setCallbacks()
-        username.text = "root"
-        password.text = "1234"
     }
 
     private fun connectComponents() {
@@ -99,7 +107,7 @@ object LogInPane : BorderPane() {
         certificateBtn.setOnAction {
             val fc = FileChooser()
             fc.title = "Import Certificate"
-            fc.initialDirectory = File(System.getProperty("user.home"))
+            fc.initialDirectory = File("./src/main/resources")
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("cer files", "*.cer"))
             val file = fc.showOpenDialog(SceneManager.stage)
@@ -135,7 +143,7 @@ object LogInPane : BorderPane() {
                     val keyStore = FuelManager.instance.keystore!!
                     keyStore.load(null)
                     if(certFile != null) {
-                        val fis = certFile.inputStream()
+                        val fis = certFile!!.inputStream()
                         val bis = BufferedInputStream(fis)
                         val cf = CertificateFactory.getInstance("X.509")
                         while (bis.available() > 0) {
@@ -145,20 +153,29 @@ object LogInPane : BorderPane() {
                         bis.close()
                     }
 
-                    Config.BASE_URL = "http${if(ssl.isSelected) "s" else ""}://$ip:443/api"
+                    Config.BASE_URL = "http${if(ssl.isSelected) "s" else ""}://$ip/api"
                     val currentTime = System.currentTimeMillis()
                     val response = "${Config.BASE_URL}/user/login"
                         .httpPost()
                         .header(mapOf("Content-Type" to "application/json; charset=utf-8"))
                         .body("""{"username":"$username","password":"$password"}""", UTF_8)
-                        .timeout(1000)
+                        .timeout(2000)
                         .responseString()
 
                     if(response.third.component1() != null && response.third.component1() != "") {
                         invalidWarning.visibleProperty().value = false
+                        val file = File("./src/main/resources/savedLoginInfo.txt")
+                        file.writeText("""{
+                            "certUrl": "${certFile?.absolutePath?.replace('\\', '/')}",
+                            "secured": ${ssl.isSelected}
+                            "ipAddress": "$ip",
+                            "username": "$username",
+                            "password": "$password"
+                        }""".replace("\\s".toRegex(), ""), UTF_8)
                         Helper.token = response.third.component1()!!
                         SceneManager.showMainMenuScene()
                     } else {
+                        println(response)
                         invalidWarning.visibleProperty().value = true
                         invalidWarning.text =
                                 if(System.currentTimeMillis() - currentTime > 500) Config.TIMEOUT else Config.WRONG_WARNING

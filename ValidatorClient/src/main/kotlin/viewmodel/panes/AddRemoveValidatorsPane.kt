@@ -136,13 +136,17 @@ object AddRemoveValidatorsPane : BorderPane() {
                     } else {
                         println(response)
                     }
-                    SceneManager.showMainMenuScene()
+                    toMainMenu()
                 }
             }
         }
 
         backButton.setOnAction {
-            SceneManager.showMainMenuScene()
+            toMainMenu()
         }
+    }
+
+    private fun toMainMenu() {
+        SceneManager.showMainMenuScene()
     }
 }
