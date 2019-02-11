@@ -111,7 +111,7 @@ public class FullNodeInitializer {
 
             Console console = System.console();
 
-            KeyStore signingKeyStore= KeyStore.getInstance("JKS");
+            KeyStore signingKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             signingKeyStore.load(null);
             char[] signingKeyStorePassword;
 
@@ -172,7 +172,7 @@ public class FullNodeInitializer {
             Console console = System.console();
 
 
-            KeyStore signingKeyStore= KeyStore.getInstance("JKS");
+            KeyStore signingKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             char[] signingKeyStorePassword;
 
             ECPublicKey signingPublicKey;
@@ -205,7 +205,7 @@ public class FullNodeInitializer {
 
 
 
-            KeyStore apiKeyStore = KeyStore.getInstance("JKS");
+            KeyStore apiKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             apiKeyStore.load(null);
             char[] apiKeyStorePassword;
 
@@ -293,7 +293,7 @@ public class FullNodeInitializer {
             Console console = System.console();
 
 
-            KeyStore signingKeyStore= KeyStore.getInstance("JKS");
+            KeyStore signingKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             char[] signingKeyStorePassword;
 
             ECPublicKey signingPublicKey;
@@ -325,7 +325,7 @@ public class FullNodeInitializer {
             }
 
 
-            KeyStore connectionKeyStore = KeyStore.getInstance("JKS");
+            KeyStore connectionKeyStore = KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
             connectionKeyStore.load(null);
             char[] connectionKeyStorePassword;
 
@@ -392,7 +392,7 @@ public class FullNodeInitializer {
         }
     }
 
-    public static void genesisLoad() throws IOException, ClassNotFoundException, BlockChainObjectParsingException, FileCorruptionException {
+    public static void genesisLoad() throws IOException, BlockChainObjectParsingException, FileCorruptionException {
         // create index file with the genesisfile
         if (!Configuration.GENESISBLOCK_FILE.exists()) {
 
@@ -441,11 +441,11 @@ public class FullNodeInitializer {
         blockHeaderFile.createNewFile();
         blockContentFile.createNewFile();
 
-        try (FileOutputStream os = new FileOutputStream(blockHeaderFile);) {
+        try (FileOutputStream os = new FileOutputStream(blockHeaderFile)) {
             os.write(block.getHeader().getRaw());
         }
 
-        try (FileOutputStream os = new FileOutputStream(blockContentFile);) {
+        try (FileOutputStream os = new FileOutputStream(blockContentFile)) {
             os.write(block.getContent().getRaw());
 
         }
@@ -488,7 +488,7 @@ public class FullNodeInitializer {
 
         if (!blockFolder.exists())
             blockFolder.mkdirs();
-        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile));) {
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(chainInfoFile))) {
             bos.write(block.getHeader().getPrevHash());
             bos.write(1); //true
         }
@@ -500,7 +500,7 @@ public class FullNodeInitializer {
         if (!Configuration.BLOCKCHAIN_DATA_FOLDER.exists()) {
             Configuration.BLOCKCHAIN_DATA_FOLDER.mkdirs();
         }
-        try (FileOutputStream os = new FileOutputStream(Configuration.BEST_CHAIN_FILE);) {
+        try (FileOutputStream os = new FileOutputStream(Configuration.BEST_CHAIN_FILE)) {
             os.write(status.getRaw());
         }
     }

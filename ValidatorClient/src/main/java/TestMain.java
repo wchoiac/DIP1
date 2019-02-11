@@ -13,6 +13,7 @@ import pojo.PatientInfoContentPojo;
 import pojo.PatientInfoPojo;
 import pojo.PatientShortInfoPojo;
 import general.utility.Utility;
+import viewmodel.Config;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -131,7 +132,7 @@ public class TestMain {
 
         // signature would be done on hash(timestamp + encrypted patient info)
         byte[] signatureCoverage = Utility.mergeByteArrays(timestampBytes, patientInfo);
-        byte[] signature = SecurityHelper.createECDSASignatureWithContent(ecPrivateKey, signatureCoverage, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
+        byte[] signature = SecurityHelper.createRawECDSASignatureWithContent(ecPrivateKey, signatureCoverage, Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE,Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
 
 
         validatorRestClient.registerPatientInfo(timestamp, ecPublicKey, patientInfo, signature,false);
@@ -165,7 +166,7 @@ public class TestMain {
 
             // signature would be done on hash(timestamp + encrypted patient info)
             byte[] signatureCoverage = Utility.mergeByteArrays(timestampBytes, patientInfo);
-            byte[] signature = SecurityHelper.createECDSASignatureWithContent((ECPrivateKey) testPatientKeyPair.getPrivate(), signatureCoverage, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
+            byte[] signature = SecurityHelper.createRawECDSASignatureWithContent((ECPrivateKey) testPatientKeyPair.getPrivate(), signatureCoverage, Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE, Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH);
 
 
             validatorRestClient.registerPatientInfo(timestamp, (ECPublicKey) testPatientKeyPair.getPublic(), patientInfo, signature,false);

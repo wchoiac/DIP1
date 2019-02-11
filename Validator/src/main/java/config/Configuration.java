@@ -7,6 +7,9 @@ import java.io.File;
 
 public class Configuration {
 
+
+    public static final String KEYSTORE_TYPE = "pkcs12"; // default of java
+
     public static final File AUTHENTICATION_FOLDER =new File("auth");
 
     public static final File SIGNING_KEYSTORE_FILE = new File(AUTHENTICATION_FOLDER,"signingKeyStore.keystore"); // for validating blocks and issuing other certs
@@ -68,7 +71,7 @@ public class Configuration {
     public static final String BLOCKCHAIN_SIGNATURE_ALGORITHM ="SHA256withECDSA";
     public static final String BLOCKCHAIN_HASH_ALGORITHM ="SHA-256";
     public static final int ELIPTIC_CURVE_COORDINATE_LENGTH=32;
-    ;
+    public static final int CHECK_POINT_BLOCK_INTERVAL =30000;
     //block setting
     public static final int MAX_RECORD = 5000;
     public static final int MAX_AUTHORIZATION = 10;
@@ -82,18 +85,18 @@ public class Configuration {
     public static final int IDENTIFIER_LENGTH=20;
     public static final int RAW_PUBLICKEY_LENGTH=33;
 
-        // patient info setting
-        public static final byte INITIAL_AUTHORITIES_BIT_POSITION=0;
-        public static final byte VOTE_BIT_POSITION=1;
-        public static final byte AUTHORIZATION_BIT_POSITION=2;
-        public static final byte REVOCATION_BIT_POSITION=3;
-        public static final byte PATIENT_REGISTRATION_BIT_POSITION=4;
-        public static final byte TRANSACTION_BIT_POSITION=5;
+    public static final byte INITIAL_AUTHORITIES_BIT_POSITION=0;
+    public static final byte VOTE_BIT_POSITION=1;
+    public static final byte AUTHORIZATION_BIT_POSITION=2;
+    public static final byte REVOCATION_BIT_POSITION=3;
+    public static final byte PATIENT_REGISTRATION_BIT_POSITION=4;
+    public static final byte TRANSACTION_BIT_POSITION=5;
 
     //node setting
     public static final int MAX_OUT_BOUND_CONNECTION= 5;
     public static final int MAX_IN_BOUND_CONNECTION= 100;
     public static final int MAX_HEADER_NUMBER_PER_REQUEST=1000;
+    public static final int MAX_HASH_LOCATOR_LENGTH=1000;
 
     //message number
     public static final byte MESSAGE_STATUS=0;
@@ -101,7 +104,7 @@ public class Configuration {
     public static final byte MESSAGE_HEADER_REQUEST=2;
     public static final byte MESSAGE_BLOCK_REQUEST=3;
     public static final byte MESSAGE_PEER_NODE_LIST=4;
-    public static final byte MESSAGE_HEADER_LIST=5;
+    public static final byte MESSAGE_HEADER_REQUEST_REPLY=5;
     public static final byte MESSAGE_TRANSACTION=6;
     public static final byte MESSAGE_BLOCK=7;
 

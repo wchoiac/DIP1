@@ -7,6 +7,8 @@ import config.Configuration;
 import general.utility.GeneralHelper;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Objects;
 
 public class Status implements Raw{
 
@@ -66,5 +68,21 @@ public class Status implements Raw{
             throw new BlockChainObjectParsingException();
 
         return status;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Status status = (Status) o;
+        return totalScore == status.totalScore &&
+                Arrays.equals(latestBlockHash, status.latestBlockHash);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(totalScore);
+        result = 31 * result + Arrays.hashCode(latestBlockHash);
+        return result;
     }
 }

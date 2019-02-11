@@ -1,7 +1,10 @@
 package rest.server.resource;
 
+import blockchain.manager.BlockChainManager;
+import blockchain.manager.datastructure.RecordShortInfo;
 import exception.BlockChainObjectParsingException;
 import exception.FileCorruptionException;
+import general.utility.GeneralHelper;
 import org.glassfish.grizzly.http.server.Request;
 import rest.pojo.*;
 import rest.server.FullNodeRestServer;
@@ -41,16 +44,17 @@ public class FullNodeResource {
         try {
             token = FullNodeRestServer.getRunningServer().getAPIResolver().apiLogin(userInfoPojo);
         } catch (IOException e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (BadRequest e) {
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         } catch (InvalidUserInfo e) {
-            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ": login fail " + userInfoPojo.getUsername());
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: UNAUTHORIZED\n"+" login fail due to invalid input" + userInfoPojo.getUsername());
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
 
-        FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ": login success(" + userInfoPojo.getUsername() + ")");
+        FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK\nlogin success(" + userInfoPojo.getUsername() + ")");
         return Response.ok(token,MediaType.TEXT_PLAIN).build();
 
     }
@@ -66,7 +70,7 @@ public class FullNodeResource {
      * transaction id:
      * hash of the transaction
      *
-     * To note, signature = signature( GeneralHelper.longToBytes(getTimestamp()) | encryptedRecord|medicalOrgIdentifier ) ), "|" means concatenate
+     * To note, signature = signature( GeneralHelper.longToBytes(getTimestamp()) | encryptedRecord | medicalOrgIdentifier ), "|" means concatenate
      */
 
     @PUT
@@ -74,18 +78,23 @@ public class FullNodeResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("record/add-transaction")
-    public Response addTransaction(TransactionPojo transactionPojo) {
+    public Response addTransaction(@Context Request request, TransactionPojo transactionPojo) {
 
 
         try {
-            return Response.ok(new ByteArrayWrapper(FullNodeRestServer.getRunningServer().getAPIResolver().addTransaction(transactionPojo))
-                    , MediaType.APPLICATION_JSON).build();
+            ByteArrayWrapper result =new ByteArrayWrapper(FullNodeRestServer.getRunningServer().getAPIResolver().addTransaction(transactionPojo));
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(result, MediaType.APPLICATION_JSON).build();
         } catch ( FileCorruptionException|BlockChainObjectParsingException | IOException  e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (BadRequest e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch(Exception e)
+        {
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
+            return Response.serverError().build();
         }
 
     }
@@ -98,22 +107,28 @@ public class FullNodeResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("record/get-record-short-info-list")
-    public Response getRecordShortInfoList(ByteArrayWrapper byteArrayWrapper) {
+    public Response getRecordShortInfoList(@Context Request request, ByteArrayWrapper byteArrayWrapper) {
 
 
         try {
-            return Response.ok(FullNodeRestServer.getRunningServer().getAPIResolver().getRecordShortInfoList(byteArrayWrapper.getContent())
-                    , MediaType.APPLICATION_JSON).build();
+
+            ArrayList<RecordShortInfoPojo> recordShortInfoPojos =FullNodeRestServer.getRunningServer().getAPIResolver().getRecordShortInfoList(byteArrayWrapper.getContent());
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(recordShortInfoPojos, MediaType.APPLICATION_JSON).build();
 
         } catch (BlockChainObjectParsingException|IOException e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (InvalidKeySpecException|BadRequest e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         } catch (NotFound e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.NOT_FOUND).build(); //patient doesn't exist
+        } catch(Exception e)
+        {
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
+            return Response.serverError().build();
         }
 
     }
@@ -128,21 +143,27 @@ public class FullNodeResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("record/get-record-contents-list")
-    public Response getRecordContentsList(ArrayList<LocationPojo> locationPojos) {
+    public Response getRecordContentsList( @Context Request request,ArrayList<LocationPojo> locationPojos) {
 
 
         try {
-            return Response.ok(FullNodeRestServer.getRunningServer().getAPIResolver().getRecordContentsList(locationPojos)
-                    , MediaType.APPLICATION_JSON).build();
+
+            ArrayList<RecordContentPojo> recordContentPojos =FullNodeRestServer.getRunningServer().getAPIResolver().getRecordContentsList(locationPojos);
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(recordContentPojos, MediaType.APPLICATION_JSON).build();
         } catch (IOException|BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (NotFound e) {
-            e.printStackTrace(); // patient not found
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.NOT_FOUND).build();
         } catch (BadRequest e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch(Exception e)
+        {
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
+            return Response.serverError().build();
         }
 
     }
@@ -157,21 +178,27 @@ public class FullNodeResource {
     // [{"location":{"blockHash": <Block hash - byte array>,"targetIdentifier":<Target hash - byte array>}, "timestamp": <Timestamp in millisecond (POSIX time)- long>},...]
     @Consumes(MediaType.APPLICATION_JSON) // {"content": <Patient's identifier - byte array>}
     @Path("patient/get-patient-short-info-list")
-    public Response getPatientShortInfoList(ByteArrayWrapper wrapper) {
+    public Response getPatientShortInfoList(@Context Request request, ByteArrayWrapper wrapper) {
 
 
         try {
-            return Response.ok(FullNodeRestServer.getRunningServer().getAPIResolver().getPatientShortInfoList(wrapper.getContent())
-                    , MediaType.APPLICATION_JSON).build();
+
+            ArrayList<PatientShortInfoPojo> patientShortInfoPojos =FullNodeRestServer.getRunningServer().getAPIResolver().getPatientShortInfoList(wrapper.getContent());
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(patientShortInfoPojos, MediaType.APPLICATION_JSON).build();
         } catch (IOException | BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (BadRequest e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
         } catch (NotFound e) {
-            e.printStackTrace(); // patient not found
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.NOT_FOUND).build();
+        } catch(Exception e)
+        {
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
+            return Response.serverError().build();
         }
 
 
@@ -185,21 +212,26 @@ public class FullNodeResource {
     @Produces(MediaType.APPLICATION_JSON) // {"encryptedInfo": <Encrypted patient information - byte array>}
     @Consumes(MediaType.APPLICATION_JSON)
     // [{"location":{"blockHash": <Block hash - byte array>,"targetIdentifier":<Target hash - byte array>},....]
-    @Path("patient/get-patient-info-content-list")
-    public Response getPatientInfoContentsList(ArrayList<LocationPojo> locationPojos) {
+    @Path("patient/get-patient-info-contents-list")
+    public Response getPatientInfoContentsList(@Context Request request, ArrayList<LocationPojo> locationPojos) {
 
         try {
-            return Response.ok(FullNodeRestServer.getRunningServer().getAPIResolver().getPatientInfoContentsList(locationPojos)
-                    , MediaType.APPLICATION_JSON).build();
+            ArrayList<PatientInfoContentPojo> patientInfoContentPojos =FullNodeRestServer.getRunningServer().getAPIResolver().getPatientInfoContentsList(locationPojos);
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+            return Response.ok(patientInfoContentPojos, MediaType.APPLICATION_JSON).build();
         } catch (IOException | BlockChainObjectParsingException e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
             return Response.serverError().build();
         } catch (NotFound e) {
-            e.printStackTrace();// patient not found
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: NOT_FOUND\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.NOT_FOUND).build();
         } catch (BadRequest e) {
-            e.printStackTrace();
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: BAD_REQUEST\n"+GeneralHelper.getStackTrace(e));
             return Response.status(Response.Status.BAD_REQUEST).build();
+        } catch(Exception e)
+        {
+            FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: SERVER_ERROR\n"+GeneralHelper.getStackTrace(e));
+            return Response.serverError().build();
         }
 
 
@@ -212,10 +244,12 @@ public class FullNodeResource {
     @SecuredUserLevel
     @Produces(MediaType.APPLICATION_JSON)
     @Path("medical-org/get-identifier")
-    public Response getMedicalOrgIdentifier() {
+    public Response getMedicalOrgIdentifier(@Context Request request) {
 
-        return Response.ok(new ByteArrayWrapper(FullNodeRestServer.getRunningServer().getAPIResolver().getMedicalOrgIdentifier())
-                , MediaType.APPLICATION_JSON).build();
+
+        ByteArrayWrapper result =new ByteArrayWrapper(FullNodeRestServer.getRunningServer().getAPIResolver().getMedicalOrgIdentifier());
+        FullNodeRestServer.getRunningServer().getAPILogger().info(request.getRemoteAddr() + ":"+"Response: OK");
+        return Response.ok(result, MediaType.APPLICATION_JSON).build();
 
     }
 

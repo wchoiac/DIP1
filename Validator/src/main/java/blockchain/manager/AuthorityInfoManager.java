@@ -44,13 +44,13 @@ public class AuthorityInfoManager {
 
         String authorityIdentifierString = GeneralHelper.bytesToStringHex(authorityInfo.getIdentifier());
 
-        File authorityFolder = new File("data/authority/" + authorityIdentifierString.charAt(0) + "/" + authorityIdentifierString.charAt(1) + "/" + authorityIdentifierString + "/");
+        File authorityFolder = new File(Configuration.AUTHORITY_FOLDER, authorityIdentifierString.charAt(0) + "/" + authorityIdentifierString.charAt(1) + "/" + authorityIdentifierString + "/");
         File untrustFile = new File(authorityFolder, "untrust");
         if (!authorityFolder.exists()) {
             authorityFolder.mkdirs();
         }
 
-        try (FileOutputStream os = new FileOutputStream(untrustFile, true);) {
+        try (FileOutputStream os = new FileOutputStream(untrustFile, true)) {
             os.write(blockHash);
         }
 

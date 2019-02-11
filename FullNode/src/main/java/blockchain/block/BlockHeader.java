@@ -15,7 +15,6 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Objects;
 
 public class BlockHeader implements Raw {
@@ -39,7 +38,7 @@ public class BlockHeader implements Raw {
 		this.setBlockNumber(blockNumber);
 
 		this.setPrevHash(prevHash);
-		this.setTimestamp(new Date().getTime());
+		this.setTimestamp(System.currentTimeMillis());
 		this.setScore(score);
 
 		this.setContentHash(contentHash);
@@ -122,6 +121,20 @@ public class BlockHeader implements Raw {
 
 	public void setTimestamp(long timestamp) {
 		this.timestamp = timestamp;
+	}
+
+	public void changeTimestamp(long timestamp, ECPrivateKey validatorPrivate)
+	{
+		this.setTimestamp(timestamp);
+
+		if(blockNumber!=0) {
+			try {
+				this.setValidatorSignature(SecurityHelper.createRawECDSASignatureWithContent(validatorPrivate, getSignatureCoverage()
+						, Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE,Configuration.ELIPTIC_CURVE_COORDINATE_LENGTH));
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public byte getScore() {

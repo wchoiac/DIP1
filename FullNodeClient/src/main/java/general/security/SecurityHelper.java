@@ -56,7 +56,6 @@ public class SecurityHelper {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    ;
     static final Random random = new SecureRandom();
 
 
@@ -161,7 +160,7 @@ public class SecurityHelper {
 
     // NONEwithECDSA implementation
     // input "hash" not the content
-    public static byte[] createECDSASignatureWithHash(ECPrivateKey signerPrivateKey, byte[] hash, String curveName, int coordinateLength) throws IOException {
+    public static byte[] createECDSASignatureWithHash(ECPrivateKey signerPrivateKey, byte[] hash, String curveName, int coordinateLength) {
 
         ECParameterSpec ecParameterSpec = ECNamedCurveTable.getParameterSpec(curveName);
         ECCurve curve = ecParameterSpec.getCurve();

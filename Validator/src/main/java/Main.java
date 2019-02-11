@@ -33,7 +33,7 @@ public class Main {
 
 
 
-        KeyStore signingKeyStore= KeyStore.getInstance("JKS");
+        KeyStore signingKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
         char[] signingKeyStorePassword;
         while(true) {
             try {
@@ -55,7 +55,7 @@ public class Main {
         }
 
 
-        KeyStore connectionKeyStore= KeyStore.getInstance("JKS");
+        KeyStore connectionKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
         char[] connectionKeyStorePassword;
         while(true) {
             try {
@@ -94,7 +94,7 @@ public class Main {
             }
         }
 
-        KeyStore apiKeyStore= KeyStore.getInstance("JKS");
+        KeyStore apiKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
         char[] apiKeyStorePassword;
         while(true) {
             try {
@@ -110,7 +110,6 @@ public class Main {
             }
             catch (Exception e)
             {
-                e.printStackTrace();
                 System.out.println("Wrong Password");
                 continue;
             }
@@ -126,8 +125,10 @@ public class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(()-> { {
 
             try {
+                System.out.println("shutdown from main start");
                 validator.shutdown();
                 restServer.shutdown();
+                System.out.println("shutdown from main end");
             } catch (Exception e) {
                 e.printStackTrace();
             }

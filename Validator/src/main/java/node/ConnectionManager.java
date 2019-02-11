@@ -1,12 +1,6 @@
 package node;
 
-import blockchain.Status;
-import blockchain.block.Block;
-import blockchain.block.BlockHeader;
-import blockchain.block.transaction.Transaction;
-import blockchain.utility.RawTranslator;
 import config.Configuration;
-import exception.BlockChainObjectParsingException;
 import exception.InvalidBlockChainMessageException;
 
 import javax.net.ssl.SSLSocket;
@@ -19,6 +13,7 @@ public class ConnectionManager {
     private final DataInputStream is;
     private SSLSocket socket;
     private boolean isConfirmed;
+    private boolean isClosed=false;
 
     public boolean isConfirmed() {
         return isConfirmed;
@@ -44,21 +39,35 @@ public class ConnectionManager {
         this.os = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
         this.is = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         this.isConfirmed =isConfirmed;
+        this.isClosed=false;
     }
 
     public void close(){
-        if(!socket.isClosed()) {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+
+       if(!isClosed())
+       {
+           try {
+               try {
+                   is.close();
+               } finally {
+                   try {
+                       os.close();
+                   } finally {
+                       socket.close();
+                   }
+               }
+           }
+           catch (Exception e)
+           {
+               e.printStackTrace();
+           }
+           isClosed=true;
+       }
     }
 
     public boolean isClosed()
     {
-        return socket.isClosed();
+        return isClosed;
     }
 
 
@@ -122,7 +131,7 @@ public class ConnectionManager {
                 break;
             case Configuration.MESSAGE_PEER_NODE_LIST:
                 break;
-            case Configuration.MESSAGE_HEADER_LIST:
+            case Configuration.MESSAGE_HEADER_REQUEST_REPLY:
                 break;
             case Configuration.MESSAGE_TRANSACTION:
                 break;

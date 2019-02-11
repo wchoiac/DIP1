@@ -4,6 +4,8 @@ import blockchain.block.Block;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -180,5 +182,10 @@ public class GeneralHelper {
         System.out.println(bytesToBase64UrlString(a));
         System.out.println(Arrays.equals(bytesFromBase64UrlString(bytesToBase64UrlString(a)), a));
 
+    }
+    public static String getStackTrace(Throwable e) {
+        StringWriter stringWriter = new StringWriter();
+        e.printStackTrace(new PrintWriter(stringWriter));
+        return stringWriter.toString();
     }
 }

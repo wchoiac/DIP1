@@ -5,6 +5,7 @@ import blockchain.Status;
 import blockchain.block.*;
 import blockchain.block.transaction.Transaction;
 import blockchain.internal.ChainInfo;
+import blockchain.internal.MedicalOrgInfoForInternal;
 import blockchain.manager.*;
 import blockchain.manager.datastructure.Location;
 import blockchain.manager.datastructure.PatientShortInfo;
@@ -12,15 +13,13 @@ import blockchain.manager.datastructure.RecordShortInfo;
 import blockchain.utility.BlockChainSecurityHelper;
 import blockchain.utility.RawTranslator;
 import config.Configuration;
-import exception.BlockChainObjectParsingException;
-import exception.FileCorruptionException;
-import exception.InvalidBlockChainException;
-import exception.InvalidBlockChainMessageException;
+import exception.*;
 import general.security.SecurityHelper;
 import general.utility.GeneralHelper;
 import node.ConnectionManager;
 import node.Message;
 import node.PeerInfo;
+import rest.server.FullNodeRestServer;
 
 import javax.net.ssl.*;
 import java.io.ByteArrayOutputStream;
@@ -44,7 +43,6 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 
-
 public class FullNode {
 
 
@@ -59,13 +57,13 @@ public class FullNode {
 
     //better chain greater total score
 
-    private static FullNode runningFullNode =null;
+    private static FullNode runningFullNode = null;
 
-    private Logger blockChainLogger=Logger.getLogger(FullNode.class.getName());;
+    private Logger blockChainLogger = Logger.getLogger(FullNode.class.getName());
 
     //for any full node
-    private SSLServerSocketFactory  sslServerSocketFactory;
-    private SSLSocketFactory  sslSocketFactory;
+    private SSLServerSocketFactory sslServerSocketFactory;
+    private SSLSocketFactory sslSocketFactory;
     private int port;
     private ECPrivateKey myPrivateKey;
     private ECPublicKey myPublicKey;
@@ -75,77 +73,74 @@ public class FullNode {
     private final BlockChain myMainChain = new BlockChain();
 
     private SSLServerSocket serverSocket;
-    private final ArrayList<PeerInfo> outBoundConnectionTobeRemoved= new ArrayList<>();
-    private final ArrayList<PeerInfo> inBoundConnectionTobeRemoved=new ArrayList<>();
-    private final LinkedHashMap<PeerInfo, ConnectionManager> outBoundConnectionList = new  LinkedHashMap<>();
-    private final LinkedHashMap<PeerInfo,ConnectionManager> inBoundConnectionList = new LinkedHashMap<>();
+    private final ArrayList<PeerInfo> outBoundConnectionTobeRemoved = new ArrayList<>();
+    private final ArrayList<PeerInfo> inBoundConnectionTobeRemoved = new ArrayList<>();
+    private final LinkedHashMap<PeerInfo, ConnectionManager> outBoundConnectionList = new LinkedHashMap<>();
+    private final LinkedHashMap<PeerInfo, ConnectionManager> inBoundConnectionList = new LinkedHashMap<>();
 
 
     private ArrayList<ArrayList<BlockHeader>> pendingHeadersList = new ArrayList<>();
     private ArrayList<BlockHeader> toBeRequestedHeaders = new ArrayList<>();
     private final ArrayList<BlockHeader> requestedHeaders = new ArrayList<>();
     private BlockHeader latestBlockHeaderRequested = null;
-    private HashMap<BlockHeader,RequestInfo> requestedHeaderMap = new HashMap<>(); // for re-transmission
+    private HashMap<BlockHeader, RequestInfo> requestedHeaderMap = new HashMap<>(); // for re-transmission
     private ArrayList<InetAddress> potentialPeerPool = new ArrayList<>();
 
     private final ArrayList<Transaction> transactionPool = new ArrayList<>();
     private final ArrayList<Block> orphanBlockList = new ArrayList<>();
 
-    private boolean isTerminated=false;
+    private boolean isTerminated = false;
 
     private Random rand = new Random();
 
-    private long lastBroadCastHeadersRequestTime=-1;
+    private long lastBroadCastHeadersRequestTime = -1;
 
     // Lock
-    public static final ReentrantReadWriteLock chainInfoFilesLock=new ReentrantReadWriteLock();
+    public static final ReentrantReadWriteLock chainInfoFilesLock = new ReentrantReadWriteLock();
 
     private final ReentrantReadWriteLock transactionLock = new ReentrantReadWriteLock();
-    private final ReentrantReadWriteLock myChainLock=new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock myChainLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock pendingHeadersListLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock toBeRequestedHeadersLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock requestedHeaderLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock orphanBlockLock = new ReentrantReadWriteLock();
-    private final ReentrantReadWriteLock potentialPeerLock=new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock potentialPeerLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock connectionLock = new ReentrantReadWriteLock();
 
-    private class RequestInfo{
+    private class RequestInfo {
 
         long timeRequested;
         long timeFirstRequested;
         int sentToIndex;
 
-        private RequestInfo(int sentToIndex, long timeRequested)
-        {
-            this.sentToIndex=sentToIndex;
+        private RequestInfo(int sentToIndex, long timeRequested) {
+            this.sentToIndex = sentToIndex;
             this.timeRequested = timeRequested;
-            this.timeFirstRequested=timeRequested;
+            this.timeFirstRequested = timeRequested;
         }
     }
 
-    public static FullNode create(KeyStore connectionKeyStore, char[] connectionKeyStorePassword,KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName) throws Exception {
-        return new FullNode(connectionKeyStore,connectionKeyStorePassword,signingKeyStore,signingKeyStorePassword
-                ,port,logFileName);
+    public static FullNode create(KeyStore connectionKeyStore, char[] connectionKeyStorePassword, KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName) throws Exception {
+        return new FullNode(connectionKeyStore, connectionKeyStorePassword, signingKeyStore, signingKeyStorePassword
+                , port, logFileName);
     }
 
-    public static FullNode getRunningFullNode()
-    {
+    public static FullNode getRunningFullNode() {
         return runningFullNode;
     }
 
 
-    public Logger getBlockChainLogger()
-    {
+    public Logger getBlockChainLogger() {
         return blockChainLogger;
     }
 
     public void start(InetAddress[] initialPeerNodes) throws Exception {
 
-        if(runningFullNode ==null) {
+        if (runningFullNode == null) {
 
-            runningFullNode =this;
+            runningFullNode = this;
 
-            if(initialPeerNodes!=null)
+            if (initialPeerNodes != null)
                 connectWithPeers(initialPeerNodes);
 
             startAcceptingConnectionRequest(port); //## for debug
@@ -160,22 +155,21 @@ public class FullNode {
             startRequestingBlocksAndBlockHeaders();
             System.out.println("startRequestingBlockHeaders called");//## for debug
 
-        }
-        else if(runningFullNode ==this){
+        } else if (runningFullNode == this) {
             return;
-        }
-        else
-        {
+        } else {
             throw new Exception("A full node is already running, please shutdown the running full node to start it");
         }
     }
 
     public boolean shutdown() {
         if (runningFullNode == this) {
+            System.out.println("shutdown from full node start");
             ReadLock readMyChainLock = myChainLock.readLock();
             readMyChainLock.lock();
             isTerminated = true;
             readMyChainLock.unlock();
+            System.out.println("shutdown from full node end");
             runningFullNode = null;
             return true;
         } else {
@@ -184,7 +178,7 @@ public class FullNode {
     }
 
 
-    private FullNode(KeyStore connectionKeyStore, char[] connectionKeyStorePassword,KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName) throws Exception {
+    private FullNode(KeyStore connectionKeyStore, char[] connectionKeyStorePassword, KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName) throws Exception {
         this.port = port;
 
         KeyStore.PrivateKeyEntry entry = (KeyStore.PrivateKeyEntry) signingKeyStore.getEntry(Configuration.SIGNING_KEYSTORE_ALIAS, new KeyStore.PasswordProtection(signingKeyStorePassword));
@@ -214,11 +208,12 @@ public class FullNode {
     //cert chain = {cert for tls | cert of authority or medical org}
     private void initializeSocketFactories(KeyStore keyStore, char[] password) throws KeyStoreException, UnrecoverableKeyException, NoSuchAlgorithmException, KeyManagementException {
 
-        TrustManager[] trustManagers = new TrustManager[] {
+        TrustManager[] trustManagers = new TrustManager[]{
                 new X509TrustManager() {
                     public X509Certificate[] getAcceptedIssuers() {
                         return new X509Certificate[0];
                     }
+
                     public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException {
 
                         ArrayList<Lock> usingLockList = new ArrayList<>();
@@ -227,12 +222,11 @@ public class FullNode {
                         try {
                             System.out.println("Start checking client's cert");
 
-                            for(X509Certificate cert: certs)
-                            {
+                            for (X509Certificate cert : certs) {
                                 cert.checkValidity();
                             }
 
-                            if(certs.length!=2)
+                            if (certs.length != 2)
                                 throw new CertificateException("Not sufficient chain length");
 
                             if (certs[1].getPublicKey().equals(myPublicKey))
@@ -242,7 +236,7 @@ public class FullNode {
                                 throw new CertificateException("The certificate is for signing");
 
                             GeneralHelper.lockForMe(usingLockList, myChainReadLock);
-                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert((X509Certificate) certs[1]);
+                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);
                             boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);
                             AuthorityInfo issuerInfo = null;
                             if (hasIssuedAuthority)
@@ -266,21 +260,16 @@ public class FullNode {
                                 throw new CertificateException("The signing cert's issuer is not a valid authority");
 
                             System.out.println("Finished checking client's cert");
-                        }
-                        catch (CertificateException e)
-                        {
+                        } catch (CertificateException e) {
                             throw e;
-                        }
-                        catch (Exception e)
-                        {
+                        } catch (Exception e) {
                             throw new CertificateException("Not valid chain");
-                        }
-                        finally {
+                        } finally {
                             GeneralHelper.unLockForMe(usingLockList);
                         }
                     }
 
-                    public void checkServerTrusted (X509Certificate[] certs, String authType) throws CertificateException {
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException {
 
                         ArrayList<Lock> usingLockList = new ArrayList<>();
                         ReadLock myChainReadLock = myChainLock.readLock();
@@ -302,7 +291,7 @@ public class FullNode {
                                 throw new CertificateException("The certificate is for signing");
 
                             GeneralHelper.lockForMe(usingLockList, myChainReadLock);
-                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert((X509Certificate) certs[1]);
+                            byte[] issuedAuthorityIdentifier = SecurityHelper.getIssuerIdentifierFromX509Cert(certs[1]);
                             boolean hasIssuedAuthority = myMainChain.hasAuthority(issuedAuthorityIdentifier);
                             AuthorityInfo issuerInfo = null;
                             if (hasIssuedAuthority)
@@ -340,40 +329,36 @@ public class FullNode {
         KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance("SunX509");
         keyManagerFactory.init(keyStore, password);
         SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
-        sslContext.init(keyManagerFactory.getKeyManagers(), trustManagers,null);
+        sslContext.init(keyManagerFactory.getKeyManagers(), trustManagers, null);
 
         sslServerSocketFactory = sslContext.getServerSocketFactory();
         sslSocketFactory = sslContext.getSocketFactory();
     }
 
-    private void removeFromConnectionList(PeerInfo peerInfo)
-    {
-        if(peerInfo==null)
+    private void removeFromConnectionList(PeerInfo peerInfo) {
+        if (peerInfo == null)
             return;
 
 
-        if(outBoundConnectionTobeRemoved.contains(peerInfo))
-            outBoundConnectionTobeRemoved.remove(peerInfo);
-        if(inBoundConnectionTobeRemoved.contains(peerInfo))
-            inBoundConnectionTobeRemoved.remove(peerInfo);
+        outBoundConnectionTobeRemoved.remove(peerInfo);
+        inBoundConnectionTobeRemoved.remove(peerInfo);
 
-        ConnectionManager connectionManager=null;
-        if(inBoundConnectionList.containsKey(peerInfo)) {
+        ConnectionManager connectionManager = null;
+        if (inBoundConnectionList.containsKey(peerInfo)) {
             connectionManager = inBoundConnectionList.remove(peerInfo);
             connectionManager.close();
-        }
-        else if(outBoundConnectionList.containsKey(peerInfo))
-        {
+        } else if (outBoundConnectionList.containsKey(peerInfo)) {
             connectionManager = outBoundConnectionList.remove(peerInfo);
             connectionManager.close();
         }
 
-        if(connectionManager!=null) {
+        if (connectionManager != null) {
 
-            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress()+": Successful disconnection");
-            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress()+": Successful disconnection"); //## for debug
+            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Successful disconnection");
+            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Successful disconnection"); //## for debug
         }
     }
+
     private void connectWithPeers(InetAddress[] peers) {
 
 
@@ -382,7 +367,7 @@ public class FullNode {
                 SSLSocket newConnection = (SSLSocket) sslSocketFactory.createSocket(peer, Configuration.NODE_SERVER_PORT);
                 newConnection.setEnabledCipherSuites(Configuration.CONNECTION_TLS_CIPHER_SUITE);
                 newConnection.setSoTimeout(5000);
-                newConnection.addHandshakeCompletedListener((ex)-> {
+                newConnection.addHandshakeCompletedListener((ex) -> {
                             verifyAndHandleConnection(newConnection, true);
                         }
                 );
@@ -400,11 +385,11 @@ public class FullNode {
 
     private void startAcceptingConnectionRequest(int server_port) throws IOException {
 
-        serverSocket = (SSLServerSocket)sslServerSocketFactory.createServerSocket(server_port,500);
+        serverSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(server_port, 500);
         serverSocket.setEnabledCipherSuites(Configuration.CONNECTION_TLS_CIPHER_SUITE);
         serverSocket.setNeedClientAuth(true);
         new Thread(() -> {
-            while(!isTerminated) {
+            while (!isTerminated) {
                 try {
                     SSLSocket newConnection = (SSLSocket) serverSocket.accept();
                     newConnection.setSoTimeout(5000);
@@ -569,7 +554,6 @@ public class FullNode {
         ReadLock readConnectionLock = connectionLock.readLock();
 
 
-
         System.out.println("startHandleConnection entered"); //debug
 
 
@@ -601,7 +585,7 @@ public class FullNode {
             System.out.println("Peer status:\n Score: " + peerStatus.getTotalScore() + "\nLatest block hash: " + GeneralHelper.bytesToStringHex(peerStatus.getLatestBlockHash())); //debug
 
             if (peerStatus.getTotalScore() > myMainChain.getTotalScore()) {
-                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()));
+                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator(null, Configuration.MAX_HASH_LOCATOR_LENGTH)));
             }
             GeneralHelper.unLockForMe(usingLockList);
 
@@ -617,14 +601,12 @@ public class FullNode {
 
                 Message message = connectionManager.read();
                 int messageNumber = message.number;
-                Object content;
+                Object parsedContent;
                 try {
-                    content = message.parse();
-                }
-                catch (BlockChainObjectParsingException ps)
-                {
+                    parsedContent = message.parse();
+                } catch (BlockChainObjectParsingException ps) {
                     ps.printStackTrace();
-                    throw new InvalidBlockChainMessageException(peerAddressString,messageNumber);
+                    throw new InvalidBlockChainMessageException(peerAddressString, messageNumber);
                 }
 
                 System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": message " + messageNumber + " received"); //debug
@@ -643,17 +625,20 @@ public class FullNode {
                             break;
 
                         GeneralHelper.lockForMe(usingLockList, readMyChainLock);
-                        byte[][] hashesFromHashLocator = (byte[][])content;
-                        if (Arrays.equals(myMainChain.getLatestBlockHash(), hashesFromHashLocator[0]))
+                        byte[][] hashLocator = (byte[][]) parsedContent;
+                        if (Arrays.equals(myMainChain.getLatestBlockHash(), hashLocator[0])) {
+                            GeneralHelper.unLockForMe(usingLockList);
                             break;
+                        }
 
                         ByteArrayOutputStream headers = new ByteArrayOutputStream();
-                        for (byte[] hash : hashesFromHashLocator) {
+                        for (byte[] hash : hashLocator) {
                             ChainInfo info = ChainInfoManager.load(hash);
                             if (info == null)
                                 continue;
                             if (info.isBestChain()) {
-                                int i=0;
+                                int i = 0;
+                                headers.write((byte) 0);
                                 byte[] curBlockHash = info.getNextBlockHash();
                                 while (curBlockHash != null && i <= Configuration.MAX_HEADER_NUMBER_PER_REQUEST) {
                                     headers.write(BlockManager.loadBlockHeader(curBlockHash).getRaw());
@@ -666,14 +651,16 @@ public class FullNode {
                         }
                         GeneralHelper.unLockForMe(usingLockList);
 
-                        if (headers.size() == 0)
-                            break;
+                        if (headers.size() == 0) {
+                            headers.write((byte) 1);
+                            headers.write(hashLocator[hashLocator.length - 1]);
+                        }
 
-                        connectionManager.write(new Message(Configuration.MESSAGE_HEADER_LIST, headers.toByteArray()));
+                        connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST_REPLY, headers.toByteArray()));
                         blockChainLogger.info(peerAddressString + ": Sent block headers");
                         break;
                     case Configuration.MESSAGE_BLOCK_REQUEST:  // block request
-                        byte[] blockHash = (byte[]) content;
+                        byte[] blockHash = (byte[]) parsedContent;
 
                         blockChainLogger.info(peerAddressString + ": Received block(" + GeneralHelper.bytesToStringHex(blockHash) + ") request");
 
@@ -688,59 +675,86 @@ public class FullNode {
                         break;
 
                     case Configuration.MESSAGE_PEER_NODE_LIST: //peer node list
-                        InetAddress[] nodes = (InetAddress[])(content);
+                        InetAddress[] receivedAddresses = (InetAddress[]) (parsedContent);
+                        ArrayList<String> newPotentialAddressStrings = new ArrayList<>();
 
-                        blockChainLogger.info(peerAddressString + ": Received peer node list of size" + nodes.length);
-
-                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
-                        potentialPeerPool.addAll(Arrays.asList(nodes));
-
-                        for (ConnectionManager tempConnectionManager : inBoundConnectionList.values()) {
-                            potentialPeerPool.remove(tempConnectionManager.getSocket().getInetAddress());
+                        for (InetAddress receivedAddress : receivedAddresses) {
+                            newPotentialAddressStrings.add(receivedAddress.getHostAddress());
                         }
 
-                        for (ConnectionManager tempConnectionManager : outBoundConnectionList.values()) {
-                            potentialPeerPool.remove(tempConnectionManager.getSocket().getInetAddress());
+                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
+
+                        for (ConnectionManager inboundConnectionManager : inBoundConnectionList.values()) {
+                            newPotentialAddressStrings.remove(inboundConnectionManager.getSocket().getInetAddress().getHostAddress());
+                        }
+
+                        for (ConnectionManager outboundConnectionManager : outBoundConnectionList.values()) {
+                            newPotentialAddressStrings.remove(outboundConnectionManager.getSocket().getInetAddress().getHostAddress());
+                        }
+
+                        for (InetAddress potentialPeerAddress : potentialPeerPool) {
+                            newPotentialAddressStrings.remove(potentialPeerAddress.getHostAddress());
+                        }
+
+                        if (!newPotentialAddressStrings.isEmpty()) {
+
+                            for (String receivedAddressString : newPotentialAddressStrings) {
+                                potentialPeerPool.add(InetAddress.getByName(receivedAddressString));
+                            }
+                            blockChainLogger.info(peerAddressString + ": Added peer node list of size" + newPotentialAddressStrings.size());
                         }
 
                         GeneralHelper.unLockForMe(usingLockList);
 
                         break;
 
-                    case Configuration.MESSAGE_HEADER_LIST: //block headers
-
-                        BlockHeader[] receivedBlockHeaders =(BlockHeader[]) content;
-
-                        blockChainLogger.info(peerAddressString + ": Received block headers");
-
-                        GeneralHelper.lockForMe(usingLockList, readMyChainLock);
+                    case Configuration.MESSAGE_HEADER_REQUEST_REPLY: //block headers
 
 
-                        ArrayList<BlockHeader> blockHeaders = new ArrayList<>();
-
-
-                        for (BlockHeader tempHeader : receivedBlockHeaders) {
-                            if (!BlockChainManager.hasBlock(tempHeader.calculateHash())) {
-                                blockHeaders.add(tempHeader);
+                        if (message.content[0] == 1) {
+                            GeneralHelper.lockForMe(usingLockList, readMyChainLock);
+                            byte[] lastSearchedHash = Arrays.copyOfRange(message.content, 1, Configuration.HASH_LENGTH);
+                            byte[] newHashLocatorMerged = myMainChain.getCurrentChainHashLocator(lastSearchedHash, Configuration.MAX_HASH_LOCATOR_LENGTH);
+                            if (newHashLocatorMerged == null) {
+                                GeneralHelper.unLockForMe(usingLockList);
+                                return;
                             }
-                        }
+                            connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, newHashLocatorMerged));
 
-                        if (!blockHeaders.isEmpty()) {
-                            int totalScore = myMainChain.isNextBlockHeader(blockHeaders.get(0)) ? myMainChain.checkHeaders(blockHeaders.toArray(new BlockHeader[0])) : BlockChainManager.checkBlockHeaders(blockHeaders.toArray(new BlockHeader[0]));
-                            if (totalScore == -1) {
-                                throw new InvalidBlockChainException(peerAddressString);
+                        } else {
+                            BlockHeader[] receivedBlockHeaders = (BlockHeader[]) parsedContent;
+
+                            blockChainLogger.info(peerAddressString + ": Received block headers");
+
+                            GeneralHelper.lockForMe(usingLockList, readMyChainLock);
+
+
+                            ArrayList<BlockHeader> blockHeaders = new ArrayList<>();
+
+
+                            for (BlockHeader tempHeader : receivedBlockHeaders) {
+                                if (!BlockChainManager.hasBlock(tempHeader.calculateHash())) {
+                                    blockHeaders.add(tempHeader);
+                                }
                             }
 
-                            GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock);
-                            pendingHeadersList.add(blockHeaders);
-                        }
+                            if (!blockHeaders.isEmpty()) {
+                                int totalScore = myMainChain.isNextBlockHeader(blockHeaders.get(0)) ? myMainChain.checkHeaders(blockHeaders.toArray(new BlockHeader[0])) : BlockChainManager.checkBlockHeaders(blockHeaders.toArray(new BlockHeader[0]));
+                                if (totalScore == -1) {
+                                    throw new InvalidBlockChainException(peerAddressString);
+                                }
 
-                        GeneralHelper.unLockForMe(usingLockList);
+                                GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock);
+                                pendingHeadersList.add(blockHeaders);
+                            }
+
+                            GeneralHelper.unLockForMe(usingLockList);
+                        }
                         break;
 
                     case Configuration.MESSAGE_TRANSACTION:
 
-                        Transaction transaction = (Transaction) content;
+                        Transaction transaction = (Transaction) parsedContent;
 
                         String transactionIdentifier = GeneralHelper.bytesToStringHex(transaction.calculateHash());
 
@@ -763,7 +777,7 @@ public class FullNode {
 
                         break;
                     case Configuration.MESSAGE_BLOCK:
-                        Block block7 = (Block) content;
+                        Block block7 = (Block) parsedContent;
 
                         if (!Arrays.equals(block7.getHeader().getContentHash(), block7.getContent().calculateHash())) {
                             blockChainLogger.info(peerAddressString + ": Received an invalid block");
@@ -773,18 +787,19 @@ public class FullNode {
                         blockChainLogger.info(peerAddressString + ": Received a block(" + GeneralHelper.bytesToStringHex(block7.calculateHash()) + ")\n Block number= " + block7.getHeader().getBlockNumber());
 
                         System.out.println("pass1"); //debug
+
                         GeneralHelper.lockForMe(usingLockList, writeChainInfoFilesLock, writeMyChainLock, writePendingHeaderLock, writeRequestedHeaderLock, writeOrphanBlockLock, writeTransactionLock,
                                 readConnectionLock);
+
+                        System.out.println("pass2"); //debug
 
                         if (orphanBlockList.contains(block7) || myMainChain.hasBlock(block7) || BlockChainManager.hasBlock(block7.calculateHash())) {
                             GeneralHelper.unLockForMe(usingLockList);
                             break;
                         }
 
-
                         boolean requested = false;
-                        System.out.println("pass2"); //debug
-
+                        System.out.println("pass3"); //debug
 
                         // check if it's requested block
                         if (toBeRequestedHeaders.size() != 0 || requestedHeaders.size() != 0) {
@@ -1029,7 +1044,7 @@ public class FullNode {
                                 }
                             } else {
                                 // not requested and I don't hold its prevblock => send blockheaders request
-                                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()));
+                                connectionManager.write(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator(null, Configuration.MAX_HASH_LOCATOR_LENGTH)));
                             }
                         }
 
@@ -1037,18 +1052,17 @@ public class FullNode {
 
                         break;
                     default:
-                        throw new InvalidBlockChainMessageException(peerAddressString,messageNumber);
+                        throw new InvalidBlockChainMessageException(peerAddressString, messageNumber);
 
                 }
 
             }
-        } catch (SocketException|EOFException se) {
+        } catch (SocketException | EOFException se) {
             //just connection disconnected
         } catch (InvalidBlockChainException | InvalidBlockChainMessageException bme) {
             bme.printStackTrace();
             blockChainLogger.info(bme.getMessage());
-        } catch (FileCorruptionException|BlockChainObjectParsingException ps)
-        {
+        } catch (FileCorruptionException | BlockChainObjectParsingException ps) {
             ps.printStackTrace();
             blockChainLogger.info(ps.getMessage());
             shutdown();
@@ -1131,12 +1145,15 @@ public class FullNode {
                     e.printStackTrace();
                 }
             }
+            System.out.println("startRequestingPeerNodes terminated"); //debug
+
         }).start();
     }
 
 
     private void startRequestingConnection() {
         new Thread(() -> {
+            ArrayList<Lock> usingLockList = new ArrayList<>();
             try {
                 while (!isTerminated) {
                     // get peer nodes list of the peer nodes and attempt to connect with the nodes
@@ -1145,11 +1162,8 @@ public class FullNode {
 
                     ReadLock readConnectionLock = connectionLock.readLock();
                     WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();
-                    ArrayList<Lock> usingLockList = new ArrayList<>();
 
                     GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
-
-                    System.out.println("startRequestingConnection entered"); //debug
 
                     int diff = Configuration.MAX_OUT_BOUND_CONNECTION - outBoundConnectionList.size();
                     int max = potentialPeerPool.size();
@@ -1163,18 +1177,22 @@ public class FullNode {
 
                     connectWithPeers(potentialPeer); //## for debug
 
-                    Thread.sleep(60000);
+                    Thread.sleep(20000);
 
                 }
             } catch (Exception e) {
                 e.printStackTrace();
                 shutdown();
+            } finally {
+                System.out.println("startRequestingConnection terminated"); //debug
+                GeneralHelper.unLockForMe(usingLockList);
             }
         }).start();
     }
 
     private void startRequestingBlocksAndBlockHeaders() {
         new Thread(() -> {
+            ArrayList<Lock> usingLockList = new ArrayList<>();
             try {
                 while (!isTerminated) {
 
@@ -1183,7 +1201,6 @@ public class FullNode {
                     WriteLock writeToBeRequestedHeadersLock = toBeRequestedHeadersLock.writeLock();
                     WriteLock writeRequestedHeaderLock = requestedHeaderLock.writeLock();
                     ReadLock readConnectionLock = connectionLock.readLock();
-                    ArrayList<Lock> usingLockList = new ArrayList<>();
 
                     GeneralHelper.lockForMe(usingLockList, writePendingHeadersLock, writeToBeRequestedHeadersLock, writeRequestedHeaderLock, readConnectionLock);
                     if (!toBeRequestedHeaders.isEmpty() || !requestedHeaders.isEmpty()) {
@@ -1246,12 +1263,13 @@ public class FullNode {
                             }
                         } else {
                             GeneralHelper.unLockForMe(usingLockList);
-
                             GeneralHelper.lockForMe(usingLockList, readMyChainLock);
                             long currentTime = System.currentTimeMillis();
-                            if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && System.currentTimeMillis() - myMainChain.getLatestBlockTimeStamp() > Configuration.SYNC_PERIOD) {
+                            if (currentTime - lastBroadCastHeadersRequestTime > Configuration.MAXIMUM_RESPONSE_WAITING_TIME && currentTime - myMainChain.getLatestBlockTimeStamp() > Configuration.SYNC_PERIOD) {
                                 lastBroadCastHeadersRequestTime = currentTime;
-                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, myMainChain.getCurrentChainHashLocator()), null);
+                                byte[] hashLocator = myMainChain.getCurrentChainHashLocator(null, Configuration.MAX_HASH_LOCATOR_LENGTH);
+                                GeneralHelper.lockForMe(usingLockList, readConnectionLock);
+                                broadcastMessage(new Message(Configuration.MESSAGE_HEADER_REQUEST, hashLocator), null);
                             }
                         }
                     }
@@ -1265,21 +1283,23 @@ public class FullNode {
             } catch (Exception e) {
                 e.printStackTrace();
                 shutdown();
+            } finally {
+                System.out.println("startRequestingConnection terminated"); //debug
+                GeneralHelper.unLockForMe(usingLockList);
             }
         }).start();
     }
+
 
     // includes unconfirmed connection since genrally used for requests
     private int unicastMessage(Message message, int index) {
 
         int newIndex = -1;
+        int inBoundSize = inBoundConnectionList.size();
+        int outBoundSize = outBoundConnectionList.size();
+        int totalSize = inBoundSize + outBoundSize;
+        ConnectionManager connectionManager = null;
         try {
-
-            int inBoundSize = inBoundConnectionList.size();
-            int outBoundSize = outBoundConnectionList.size();
-            int totalSize = inBoundSize + outBoundSize;
-            ConnectionManager connectionManager = null;
-
             if (totalSize != 0) {
                 newIndex = index % totalSize;
 
@@ -1310,7 +1330,9 @@ public class FullNode {
                 System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number); //#debug
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message" + message.number + " but failed due to IOException. So, closing the connection");
+            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message" + message.number + " but failed due to IOException. So, closing the connection"); //#debug
+            connectionManager.close();
         }
 
 
@@ -1319,13 +1341,11 @@ public class FullNode {
 
     private int randomUnicastMessage(Message message) {
         int random = -1;
+        int inBoundSize = inBoundConnectionList.size();
+        int outBoundSize = outBoundConnectionList.size();
+        int totalSize = inBoundSize + outBoundSize;
+        ConnectionManager connectionManager = null;
         try {
-
-            int inBoundSize = inBoundConnectionList.size();
-            int outBoundSize = outBoundConnectionList.size();
-            int totalSize = inBoundSize + outBoundSize;
-            ConnectionManager connectionManager = null;
-
             if (totalSize != 0) {
                 random = rand.nextInt(totalSize);
 
@@ -1356,7 +1376,9 @@ public class FullNode {
                 System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number); //#debug
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message" + message.number + " but failed due to IOException. So, closing the connection");
+            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message" + message.number + " but failed due to IOException. So, closing the connection"); //#debug
+            connectionManager.close();
         }
 
         return random;
@@ -1367,36 +1389,41 @@ public class FullNode {
 
         int totalSize = 0;
 
+
         for (PeerInfo peerInfo : inBoundConnectionList.keySet()) {
+            if (peerInfo.equals(except))
+                continue;
+
+            ConnectionManager connectionManager = inBoundConnectionList.get(peerInfo);
+            if (!connectionManager.isConfirmed())
+                continue;
+
             try {
-                if (peerInfo.equals(except))
-                    continue;
-
-                ConnectionManager connectionManager = inBoundConnectionList.get(peerInfo);
-                if (!connectionManager.isConfirmed())
-                    continue;
-
                 connectionManager.write(message);
                 ++totalSize;
             } catch (IOException e) {
-                e.printStackTrace();
+                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message" + message.number + " but failed due to IOException. So, closing the connection");
+                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message" + message.number + " but failed due to IOException. So, closing the connection"); //#debug
+                connectionManager.close();
             }
-
         }
 
         for (PeerInfo peerInfo : outBoundConnectionList.keySet()) {
+
+            if (peerInfo.equals(except))
+                continue;
+
+            ConnectionManager connectionManager = outBoundConnectionList.get(peerInfo);
+            if (!connectionManager.isConfirmed())
+                continue;
+
             try {
-                if (peerInfo.equals(except))
-                    continue;
-
-                ConnectionManager connectionManager = outBoundConnectionList.get(peerInfo);
-                if (!connectionManager.isConfirmed())
-                    continue;
-
                 connectionManager.write(message);
                 ++totalSize;
             } catch (IOException e) {
-                e.printStackTrace();
+                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message" + message.number + " but failed due to IOException. So, closing the connection");
+                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message" + message.number + " but failed due to IOException. So, closing the connection"); //#debug
+                connectionManager.close();
             }
         }
 
@@ -1470,9 +1497,7 @@ public class FullNode {
 
         if (inBoundConnectionList.containsKey(peerInfo))
             return true;
-        if (outBoundConnectionList.containsKey(peerInfo))
-            return true;
-        return false;
+        return outBoundConnectionList.containsKey(peerInfo);
     }
 
 
@@ -1484,7 +1509,7 @@ public class FullNode {
 
         readMyChainLock.lock();
 
-        ArrayList<RecordShortInfo> transactionLocations = TransactionManager.loadEveryRecordShortInfo(myMainChain.getLatestBlockHash(),patienIdentifier);
+        ArrayList<RecordShortInfo> transactionLocations = TransactionManager.loadEveryRecordShortInfo(myMainChain.getLatestBlockHash(), patienIdentifier);
 
         readMyChainLock.unlock();
 
@@ -1497,7 +1522,7 @@ public class FullNode {
 
         readMyChainLock.lock();
 
-        ArrayList<PatientShortInfo> patientShortInfos = PatientInfoManager.loadEveryShortInfo(myMainChain.getLatestBlockHash(),patienIdentifier);
+        ArrayList<PatientShortInfo> patientShortInfos = PatientInfoManager.loadEveryShortInfo(myMainChain.getLatestBlockHash(), patienIdentifier);
         readMyChainLock.unlock();
 
         return patientShortInfos;
@@ -1515,30 +1540,29 @@ public class FullNode {
      * transaction id:
      * SHA256 hash of the transaction
      */
-    public byte[] addToTransactionPool(long timeStamp,byte[] encryptedRecord,byte[] patientSignature,byte[] patientIdentifier) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
+    public byte[] addToTransactionPool(long timeStamp, byte[] encryptedRecord, byte[] patientSignature, byte[] patientIdentifier) throws IOException, BlockChainObjectParsingException, FileCorruptionException {
 
 
-        Transaction transaction = new Transaction( myIdentifier, timeStamp, encryptedRecord, patientSignature, patientIdentifier, myPrivateKey);
+        Transaction transaction = new Transaction(myIdentifier, timeStamp, encryptedRecord, patientSignature, patientIdentifier, myPrivateKey);
 
 
         ReadLock readMyChainLock = myChainLock.readLock();
         WriteLock writeRecordLock = transactionLock.writeLock();
+        ReadLock readConnectionLock = connectionLock.readLock();
 
         ArrayList<Lock> usingLock = new ArrayList<>();
 
-        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRecordLock);
+        GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRecordLock, readConnectionLock);
 
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        if (transactionPool.contains(transaction))
-        {
+        if (transactionPool.contains(transaction)) {
             byteArrayOutputStream.write(1);
-        }else if (!myMainChain.checkTransaction(transaction))
-        {
+        } else if (!myMainChain.checkTransaction(transaction)) {
             byteArrayOutputStream.write(2);
-        }
-        else{
+        } else {
             transactionPool.add(transaction);
+            broadcastMessage(new Message(Configuration.MESSAGE_TRANSACTION, transaction.getRaw()), null);
             byteArrayOutputStream.write(0);
             byteArrayOutputStream.write(transaction.calculateHash());
         }
@@ -1555,8 +1579,7 @@ public class FullNode {
     /*
      * return this medical organization's identifier
      */
-    public byte[] getMyIdentifier()
-    {
+    public byte[] getMyIdentifier() {
         return myIdentifier;
     }
 

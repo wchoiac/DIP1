@@ -78,6 +78,18 @@ public class PatientInfo implements Raw {
                 , getEncryptedInfo(), SecurityHelper.getCompressedRawECPublicKey( getPublicKey(),Configuration.ELIPTIC_CURVE),getSignature());
 
     }
+
+    public static PatientInfo parse(byte[] raw) throws BlockChainObjectParsingException {
+        ByteArrayReader byteArrayReader = new ByteArrayReader();
+        byteArrayReader.set(raw);
+        PatientInfo patientInfo = parse(byteArrayReader);
+
+        if(!byteArrayReader.isFinished())
+            throw new BlockChainObjectParsingException();
+
+        return patientInfo;
+    }
+
     public static PatientInfo parse(ByteArrayReader byteArrayReader) throws BlockChainObjectParsingException {
         PatientInfo patientInfo = new PatientInfo();
 
@@ -106,7 +118,7 @@ public class PatientInfo implements Raw {
         return null;// not expected
     }
 
-    public byte[] getSignatureCoverage()
+    private byte[] getSignatureCoverage()
     {
         return GeneralHelper.mergeByteArrays(GeneralHelper.longToBytes(timestamp),getEncryptedInfo());
     }
@@ -130,7 +142,8 @@ public class PatientInfo implements Raw {
         if (o == null || getClass() != o.getClass()) return false;
         PatientInfo that = (PatientInfo) o;
         return timestamp == that.timestamp &&
-                Objects.equals(publicKey, that.publicKey) &&
+                Arrays.equals(BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(publicKey),
+                        BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(that.publicKey)) &&
                 Arrays.equals(encryptedInfo, that.encryptedInfo) &&
                 Arrays.equals(signature, that.signature);
     }

@@ -30,48 +30,6 @@ public class ValidatorRestServer {
     private int port;
     private SSLContext context;
 
-//test main
-    public static void main(String[] args) throws Exception {
-
-        File file = new File("apiKeyStore.keystore");
-        if(!file.exists()) {
-            System.out.println("Please use initializer before running node");
-            return;
-        }
-        KeyStore keyStore= KeyStore.getInstance("JKS");
-        char[] password;
-        Scanner sc = new Scanner(System.in);
-        Console console = System.console();
-        while(true) {
-            try {
-                if (console != null) {
-                    password = console.readPassword("Please enter keystore password: ");
-                } else {
-                    System.out.print("Please enter keystore password: ");
-                    password = sc.next().toCharArray();
-
-                }
-                keyStore.load(new FileInputStream(file), password);
-                break;
-            }
-            catch (Exception e)
-            {
-                e.printStackTrace();
-                System.out.println("Wrong Password");
-                continue;
-            }
-        }
-        //Validator validator = Validator.create(keyStore,"1234".toCharArray(),9999);  //## for debug
-        ValidatorRestServer server =ValidatorRestServer.create(keyStore,password,Configuration.API_SERVER_PORT, null, Configuration.API_LOG_FILENAME); //## for debug
-        server.start();
-
-        System.out.println("press key to close the server");
-        sc.next();
-        server.shutdown();
-        sc.close();
-
-    }
-
     public static ValidatorRestServer create(KeyStore keyStore, char[] password, int port, ValidatorAPIResolver validatorAPIResolver, String logFileName) throws Exception {
         return new ValidatorRestServer(keyStore, password,port,validatorAPIResolver,logFileName);
     }

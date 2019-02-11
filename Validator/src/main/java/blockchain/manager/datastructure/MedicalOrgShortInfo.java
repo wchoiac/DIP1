@@ -29,6 +29,7 @@ public class MedicalOrgShortInfo {
         this.identifier = identifier;
     }
 
+    // only check identifier
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

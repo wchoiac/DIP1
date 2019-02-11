@@ -15,7 +15,7 @@ public class BestChainInfoManager {
         if (!Configuration.BLOCKCHAIN_DATA_FOLDER.exists()) {
             Configuration.BLOCKCHAIN_DATA_FOLDER.mkdirs();
         }
-        try (FileOutputStream os = new FileOutputStream(Configuration.BEST_CHAIN_FILE);){
+        try (FileOutputStream os = new FileOutputStream(Configuration.BEST_CHAIN_FILE)){
             os.write(status.getRaw());
         }
     }

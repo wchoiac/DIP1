@@ -57,8 +57,11 @@ public class FullNodeAPIResolver { // change to full node
 
         if(transactionPojo==null||transactionPojo.getEncryptedRecord()==null||
                 transactionPojo.getPatientIdentifier()==null||transactionPojo.getPatientSignature()==null
-                ||transactionPojo.getTimestamp()>System.currentTimeMillis())
+                ||transactionPojo.getTimestamp()>System.currentTimeMillis()
+                || transactionPojo.getPatientIdentifier().length!=Configuration.IDENTIFIER_LENGTH
+        ||!transactionPojo.isSignatureDEREncoded()&&  transactionPojo.getPatientSignature().length!= Configuration.SIGNATURE_LENGTH) {
             throw new BadRequest();
+        }
 
 
         byte[] rawSignature = transactionPojo.isSignatureDEREncoded()

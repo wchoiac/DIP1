@@ -83,7 +83,7 @@ public class TransactionManager {
     }
 
     //blockHash here is the current blockchain head block's hash
-    public static ArrayList<RecordShortInfo> loadEveryRecordShortInfo(byte[] blockHash, byte[] patientIdentifier) throws IOException, BlockChainObjectParsingException, InvalidKeySpecException {
+    public static ArrayList<RecordShortInfo> loadEveryRecordShortInfo(byte[] blockHash, byte[] patientIdentifier) throws IOException, BlockChainObjectParsingException {
         String patientIdentifierString = GeneralHelper.bytesToStringHex(patientIdentifier);
 
         File patientFolder = new File(Configuration.PATIENT_FOLDER, patientIdentifierString.charAt(0) + "/" + patientIdentifierString.charAt(1) + "/"
@@ -114,7 +114,7 @@ public class TransactionManager {
                     offset += Configuration.HASH_LENGTH;
                     long timestamp = GeneralHelper.bytesToLong(Arrays.copyOfRange(allBytes, offset, offset + Long.BYTES));
                     offset += Long.BYTES;
-                    String name = new String(Arrays.copyOfRange(allBytes, offset + 1, allBytes[offset]));
+                    String name = new String(Arrays.copyOfRange(allBytes, offset + 1,offset+1+ allBytes[offset]));
                     recordShortInfos.add(new RecordShortInfo(new Location(processingBlockHash, transactionHash), timestamp, name));
                     break;
                 }

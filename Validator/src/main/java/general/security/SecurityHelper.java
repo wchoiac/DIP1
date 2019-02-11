@@ -6,12 +6,12 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.sec.SECObjectIdentifiers;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.asn1.x509.*;
+import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
@@ -21,6 +21,7 @@ import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.crypto.signers.HMacDSAKCalculator;
+import org.bouncycastle.jcajce.provider.asymmetric.X509;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECParameterSpec;
@@ -32,20 +33,26 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.bouncycastle.util.io.pem.PemWriter;
+import rest.pojo.CertificateRenewRequestPojo;
 
+import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.security.*;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
+import java.security.cert.Certificate;
+import java.security.cert.*;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.*;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Random;
@@ -58,13 +65,27 @@ public class SecurityHelper {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    ;
     static final Random random = new SecureRandom();
+
+    //----------------------------------------------for pseudo random function start------------------------------------------------
+
+    // use HmacSHA256 for algo
+    // key - randomly generated master key , content - timestamp
+    public static SecretKey aesKeyWithHMACPRF(byte[] key, byte[] content, String hmacAlgo) throws NoSuchAlgorithmException, InvalidKeyException, InvalidKeySpecException {
+        SecretKeySpec secretKeySpecForHMACPRF = new SecretKeySpec(key, hmacAlgo); // it means key would be used for such algorithm (i.e. HmacSHA256 in this case)
+        Mac mac = Mac.getInstance(hmacAlgo); // it means MAC algorithm is algo (i.e. HmacSHA256 in this case)
+        mac.init(secretKeySpecForHMACPRF);
+        SecretKeySpec aesKeySpec = new SecretKeySpec(mac.doFinal(content), "AES");
+
+        return SecretKeyFactory.getInstance("AES").generateSecret(aesKeySpec);
+
+    }
+
+    //----------------------------------------------for pseudo random function end------------------------------------------------
 
 
     //----------------------------------------------for hash start------------------------------------------------
 
-    //reference https://medium.com/programmers-blockchain/create-simple-blockchain-java-tutorial-from-scratch-6eeed3cb03fa
     public static byte[] hash(byte[] data, String algo) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance(algo);
         return digest.digest(data);
@@ -82,7 +103,7 @@ public class SecurityHelper {
     }
 
     //referece: https://www.programcreek.com/java-api-examples/?api=org.bouncycastle.util.io.pem.PemReader
-    public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+    public static PublicKey getPublicKeyFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         FileReader reader = new FileReader(fileName);
         PemReader pemReader = new PemReader(reader);
         KeyFactory keyFactory = KeyFactory.getInstance(algo);
@@ -99,7 +120,7 @@ public class SecurityHelper {
         pemWriter.close();
     }
 
-    public static PrivateKey getPrivateFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
+    public static PrivateKey getPrivateFromPEM(String fileName, String algo) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         FileReader reader = new FileReader(fileName);
         PemReader pemReader = new PemReader(reader);
         KeyFactory keyFactory = KeyFactory.getInstance(algo);
@@ -114,7 +135,7 @@ public class SecurityHelper {
         fos.close();
     }
 
-    public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException, NoSuchProviderException {
+    public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException {
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X509");
         FileInputStream fis = new FileInputStream(file);
         ByteArrayInputStream bis = new ByteArrayInputStream(fis.readAllBytes());
@@ -224,7 +245,7 @@ public class SecurityHelper {
 
     //----------------------------------------------for key start------------------------------------------------
 
-    public static KeyPair generateECKeyPair(String curve) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+    public static KeyPair generateECKeyPair(String curve) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
         Security.addProvider(new BouncyCastleProvider());
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
         keyGen.initialize(new ECGenParameterSpec(curve), new SecureRandom());
@@ -233,7 +254,7 @@ public class SecurityHelper {
     }
 
     //reference: https://stackoverflow.com/questions/5127379/how-to-generate-a-rsa-keypair-with-a-privatekey-encrypted-with-password
-    public static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+    public static KeyPair generateRSAKeyPair() throws NoSuchAlgorithmException {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(2048);
         KeyPair pair = keyGen.generateKeyPair();
@@ -376,7 +397,7 @@ public class SecurityHelper {
 
     // NONEwithECDSA implementation
     // input "hash" not the content
-    public static byte[] createRawECDSASignatureWithHash(ECPrivateKey signerPrivateKey, byte[] hash, String curveName, int coordinateLength) throws IOException {
+    public static byte[] createRawECDSASignatureWithHash(ECPrivateKey signerPrivateKey, byte[] hash, String curveName, int coordinateLength) {
 
         ECParameterSpec ecParameterSpec = ECNamedCurveTable.getParameterSpec(curveName);
         ECCurve curve = ecParameterSpec.getCurve();
@@ -473,6 +494,103 @@ public class SecurityHelper {
     }
     //----------------------------------------------for signature end------------------------------------------------
 
+    //reference: https://stackoverflow.com/questions/16412315/creating-custom-x509-v3-extensions-in-java-with-bouncy-castle
+    public static X509Certificate selfSignCertOnlyForPatientKeyStore(PublicKey selfPublicKey, PrivateKey selfPrivateKey, String algo) throws CertificateException, OperatorCreationException, ParseException {
+        DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+
+        X509v3CertificateBuilder builder = new X509v3CertificateBuilder(
+                new X500Name("CN=" + "patient"),
+                BigInteger.valueOf(new Random().nextInt()),
+                new Date(),
+                formatter.parse("9999-12-31"),
+                new X500Name("CN=" + "patient"),
+                SubjectPublicKeyInfo.getInstance(selfPublicKey.getEncoded()));
+
+
+        X509Certificate cert = new JcaX509CertificateConverter().getCertificate(builder
+                .build(new JcaContentSignerBuilder(algo).setProvider("BC").
+                        build(selfPrivateKey)));
+
+
+        return cert;
+
+    }
+    public static void keyStoreTest() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException, IOException, CertificateException, KeyStoreException, UnrecoverableEntryException, ParseException, OperatorCreationException, InvalidKeySpecException, InvalidKeyException {
+
+
+        // =============================== PREPARATION START=========================
+        //password (could be PIN)
+        char[] keyStorePassword = new char[]{'a', 'b', 'c'}; // for storing keystore
+        char[] keyPairEntryPassword = new char[]{'a', 'b', 'c'}; // could be same as keystore password for user convenience
+        char[] masterKeyEntryPassword = new char[]{'a', 'b', 'c'}; // could be same as keystore password for user convenience
+        // alias
+        String keyPairAlias ="DIP1-PATIENT-KEYPAIR";
+        String masterKeyAlias ="DIP1-PATIENT-MASTERKEY";
+
+        // create keypair, self signed certificate and AES key(for random value(master key) purpose)
+        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
+        ECPublicKey ecPublicKey = (ECPublicKey) keyPair.getPublic();
+        ECPrivateKey ecPrivateKey = (ECPrivateKey) keyPair.getPrivate();
+
+        X509Certificate selfSignCert =selfSignCertOnlyForPatientKeyStore(ecPublicKey, ecPrivateKey, Configuration.BLOCKCHAIN_SIGNATURE_ALGORITHM);
+
+        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+        keyGen.init(256);
+        SecretKey masterKey = keyGen.generateKey();
+
+        // =============================== PREPARATION END=========================
+
+        //==================================== STORE START===================================
+        // create empty pkcs12 keystore
+        KeyStore keyStore = KeyStore.getInstance("pkcs12");
+        keyStore.load(null);
+
+        // store keypair
+        keyStore.setKeyEntry(keyPairAlias, ecPrivateKey, keyPairEntryPassword
+                , new Certificate[]{selfSignCert});
+
+        // store master key (AES key)
+        KeyStore.SecretKeyEntry masterKeyEntry = new KeyStore.SecretKeyEntry(masterKey);
+        KeyStore.ProtectionParameter protParam = new KeyStore.PasswordProtection(masterKeyEntryPassword);
+        keyStore.setEntry(masterKeyAlias,masterKeyEntry,protParam);
+
+        //store keystore as byte array
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        keyStore.store(byteArrayOutputStream, keyStorePassword); // for storing keystore
+        byte[] keyStoreFileByteArray = byteArrayOutputStream.toByteArray();
+
+
+        //==================================== STORE END===================================
+
+        //==================================== LOAD START===================================
+        // pkcs12 keystore from byte array
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(keyStoreFileByteArray);
+        KeyStore loadedKeyStore = KeyStore.getInstance("pkcs12");
+        loadedKeyStore.load(byteArrayInputStream, keyStorePassword);
+
+        // load keypair
+        KeyStore.PrivateKeyEntry keyPairEntry = (KeyStore.PrivateKeyEntry) loadedKeyStore.getEntry(keyPairAlias, new KeyStore.PasswordProtection(keyPairEntryPassword));
+
+        ECPublicKey loadedECPublicKey = (ECPublicKey) keyPairEntry.getCertificate().getPublicKey();
+        ECPrivateKey loadedECPrivateKey = (ECPrivateKey) keyPairEntry.getPrivateKey();
+
+        //load master key (AES key)
+        KeyStore.SecretKeyEntry secretKeyEntry = (KeyStore.SecretKeyEntry) loadedKeyStore.getEntry(masterKeyAlias, new KeyStore.PasswordProtection(masterKeyEntryPassword));
+        SecretKey loadedMasterKey =secretKeyEntry.getSecretKey();
+
+        //==================================== LOAD END===================================
+
+
+        //verification
+        System.out.println(loadedECPublicKey.equals(ecPublicKey));
+        System.out.println(loadedECPrivateKey.equals(ecPrivateKey));
+        System.out.println(loadedMasterKey.equals(masterKey));
+
+        // to note, using psuedo random function for creating new AES key using master key with timestamp
+        SecretKey aesForEncryption = aesKeyWithHMACPRF(masterKey.getEncoded(),GeneralHelper.longToBytes(System.currentTimeMillis()),"HmacSHA256");
+        System.out.println(GeneralHelper.bytesToStringHex(aesForEncryption.getEncoded()));
+
+    }
 
     public static void main(String[] args) throws Exception {
 
@@ -509,12 +627,25 @@ public class SecurityHelper {
 //        byte[] hash2 = hash(byteArrayOutputStream.toByteArray(), Configuration.BLOCKCHAIN_HASH_ALGORITHM);
 //        System.out.println((byte) ((1 << Configuration.INITIAL_AUTHORITIES_BIT_POSITION)));
 
+//        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
+//        ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
+//        byte[] content =new byte[]{1,2,3,4};
+//        byte[] hash = hash(new byte[]{1,2,3,4}, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
+//        byte[] sig = createDEREncodedSignature(privateKey, hash, "NONEWithECDSA"); // <= client-side hashing
+//        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig, content, "SHA256withECDSA"));
+
+
+//        System.out.println(GeneralHelper.bytesToStringHex(aesKeyWithHMACPRF("patient Master Key - it should be long enough for example 256 bit".getBytes()
+//                ,GeneralHelper.longToBytes(System.currentTimeMillis()),"HmacSHA256").getEncoded()));
+//
+//        KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
+//        System.out.println(DerivePubKeyFromPrivKey((ECPrivateKey) keyPair.getPrivate()).equals(keyPair.getPublic()));
+
+       // keyStoreTest();
+
         KeyPair keyPair = generateECKeyPair(Configuration.ELIPTIC_CURVE);
-        ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
-        byte[] content =new byte[]{1,2,3,4};
-        byte[] hash = hash(new byte[]{1,2,3,4}, Configuration.BLOCKCHAIN_HASH_ALGORITHM);
-        byte[] sig = createDEREncodedSignature(privateKey, hash, "NONEWithECDSA"); // <= client-side hashing
-        System.out.println(verifyDEREncodedSignature(keyPair.getPublic(), sig, content, "SHA256withECDSA"));
+        Certificate cert =selfSignCertOnlyForPatientKeyStore(keyPair.getPublic(),keyPair.getPrivate(), "SHA3-256withECDSA");
+        writeX509ToDER((X509Certificate) cert,new File("1"));
 
     }
 

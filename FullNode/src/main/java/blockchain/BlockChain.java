@@ -65,34 +65,29 @@ public class BlockChain {
         return totalScore;
     }
 
-    public byte[] getCurrentChainHashLocator() throws BlockChainObjectParsingException, IOException {
-        BlockHeader latestBlockHeader = cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader();
+    public byte[] getCurrentChainHashLocator(byte[] highestBlockHash, int length) throws BlockChainObjectParsingException, IOException {
 
-        int height = latestBlockHeader.getBlockNumber();
-
-        ArrayList<Integer> targets = new ArrayList<>();
-
-        int i = height;
-        while (i >= 0) {
-            targets.add(i);
-
-            if (i > height - 100)
-                --i;
-            else if (i == 0)
-                break;
-            else
-                i /= 2;
+        BlockHeader highestBlockHeader;
+        if(highestBlockHash==null) {
+            highestBlockHeader = cachedCurrentChain.get(cachedCurrentChain.size() - 1).getHeader();
+        }
+        else
+        {
+            highestBlockHeader = BlockManager.loadBlockHeader(highestBlockHash);
+            if(highestBlockHeader==null)
+                return null;
         }
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        BlockHeader processingHeader = latestBlockHeader;
+        BlockHeader processingHeader = highestBlockHeader;
 
-        for (int currentTarget : targets) {
-            while (currentTarget != processingHeader.getBlockNumber())
-                processingHeader = BlockManager.loadBlockHeader(processingHeader.getPrevHash());
+        for (int i=0;i< length;++i) {
             byteArrayOutputStream.write(processingHeader.calculateHash());
+            if(processingHeader.getBlockNumber()!=0)
+                processingHeader = BlockManager.loadBlockHeader(processingHeader.getPrevHash());
+            else
+                break;
         }
-
 
         return byteArrayOutputStream.toByteArray();
     }
@@ -129,7 +124,7 @@ public class BlockChain {
             return cachedCurrentAuthorityList.get(identifier).getAuthorityInfo();
         else {
             AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
-            if (internalInfo == null || internalInfo.getRevokedBlock() != null)
+            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)
                 return null;
             else {
                 cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);
@@ -144,7 +139,7 @@ public class BlockChain {
             return cachedCurrentAuthorityList.get(identifier);
         else {
             AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
-            if (internalInfo == null || internalInfo.getRevokedBlock() != null)
+            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)
                 return null;
             else {
                 cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);
@@ -156,9 +151,7 @@ public class BlockChain {
 
 
     public boolean hasBlock(Block block) {
-        if (cachedCurrentChain.contains(block))
-            return true;
-        return false;
+        return cachedCurrentChain.contains(block);
     }
 
     public boolean hasAuthority(byte[] identifier) throws IOException, BlockChainObjectParsingException {
@@ -166,7 +159,7 @@ public class BlockChain {
             return true;
         else {
             AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
-            if (internalInfo == null || internalInfo.getRevokedBlock() != null)
+            if (internalInfo == null || internalInfo.getUntrustedBlock() != null)
                 return false;
             else {
                 cachedCurrentAuthorityList.put(internalInfo.getAuthorityInfo().getIdentifier(), internalInfo);
@@ -175,6 +168,17 @@ public class BlockChain {
         }
 
     }
+
+    public boolean isAuthorityUntrusted(byte[] identifier) throws IOException, BlockChainObjectParsingException {
+        if (hasAuthority(identifier))
+            return false;
+        else {
+            AuthorityInfoForInternal internalInfo = AuthorityInfoManager.load(getLatestBlockHash(), identifier);
+            return internalInfo != null;
+        }
+
+    }
+
 
     public int authorityIndex(byte[] authorityIdentifier) {
         return GeneralHelper.getIndexFromArrayList(authorityIdentifier, currentOverallAuthorityIdentifierList);
@@ -260,10 +264,7 @@ public class BlockChain {
             return false;
         }
 
-        if (!Arrays.equals(blockheader.calculateHash(), getLatestBlockHash())) {
-            return false;
-        }
-        return true;
+        return Arrays.equals(blockheader.calculateHash(), getLatestBlockHash());
     }
 
     public boolean isNextBlock(Block block) {
@@ -276,10 +277,7 @@ public class BlockChain {
             return false;
         }
 
-        if (!Arrays.equals(block.getHeader().getPrevHash(), getLatestBlockHash())) {
-            return false;
-        }
-        return true;
+        return Arrays.equals(block.getHeader().getPrevHash(), getLatestBlockHash());
     }
 
 
@@ -332,7 +330,8 @@ public class BlockChain {
             if (expectedScore != header.getScore())
                 return -1;
 
-            if (header.getTimestamp() - prevBlockTimeStemp < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
+            if (header.getTimestamp()> System.currentTimeMillis()||
+                    header.getTimestamp() - prevBlockTimeStemp < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
                 return -1;
 
 
@@ -344,13 +343,16 @@ public class BlockChain {
                 Voting changedAuthorityVoting = null;
                 Voting votingToBeRemoved = null;
 
+                if(header.getBlockNumber()%Configuration.CHECK_POINT_BLOCK_INTERVAL==0) // cannot have vote in a check point block
+                    return -1;
+
                 if (header.getVote().isAdd()) // return false if authorizing a validator but already in the validator list
                 {
-                    if (GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList) != -1)
+                    if (GeneralHelper.getIndexFromArrayList(header.getVote().getBeneficiary().getIdentifier(), tempOverallAuthorityList) != -1)
                         return -1;
                 } else // return false if rovoke a validator but not in the validator list
                 {
-                    if (GeneralHelper.getIndexFromArrayList(header.getValidatorIdentifier(), tempOverallAuthorityList) == -1)
+                    if (GeneralHelper.getIndexFromArrayList(header.getVote().getBeneficiary().getIdentifier(), tempOverallAuthorityList) == -1)
                         return -1;
                 }
                 // this ensures that only one voting about one beneficiary to exist
@@ -447,11 +449,19 @@ public class BlockChain {
             return false;
 
 
-        if (block.getHeader().getTimestamp() - getLatestBlockTimeStamp() < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
+        if (block.getHeader().getTimestamp()> System.currentTimeMillis()||
+                block.getHeader().getTimestamp() - getLatestBlockTimeStamp() < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
             return false;
 
-        if (block.getHeader().getVote() != null && !checkVote(validatorInfo.getAuthorityInfo().getIdentifier(), block.getHeader().getVote()))
+        if (block.getHeader().getVote() != null)
+        {
+            if (block.getHeader().getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0) // check point cannot have a vote
+                return false;
+
+
+            if( !checkVote(validatorInfo.getAuthorityInfo().getIdentifier(), block.getHeader().getVote()))
             return false;
+        }
 
         //*****header check end
 
@@ -510,6 +520,9 @@ public class BlockChain {
             for (PatientInfo patientInfo : block.getContent().getPatientInfoList()) {
 
 
+                if(patientInfo.getTimestamp()>block.getHeader().getTimestamp())
+                    return false;
+
                 if (!patientInfo.verify())
                     return false;
 
@@ -536,6 +549,11 @@ public class BlockChain {
                 if (!transactionPool.contains(transaction)) {
                     if (!hasMedicalOrg(transaction.getMedicalOrgIdentifier()))
                         return false;
+
+                    if(transaction.getTimestamp()>block.getHeader().getTimestamp())
+                        return false;
+
+
                     if (!TransactionManager.isTransactionUnique(latestBlockHash, transaction.calculateHash(), transaction.getPatientIdentifier()))
                         return false;
 
@@ -562,7 +580,7 @@ public class BlockChain {
 
 
     // validity check has to be done outside (usig this class's method)
-    //return revoked authority
+    //return revoked authority (if any)
     public AuthorityInfo addBlock(Block block, ArrayList<Transaction> transactionPool) throws IOException, BlockChainObjectParsingException {
 
         if (!isNextBlock(block))
@@ -572,6 +590,8 @@ public class BlockChain {
         AuthorityInfo processedAuthority = null;
         if (block.getHeader().getVote() != null) {
             processedAuthority = processVote(block.getHeader().getValidatorIdentifier(), block.getHeader().getVote());
+        }else if (block.getHeader().getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0) {
+            currentVotingList.clear();
         }
 
 
@@ -607,7 +627,7 @@ public class BlockChain {
         byte[] beneficiaryIdentifier = vote.getBeneficiary().getIdentifier();
         if (vote.isAdd()) // return false if authorizing a validator but already in the validator list
         {
-            if (hasAuthority(beneficiaryIdentifier))
+            if (hasAuthority(beneficiaryIdentifier)||isAuthorityUntrusted(beneficiaryIdentifier)) // if untrusted => change public key
                 return false;
         } else // return false if deauthorizing a validator but not in the validator list
         {
@@ -624,10 +644,7 @@ public class BlockChain {
                 isForNewVoting = false;
             }
 
-        if (isForNewVoting && !vote.isAgree()) // the voting starter cannot disagree on what he started(not make sense)
-            return false;
-
-        return true;
+        return !isForNewVoting || vote.isAgree();
 
     }
 
@@ -666,11 +683,12 @@ public class BlockChain {
             cachedCurrentMedicalOrgList.remove(info);
         }
     }
+
+
     private AuthorityInfo processVote(byte[] voterIdentifier, Vote vote) {
 
         boolean isForNewVoting = true;
         Voting changedAuthorityVoting = null;
-        Voting votingToBeRemoved = null;
 
         if (vote == null)
             return null;
@@ -697,45 +715,27 @@ public class BlockChain {
             changedAuthorityVoting = newVoting;
 
         }
-
-        if (changedAuthorityVoting.getNumAgree() >= getValidationInterval()) {
+        boolean isVotingProcessed = changedAuthorityVoting.getNumAgree() >= getValidationInterval(); // processed means either a new authority is trusted or existing authority is untrusted
+        if (isVotingProcessed) {
+            currentVotingList.remove(changedAuthorityVoting);
             if (changedAuthorityVoting.isAdd()) {
                 currentOverallAuthorityIdentifierList.add(changedAuthorityVoting.getBeneficiary().getIdentifier());
             } else {
                 currentOverallAuthorityIdentifierList.remove(GeneralHelper.getIndexFromArrayList(changedAuthorityVoting.getBeneficiary().getIdentifier(), currentOverallAuthorityIdentifierList));
                 cachedCurrentAuthorityList.remove(changedAuthorityVoting.getBeneficiary().getIdentifier());
+                for (Voting voting : currentVotingList) {
+                    voting.removeDisagree(vote.getBeneficiary().getIdentifier());
+                    voting.removeAgree(vote.getBeneficiary().getIdentifier());
+                }
             }
-            votingToBeRemoved = changedAuthorityVoting;
-        } else if (changedAuthorityVoting.getNumDisagree() >= getValidationInterval()) {
-            votingToBeRemoved = changedAuthorityVoting;
+        } else if (changedAuthorityVoting.getNumDisagree() > getTotalAuthorities() - getValidationInterval()) {
+            currentVotingList.remove(changedAuthorityVoting);
         }
 
-        if (votingToBeRemoved != null) {
-            currentVotingList.remove(votingToBeRemoved);
-            return votingToBeRemoved.getBeneficiary();
-        }
 
-        return null;
+        return isVotingProcessed ? changedAuthorityVoting.getBeneficiary() : null;
     }
 
-
-    private void removeFromAuthorizationList(MedicalOrgInfo[] authorizedMedicalOrgInfos, ArrayList<MedicalOrgInfo> authorizationList) {
-        for (MedicalOrgInfo medicalOrgInfo : authorizedMedicalOrgInfos) {
-            authorizationList.remove(medicalOrgInfo);
-        }
-    }
-
-    private void removeFromRevocationList(MedicalOrgInfo[] revokedMedicalOrgInfos, ArrayList<MedicalOrgInfo> revocationList) {
-        for (MedicalOrgInfo medicalOrgInfo : revokedMedicalOrgInfos) {
-            revocationList.remove(medicalOrgInfo);
-        }
-    }
-
-    private void removeFromRegistrationList(PatientInfo[] patientInfos, ArrayList<PatientInfo> registrationList) {
-        for (PatientInfo patientInfo : patientInfos) {
-            registrationList.remove(patientInfo);
-        }
-    }
 
     private void removeFromTransactionPool(Transaction[] transactions, ArrayList<Transaction> transactionPool) {
         for (Transaction transaction : transactions) {
@@ -752,6 +752,7 @@ public class BlockChain {
         byte[] bestChainHeadBlockHash = bestChainStatus.getLatestBlockHash();
         Block bestChainHeadBlock = BlockManager.loadBlock(bestChainHeadBlockHash);
         currentOverallAuthorityIdentifierList = AuthorityInfoManager.loadOverall(bestChainHeadBlock.calculateHash());
+        currentVotingList = VotingManager.load(bestChainHeadBlockHash);
         cachedCurrentChain.add(bestChainHeadBlock);
         totalScore = bestChainStatus.getTotalScore();
 

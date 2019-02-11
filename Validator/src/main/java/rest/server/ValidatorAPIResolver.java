@@ -5,6 +5,7 @@ import blockchain.block.*;
 import blockchain.manager.datastructure.Location;
 import blockchain.manager.datastructure.MedicalOrgShortInfo;
 import blockchain.manager.datastructure.PatientShortInfo;
+import blockchain.manager.datastructure.RecordShortInfo;
 import config.Configuration;
 import exception.BlockChainObjectParsingException;
 import exception.FileCorruptionException;
@@ -137,8 +138,20 @@ public class ValidatorAPIResolver {
                 && votePojo.getBeneficiary().getEcPublicKey().length != Configuration.RAW_PUBLICKEY_LENGTH))
             throw new BadRequest();
 
-        AuthorityInfo tempAuthorityInfo = new AuthorityInfo(votePojo.getBeneficiary().getName()
-                , SecurityHelper.getECPublicKeyFromCompressedRaw(votePojo.getBeneficiary().getEcPublicKey(), Configuration.ELIPTIC_CURVE));
+
+        if(votePojo.getBeneficiary().isKeyDEREncoded())
+        {
+            if(!SecurityHelper.checkCurve(votePojo.getBeneficiary().getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))
+                throw new BadRequest("Wrong curve");
+        }
+
+        ECPublicKey ecPublicKey = votePojo.getBeneficiary().isKeyDEREncoded()
+                ? SecurityHelper.getECPublicKeyFromEncoded(votePojo.getBeneficiary().getEcPublicKey()) //check curve
+                : SecurityHelper.getECPublicKeyFromCompressedRaw(votePojo.getBeneficiary().getEcPublicKey(), Configuration.ELIPTIC_CURVE);
+
+        AuthorityInfo tempAuthorityInfo = new AuthorityInfo(votePojo.getBeneficiary().getName(),ecPublicKey);
+
+
         Vote vote = new Vote(tempAuthorityInfo, votePojo.isAdd(), votePojo.isAgree());
 
         return validator.castVote(vote);
@@ -205,7 +218,7 @@ public class ValidatorAPIResolver {
      * 2: patient doesn't exist
      * 3: already updated
      */
-    public byte update(PatientInfoPojo patientInfoPojo) throws InvalidKeySpecException, IOException, BlockChainObjectParsingException, BadRequest, InvalidKeyException, SignatureException, ServerError {
+    public byte update(PatientInfoPojo patientInfoPojo) throws InvalidKeySpecException, IOException, BlockChainObjectParsingException, BadRequest, ServerError {
 
         if (patientInfoPojo == null
                 || patientInfoPojo.getEncryptedInfo() == null
@@ -217,6 +230,12 @@ public class ValidatorAPIResolver {
                 && patientInfoPojo.getSignature().length != Configuration.SIGNATURE_LENGTH)
                 || patientInfoPojo.getTimestamp()>System.currentTimeMillis())
             throw new BadRequest("Bad data");
+
+        if(patientInfoPojo.isKeyDEREncoded())
+        {
+            if(!SecurityHelper.checkCurve(patientInfoPojo.getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))
+                throw new BadRequest("Wrong curve");
+        }
 
         ECPublicKey ecPublicKey = patientInfoPojo.isKeyDEREncoded()
                 ? SecurityHelper.getECPublicKeyFromEncoded(patientInfoPojo.getEcPublicKey()) //check curve
@@ -280,6 +299,13 @@ public class ValidatorAPIResolver {
             throw new BadRequest("Bad data");
 
 
+        if(authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded())
+        {
+            if(!SecurityHelper.checkCurve(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey(),Configuration.ELIPTIC_CURVE_OID))
+                throw new BadRequest("Wrong curve");
+        }
+
+
         ECPublicKey ecPublicKey = authorizationRequestPojo.getMedicalOrgInfo().isKeyDEREncoded()
                 ? SecurityHelper.getECPublicKeyFromEncoded(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey())
                 : SecurityHelper.getECPublicKeyFromCompressedRaw(authorizationRequestPojo.getMedicalOrgInfo().getEcPublicKey(), Configuration.ELIPTIC_CURVE);
@@ -311,7 +337,7 @@ public class ValidatorAPIResolver {
      * 1: not authorized
      * 2: not authorized by me
      */
-    public byte[] renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, BlockChainObjectParsingException, InvalidKeySpecException, BadRequest, FileCorruptionException, ServerError {
+    public byte[] renewCertificate(CertificateRenewRequestPojo certificateRenewRequestPojo) throws OperatorCreationException, CertificateException, IOException, NoSuchAlgorithmException, BlockChainObjectParsingException, BadRequest, FileCorruptionException {
 
         if (certificateRenewRequestPojo==null
         ||certificateRenewRequestPojo.getIdentifier() == null || certificateRenewRequestPojo.getIdentifier().length!=Configuration.IDENTIFIER_LENGTH
@@ -424,6 +450,36 @@ public class ValidatorAPIResolver {
         }
 
         return patientInfoContentPojos;
+    }
+
+    /*
+     * return list of record's short information of the patient
+     */
+    public ArrayList<RecordShortInfoPojo> getRecordShortInfoList(byte[] patientIdentifier) throws BlockChainObjectParsingException, InvalidKeySpecException, IOException, BadRequest, NotFound {
+
+        if(patientIdentifier==null||patientIdentifier.length!= Configuration.IDENTIFIER_LENGTH)
+            throw new BadRequest();
+
+        ArrayList<RecordShortInfo> recordShortInfos =validator.getRecordShortInfoList(patientIdentifier);
+
+        if(recordShortInfos==null)
+            throw new NotFound();
+
+        ArrayList<RecordShortInfoPojo> recordShortInfoPojos = new ArrayList<>();
+
+        for(RecordShortInfo recordShortInfo : recordShortInfos)
+        {
+            RecordShortInfoPojo recordShortInfoPojo = new RecordShortInfoPojo();
+            LocationPojo locationPojo= new LocationPojo();
+            locationPojo.setBlockHash(recordShortInfo.getLocation().getBlockHash());
+            locationPojo.setTargetIdentifier(recordShortInfo.getLocation().getTargetIdentifier());
+            recordShortInfoPojo.setLocationPojo(locationPojo);
+            recordShortInfoPojo.setTimestamp(recordShortInfo.getTimestamp());
+            recordShortInfoPojo.setMedicalOrgName(recordShortInfo.getMedicalOrgName());
+            recordShortInfoPojos.add(recordShortInfoPojo);
+        }
+
+        return recordShortInfoPojos;
     }
 
 

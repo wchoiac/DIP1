@@ -12,6 +12,7 @@ import general.security.SecurityHelper;
 import java.io.Serializable;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import java.util.Objects;
 
 
@@ -76,13 +77,25 @@ public class AuthorityInfo implements Identifiable, Raw {
         return authorityInfo;
     }
 
+    public static AuthorityInfo parse(byte[] raw) throws BlockChainObjectParsingException {
+        ByteArrayReader byteArrayReader = new ByteArrayReader();
+        byteArrayReader.set(raw);
+        AuthorityInfo authorityInfo = parse(byteArrayReader);
+
+        if(!byteArrayReader.isFinished())
+            throw new BlockChainObjectParsingException();
+
+        return authorityInfo;
+    }
+
     // identified by publickey only
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AuthorityInfo that = (AuthorityInfo) o;
-        return Objects.equals(getPublicKey(), that.getPublicKey());
+        return Arrays.equals(BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(getPublicKey())
+                ,BlockChainSecurityHelper.calculateIdentifierFromECPublicKey( that.getPublicKey()));
     }
 
     @Override

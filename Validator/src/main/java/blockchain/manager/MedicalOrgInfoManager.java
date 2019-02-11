@@ -4,7 +4,6 @@ import blockchain.block.Block;
 import exception.BlockChainObjectParsingException;
 import blockchain.internal.AuthorityInfoForInternal;
 import blockchain.internal.MedicalOrgInfoForInternal;
-import blockchain.block.BlockContent;
 import blockchain.block.MedicalOrgInfo;
 import blockchain.manager.datastructure.MedicalOrgShortInfo;
 import config.Configuration;
@@ -13,8 +12,6 @@ import general.utility.GeneralHelper;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -38,7 +35,7 @@ public class MedicalOrgInfoManager {
         }
 
         try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(authorizationFile, true));
-             BufferedOutputStream bos2 = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true));) {
+             BufferedOutputStream bos2 = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true))) {
 
             //write to authorize
             bos.write(blockHash);
@@ -66,7 +63,7 @@ public class MedicalOrgInfoManager {
                 + medicalOrgIdentifierString.charAt(2) + "/" + medicalOrgIdentifierString.charAt(3) + "/" + medicalOrgIdentifierString.charAt(4) + "/" + medicalOrgIdentifierString + "/revocation");
 
         try (FileOutputStream os = new FileOutputStream(revocationFile, true);
-             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true));) {
+             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(Configuration.AUTHORIZATION_AND_REVOCATION_RECORD_FILE, true))) {
             //write to revocation file
             os.write(blockHash);
 
@@ -117,12 +114,8 @@ public class MedicalOrgInfoManager {
                         throw new BlockChainObjectParsingException();
                     byte[] processingBlockHash = Arrays.copyOfRange(authorizationReadArray, 0, Configuration.HASH_LENGTH);
                     byte[] processingMedicalOrgIdentifier = Arrays.copyOfRange(authorizationReadArray, Configuration.HASH_LENGTH, revocationReadArray.length - 1);
-                    byte[] processingMedicalOrgNameBytes = new byte[authorizationReadArray[authorizationReadArray.length - 1]];
-                    if (bis.read(processingMedicalOrgNameBytes) != processingMedicalOrgNameBytes.length)
-                        throw new BlockChainObjectParsingException();
-                    String processingMedicalOrgName = new String(processingMedicalOrgNameBytes);
 
-                    MedicalOrgShortInfo processingMedicalOrgShortInfo = new MedicalOrgShortInfo(processingMedicalOrgName, processingMedicalOrgIdentifier);
+                    MedicalOrgShortInfo processingMedicalOrgShortInfo = new MedicalOrgShortInfo("", processingMedicalOrgIdentifier);
 
                     if (medicalOrgShortInfos.contains(processingMedicalOrgShortInfo) && BlockChainManager.isThisBlockOnTheChain(blockHash, processingBlockHash)) {
                         medicalOrgShortInfos.remove(processingMedicalOrgShortInfo);
@@ -191,8 +184,8 @@ public class MedicalOrgInfoManager {
                 AuthorityInfoForInternal infoForInternal = AuthorityInfoManager.load(blockHash, authorityIdentifier);
                 if (infoForInternal == null)
                     throw new FileCorruptionException();
-                else if (infoForInternal.getRevokedBlock() != null) {
-                    MedicalOrgInfoManager.revoke(infoForInternal.getRevokedBlock(), medicalOrgIdentifier);
+                else if (infoForInternal.getUntrustedBlock() != null) {
+                    MedicalOrgInfoManager.revoke(infoForInternal.getUntrustedBlock(), medicalOrgIdentifier);
                     return null;
                 }
                 Block curBlock = BlockManager.loadBlock(authorizedBlockHash);
@@ -238,10 +231,17 @@ public class MedicalOrgInfoManager {
         int offset = 0;
         while (offset < authorizationAllBytes.length) {
             byte[] authorizedBlockHash = Arrays.copyOfRange(authorizationAllBytes, offset, offset + Configuration.HASH_LENGTH);
+
             if (BlockChainManager.isThisBlockOnTheChain(blockHash, authorizedBlockHash)) {
                 offset += Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH;
                 int length = authorizationAllBytes[offset++];
                 return new String(Arrays.copyOfRange(authorizationAllBytes, offset, offset + length));
+            }
+            else
+            {
+                offset += Configuration.HASH_LENGTH + Configuration.IDENTIFIER_LENGTH;
+                int length = authorizationAllBytes[offset++];
+                offset+=length;
             }
 
         }

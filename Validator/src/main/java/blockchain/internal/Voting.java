@@ -66,12 +66,22 @@ public class Voting implements Raw{
 	{
 		agree.add(voter);
 	}
+
+	public void removeAgree(byte[] voter)
+	{
+		agree.remove(voter);
+	}
 	
 	public void addDisagree(byte[] voter)
 	{
 		disagree.add(voter);
 	}
-	
+
+	public void removeDisagree(byte[] voter)
+	{
+		disagree.remove(voter);
+	}
+
 	public AuthorityInfo getBeneficiary()
 	{
 		return beneficiary;
@@ -100,16 +110,16 @@ public class Voting implements Raw{
 
 		try {
 			byteArrayOutputStream.write(beneficiary.getRaw());
-			byteArrayOutputStream.write(add?1:0);
+			byteArrayOutputStream.write((byte)(add?1:0));
 
-			byteArrayOutputStream.write(agree.size());
+			byteArrayOutputStream.write(GeneralHelper.intToBytes(agree.size()));
 			Iterator<byte[]> iterator = agree.iterator();
 			while(iterator.hasNext()) {
 				byte[] element = iterator.next();
 				byteArrayOutputStream.write(element);
 			}
 
-			byteArrayOutputStream.write(disagree.size());
+			byteArrayOutputStream.write(GeneralHelper.intToBytes(disagree.size()));
 			iterator = disagree.iterator();
 			while(iterator.hasNext()) {
 				byte[] element = iterator.next();
@@ -146,6 +156,17 @@ public class Voting implements Raw{
 			disagreeSet.add(byteArrayReader.readBytes(Configuration.IDENTIFIER_LENGTH));
 		}
 		voting.setDisagree(disagreeSet);
+
+		return voting;
+	}
+
+	public static Voting parse(byte[] raw) throws BlockChainObjectParsingException {
+		ByteArrayReader byteArrayReader = new ByteArrayReader();
+		byteArrayReader.set(raw);
+		Voting voting = parse(byteArrayReader);
+
+		if(!byteArrayReader.isFinished())
+			throw new BlockChainObjectParsingException();
 
 		return voting;
 	}

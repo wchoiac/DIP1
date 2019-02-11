@@ -25,7 +25,7 @@ public class BlockManager {
         if (!processingBlockFolder.exists())
             processingBlockFolder.mkdirs();
 
-        try (FileOutputStream os = new FileOutputStream(blockContentFile);) {
+        try (FileOutputStream os = new FileOutputStream(blockContentFile)) {
             os.write(blockContent.getRaw());
 
         }
@@ -59,7 +59,7 @@ public class BlockManager {
         if (!processingBlockFolder.exists())
             processingBlockFolder.mkdirs();
 
-        try (FileOutputStream os = new FileOutputStream(blockHeaderFile);) {
+        try (FileOutputStream os = new FileOutputStream(blockHeaderFile)) {
             os.write(blockHeader.getRaw());
         }
 
@@ -97,9 +97,10 @@ public class BlockManager {
     public static Block loadBlock(byte[] blockHash) throws BlockChainObjectParsingException, IOException {
 
         BlockHeader header = loadBlockHeader(blockHash);
+        if (header == null)
+            return null;
         BlockContent content = loadBlockContent(header.getStructureIndicator(),blockHash);
-
-        if (header == null || content == null)
+        if ( content == null)
             return null;
 
         Block block = new Block();
