@@ -57,7 +57,7 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
 
     init {
         allRecordsRaw = findRecord(Helper.generatePublicKey(keyTime.pubKeyEncoded))
-        if(allRecordsRaw != null) fillUpData()
+//        if(allRecordsRaw != null) fillUpData()
         decideEditable()
         if(isViewOnly) cancelButton.text = "Back To Menu"
         name.prefColumnCount = 50
@@ -82,7 +82,7 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
     private fun fillUpData() {
         try {
             if(!keyTime.timeList.contains(allRecordsTimestamp!!.last())) {
-                Platform.runLater{
+                Platform.runLater {
                     val timestampStr = allRecordsTimestamp!!.toList().toString()
                     QRCodePane.drawQRCode(timestampStr)
                     SceneManager.showQRScene()
