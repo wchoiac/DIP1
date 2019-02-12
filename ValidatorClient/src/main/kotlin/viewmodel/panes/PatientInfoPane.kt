@@ -35,16 +35,16 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
     private val name = TextField()
     private val genderLabel = Label("Gender")
     private val gender = TextField()
-    private val birthDateLabel = Label("Date of Birth")
-    private val birthDate = TextField()
     private val identificationLabel = Label("ID Number")
     private val identification = TextField()
-    private val bloodTypeLabel = Label("Blood Type")
-    private val bloodType = TextField()
-    private val weightLabel = Label("Weight")
-    private val weight = TextField()
-    private val heightLabel = Label("Height")
-    private val height = TextField()
+    private val birthDateLabel = Label("Date of Birth")
+    private val birthDate = TextField()
+    private val nationalityLabel = Label("Nationality")
+    private val nationality = TextField()
+    private val addressLabel = Label("Address")
+    private val address = TextField()
+    private val phoneNumberLabel = Label("Phone Number")
+    private val phoneNumber = TextField()
     private val cancelButton = Button("Cancel")
     private val createRecordButton = Button("Create Patient Record")
     private val errorLabel = Label()
@@ -58,7 +58,6 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
     init {
         allRecordsRaw = findRecord(Helper.generatePublicKey(keyTime.pubKeyEncoded))
         if(allRecordsRaw != null) fillUpData()
-        decideEditable()
         if(isViewOnly) cancelButton.text = "Back To Menu"
         name.prefColumnCount = 50
         listView.fixedCellSize = 50.0
@@ -67,17 +66,18 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
         connectComponents()
         styleComponents()
         setCallbacks()
+        //        decideEditable()
     }
 
-    private fun decideEditable() {
-        name.editableProperty().set(!isViewOnly)
-        gender.editableProperty().set(!isViewOnly)
-        birthDate.editableProperty().set(!isViewOnly)
-        identification.editableProperty().set(!isViewOnly)
-        bloodType.editableProperty().set(!isViewOnly)
-        weight.editableProperty().set(!isViewOnly)
-        height.editableProperty().set(!isViewOnly)
-    }
+//    private fun decideEditable() {
+//        name.editableProperty().set(!isViewOnly)
+//        gender.editableProperty().set(!isViewOnly)
+//        birthDate.editableProperty().set(!isViewOnly)
+//        identification.editableProperty().set(!isViewOnly)
+//        nationality.editableProperty().set(!isViewOnly)
+//        address.editableProperty().set(!isViewOnly)
+//        phoneNumber.editableProperty().set(!isViewOnly)
+//    }
 
     private fun fillUpData() {
         try {
@@ -187,9 +187,9 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
             HBox(30.0, genderLabel, gender),
             HBox(30.0, birthDateLabel, birthDate),
             HBox(30.0, identificationLabel, identification),
-            HBox(30.0, bloodTypeLabel, bloodType),
-            HBox(30.0, weightLabel, weight),
-            HBox(30.0, heightLabel, height),
+            HBox(30.0, nationalityLabel, nationality),
+            HBox(30.0, addressLabel, address),
+            HBox(30.0, phoneNumberLabel, phoneNumber),
             HBox(30.0, errorLabel),
             buttonBar
         )
@@ -232,24 +232,24 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
                     identification.requestFocus()
                     errorLabel.text = "Please enter the identification number"
                 }
-                bloodType.text == "" -> {
-                    bloodType.requestFocus()
+                nationality.text == "" -> {
+                    nationality.requestFocus()
                     errorLabel.text = "Please enter the correct blood type"
                 }
-                weight.text.contains("[^0-9.]".toRegex()) -> {
-                    weight.requestFocus()
-                    errorLabel.text = "Please enter correct weight value"
+                address.text.contains("[^0-9.]".toRegex()) -> {
+                    address.requestFocus()
+                    errorLabel.text = "Please enter correct address value"
                 }
-                height.text.contains("[^0-9.]".toRegex()) -> {
-                    height.requestFocus()
-                    errorLabel.text = "Please enter correct weight value"
+                phoneNumber.text.contains("[^0-9.]".toRegex()) -> {
+                    phoneNumber.requestFocus()
+                    errorLabel.text = "Please enter correct address value"
                 }
                 else -> {
                     errorLabel.visibleProperty().set(false)
                     this.info = """{
                         "name": "${name.text}", "gender": "${gender.text}", "birthDate": "${birthDate.text}",
-                        "identificationNumber": "${identification.text}", "bloodType": "${bloodType.text}",
-                         "weight": ${weight.text}, "height": ${height.text}
+                        "identificationNumber": "${identification.text}", "nationality": "${nationality.text}",
+                         "address": ${address.text}, "phoneNumber": ${phoneNumber.text}
                     }""".replace("\\s".toRegex(), "")
                     SceneManager.showMainMenuScene()
                 }
@@ -261,9 +261,9 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
             gender.text = timeToRecord[newValue]?.gender ?: ""
             birthDate.text = timeToRecord[newValue]?.birthDate ?: ""
             identification.text = timeToRecord[newValue]?.identificationNumber ?: ""
-            bloodType.text = timeToRecord[newValue]?.bloodType ?: ""
-            weight.text = timeToRecord[newValue]?.weight.toString()
-            height.text = timeToRecord[newValue]?.height.toString()
+            nationality.text = timeToRecord[newValue]?.bloodType ?: ""
+            address.text = timeToRecord[newValue]?.weight.toString()
+            phoneNumber.text = timeToRecord[newValue]?.height.toString()
         }
 
         listView.selectionModel.selectLast()
