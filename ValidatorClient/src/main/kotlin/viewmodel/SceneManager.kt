@@ -3,7 +3,10 @@ package viewmodel
 import javafx.scene.Scene
 import javafx.scene.image.Image
 import javafx.stage.Stage
+import main.Helper
 import viewmodel.panes.*
+import java.io.File
+import kotlin.text.Charsets.UTF_8
 
 object SceneManager {
     private val logInScene = Scene(LogInPane, Config.WIDTH / 2, Config.HEIGHT / 2)
@@ -25,6 +28,25 @@ object SceneManager {
             field!!.setOnCloseRequest {
                 println("Exiting...")
                 (scanScene.root as ScanPane).disposeWebCamCamera()
+                val file = File("./src/main/resources/savedPatientsNotScanned.txt")
+                if(Helper.nameToInfoMap.isNotEmpty()) {
+                    val nameToInfoJsonString = StringBuilder("[")
+                    Helper.nameToInfoMap.forEach { entry ->
+                        nameToInfoJsonString.append("""{
+                            "name": "${entry.key}",
+                            "info": ${entry.value.first},
+                            "pubKey": "${Helper.nameToPublicKey[entry.key]}",
+                            "notFirst": ${entry.value.second}
+                        },""")
+                    }
+
+                    file.writeText((nameToInfoJsonString.substring(0, nameToInfoJsonString.length - 1) + "]")
+                            .replace("\\s".toRegex(), ""), UTF_8)
+                } else {
+                    if(file.exists()) {
+                        file.delete()
+                    }
+                }
             }
         }
     private var lastPatientInfoScene : Scene? = null

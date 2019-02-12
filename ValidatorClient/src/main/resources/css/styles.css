@@ -23,6 +23,16 @@ VBox, HBox {
 
 }
 
+.green-background {
+    -fx-background-color: rgb(149, 231, 26);
+    -fx-text-fill: #000000;
+}
+
+.grey-background {
+    -fx-background-color: rgb(120, 120, 120);
+    -fx-text-fill: #4c4c4c;
+}
+
 .small-size {
     -fx-pref-width: 100;
     -fx-pref-height: 30;

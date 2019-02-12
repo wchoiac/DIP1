@@ -7,12 +7,10 @@ import com.github.kittinunf.fuel.httpPost
 import com.google.gson.Gson
 import javafx.application.Platform
 import javafx.collections.FXCollections
+import javafx.geometry.Insets
 import main.SecurityHelper
 import javafx.geometry.Pos
-import javafx.scene.control.Button
-import javafx.scene.control.Label
-import javafx.scene.control.ListView
-import javafx.scene.control.TextField
+import javafx.scene.control.*
 import javafx.scene.layout.BorderPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
@@ -27,9 +25,9 @@ import java.security.NoSuchAlgorithmException
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.crypto.spec.SecretKeySpec
+import javafx.scene.control.ListCell
 
-
-class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Boolean) : BorderPane() {
+class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
     private val container = VBox(30.0)
     private val nameLabel = Label("Name")
     private val name = TextField()
@@ -45,70 +43,82 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
     private val address = TextField()
     private val phoneNumberLabel = Label("Phone Number")
     private val phoneNumber = TextField()
+    private val extraLabel = Label("Extra")
+    private val extra = TextField()
     private val cancelButton = Button("Cancel")
     private val createRecordButton = Button("Create Patient Record")
     private val errorLabel = Label()
-    private val timeList = FXCollections.observableArrayList<String>()
-    private val listView = ListView<String>(timeList)
+    private val drawQR = Button("Draw Selected Timestamps")
+    private val timeList = FXCollections.observableArrayList<HBox>()
+    private val listView = ListView<HBox>(timeList)
     private val timeToRecord = mutableMapOf<String, PatientIdentity>()
+    private val timeToStampMap = mutableMapOf<String, String>()
     var allRecordsRaw: Array<String>? = null
-    var allRecordsTimestamp: LongArray? = null
-    var info : String? = null
+    private var allRecordsTimestamp: LongArray? = null
 
     init {
+        QRCodePane.hideButtons()
         allRecordsRaw = findRecord(Helper.generatePublicKey(keyTime.pubKeyEncoded))
         if(allRecordsRaw != null) fillUpData()
-        if(isViewOnly) cancelButton.text = "Back To Menu"
-        name.prefColumnCount = 50
         listView.fixedCellSize = 50.0
-        identification.prefColumnCount = 50
         errorLabel.visibleProperty().set(false)
+        listView.selectionModel.selectionMode = SelectionMode.MULTIPLE
+        listView.setCellFactory {
+            object : ListCell<HBox>() {
+                init { style = "-fx-padding: 0 10 0 10" }
+                override fun updateItem(item: HBox?, empty: Boolean) {
+                    super.updateItem(item, empty)
+                    graphic = if (empty || item == null) null else item
+                }
+            }
+        }
+        sizeComponents()
+        QRCodePane.removeQRCode()
         connectComponents()
         styleComponents()
         setCallbacks()
-        //        decideEditable()
     }
 
-//    private fun decideEditable() {
-//        name.editableProperty().set(!isViewOnly)
-//        gender.editableProperty().set(!isViewOnly)
-//        birthDate.editableProperty().set(!isViewOnly)
-//        identification.editableProperty().set(!isViewOnly)
-//        nationality.editableProperty().set(!isViewOnly)
-//        address.editableProperty().set(!isViewOnly)
-//        phoneNumber.editableProperty().set(!isViewOnly)
-//    }
+    private fun sizeComponents() {
+        name.prefColumnCount = 15
+        gender.prefColumnCount = 5
+        phoneNumber.prefColumnCount = 15
+        identification.prefColumnCount = 60
+        nationality.prefColumnCount = 25
+        birthDate.prefColumnCount = 25
+        address.prefColumnCount = 62
+        extra.prefColumnCount = 64
+    }
 
     private fun fillUpData() {
         try {
-            if(!keyTime.timeList.contains(allRecordsTimestamp!!.last())) {
-                Platform.runLater{
-                    val timestampStr = allRecordsTimestamp!!.toList().toString()
-                    QRCodePane.drawQRCode(timestampStr)
-                    SceneManager.showQRScene()
-                }
-                return
-            }
             val gson = Gson()
             for (i in 0 until allRecordsTimestamp!!.size) {
+                val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm:ss Z", Locale.getDefault())
+                dateFormat.timeZone = TimeZone.getDefault()
+                val timeString = dateFormat.format(Date(allRecordsTimestamp!![i]))
+                timeToStampMap[timeString] = allRecordsTimestamp!![i].toString()
+                var check = false
                 for (j in 0 until keyTime.timeList.size) {
                     if (allRecordsTimestamp!![i] == keyTime.timeList[j]) {
+                        check = true
                         val key = SecretKeySpec(keyTime.secretKeysEncoded[j], "AES")
                         val recordJson = String(
                             SecurityHelper.decryptAES(
                                 Helper.decodeFromString(allRecordsRaw!![i]), key, ByteArray(16)
                             )
                         )
-
-                        val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm:ss Z", Locale.getDefault())
-                        dateFormat.timeZone = TimeZone.getDefault()
-                        val timeString = dateFormat.format(Date(keyTime.timeList[j]))
-                        timeList.add(timeString)
                         timeToRecord[timeString] = gson.fromJson(recordJson, PatientIdentity::class.java)
                         break
                     }
                 }
+
+                val hBox = HBox(Label(timeString))
+                hBox.alignment = Pos.CENTER
+                if(!check) hBox.styleClass.add("grey-background")
+                timeList.add(hBox)
             }
+
         } catch (ignored: Exception) {
             ignored.printStackTrace()
         }
@@ -180,26 +190,32 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
 
     private fun connectComponents() {
         container.alignment = Pos.CENTER
-        val buttonBar = HBox(30.0, cancelButton)
-        if(!isViewOnly) buttonBar.children.add(createRecordButton)
+        val buttonBar = HBox(30.0, cancelButton, createRecordButton, drawQR)
         container.children.addAll(
-            HBox(30.0, nameLabel, name),
-            HBox(30.0, genderLabel, gender),
-            HBox(30.0, birthDateLabel, birthDate),
-            HBox(30.0, identificationLabel, identification),
-            HBox(30.0, nationalityLabel, nationality),
-            HBox(30.0, addressLabel, address),
-            HBox(30.0, phoneNumberLabel, phoneNumber),
-            HBox(30.0, errorLabel),
+            HBox(30.0, HBox(15.0, nameLabel, name), HBox(15.0, genderLabel, gender), HBox(15.0, phoneNumberLabel, phoneNumber)),
+            HBox(15.0, identificationLabel, identification),
+            HBox(30.0, HBox(15.0, nationalityLabel, nationality), HBox(15.0, birthDateLabel, birthDate)),
+            HBox(15.0, addressLabel, address),
+            HBox(15.0, extraLabel, extra),
+            HBox(15.0, errorLabel),
             buttonBar
         )
         container.children.forEach{
             (it as HBox).alignment = Pos.CENTER
         }
         listView.setPrefSize(Config.WIDTH * 0.25, Config.HEIGHT * 0.85)
-        val vBox = VBox(listView)
-        vBox.alignment = Pos.CENTER
-        this.left = vBox
+        val leftBox = VBox(listView)
+        leftBox.alignment = Pos.CENTER
+        leftBox.padding = Insets(0.0, 0.0, 0.0, Config.WIDTH * 0.01)
+        val topBox = HBox(Config.WIDTH * 0.33, Label("Records"), Label("Information"), Label("Timestamp"))
+        topBox.alignment = Pos.CENTER
+        topBox.padding = Insets(Config.HEIGHT * 0.02, 0.0, 0.0, Config.WIDTH * 0.01)
+        val rightBox = VBox(QRCodePane)
+        rightBox.alignment = Pos.CENTER
+        rightBox.padding = Insets(0.0, Config.WIDTH * 0.01, 0.0, 0.0)
+        this.top = topBox
+        this.left = leftBox
+        this.right = rightBox
         this.center = container
     }
 
@@ -211,8 +227,10 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
 
     private fun setCallbacks() {
         cancelButton.setOnAction {
+            QRCodePane.showButtons()
             SceneManager.showMainMenuScene()
         }
+
         createRecordButton.setOnAction {
             errorLabel.visibleProperty().set(true)
             when {
@@ -246,26 +264,49 @@ class PatientInfoPane(private val keyTime: KeyTime, private val isViewOnly: Bool
                 }
                 else -> {
                     errorLabel.visibleProperty().set(false)
-                    this.info = """{
-                        "name": "${name.text}", "gender": "${gender.text}", "birthDate": "${birthDate.text}",
-                        "identificationNumber": "${identification.text}", "nationality": "${nationality.text}",
-                         "address": ${address.text}, "phoneNumber": ${phoneNumber.text}
-                    }""".replace("\\s".toRegex(), "")
+                    val patientIdentity = PatientIdentity(
+                            name = if(name.text == "") null else name.text,
+                            gender = if(gender.text == "") null else gender.text,
+                            birthDate = if(birthDate.text == "") null else birthDate.text,
+                            identificationNumber = if(identification.text == "") null else identification.text,
+                            nationality = if(nationality.text == "") null else nationality.text,
+                            address =if(address.text == "") null else address.text,
+                            phoneNum = if(phoneNumber.text == "") null else phoneNumber.text,
+                            extra = if(extra.text == "") null else extra.text
+                    )
+                    Helper.nameToInfoMap[name.text] = Pair(
+                            Gson().toJson(patientIdentity).replace("\\s".toRegex(), ""), timeList.isNotEmpty())
+                    Helper.nameToPublicKey[name.text] = Helper.encodeToString(keyTime.pubKeyEncoded)
+                    MainMenuPane.addToList(name.text)
+                    QRCodePane.showButtons()
                     SceneManager.showMainMenuScene()
                 }
             }
         }
 
         listView.selectionModel.selectedItemProperty().addListener { _, _, newValue ->
-            name.text = timeToRecord[newValue]?.name ?: ""
-            gender.text = timeToRecord[newValue]?.gender ?: ""
-            birthDate.text = timeToRecord[newValue]?.birthDate ?: ""
-            identification.text = timeToRecord[newValue]?.identificationNumber ?: ""
-            nationality.text = timeToRecord[newValue]?.bloodType ?: ""
-            address.text = timeToRecord[newValue]?.weight.toString()
-            phoneNumber.text = timeToRecord[newValue]?.height.toString()
+            val timestamp = (newValue.children.first() as Label).text
+            name.text = timeToRecord[timestamp]?.name ?: ""
+            gender.text = timeToRecord[timestamp]?.gender ?: ""
+            birthDate.text = timeToRecord[timestamp]?.birthDate ?: ""
+            identification.text = timeToRecord[timestamp]?.identificationNumber ?: ""
+            nationality.text = timeToRecord[timestamp]?.nationality ?: ""
+            address.text = timeToRecord[timestamp]?.address ?: ""
+            phoneNumber.text = timeToRecord[timestamp]?.phoneNum ?: ""
         }
 
-        listView.selectionModel.selectLast()
+        listView.selectionModel.selectFirst()
+
+        drawQR.setOnAction {
+            val items = listView.selectionModel.selectedItems
+            val timestampList = mutableListOf<String>()
+            items.forEach {hBox ->
+                timestampList.add(timeToStampMap[(hBox.children.first() as Label).text]!!)
+            }
+
+            Platform.runLater {
+                QRCodePane.drawQRCode(timestampList.toString())
+            }
+        }
     }
 }
