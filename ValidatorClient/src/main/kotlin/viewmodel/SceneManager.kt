@@ -89,6 +89,7 @@ object SceneManager {
     }
 
     fun showMainMenuScene() {
+        MainMenuPane.selectLast()
         showScene(mainMenuScene)
     }
 
@@ -99,6 +100,7 @@ object SceneManager {
     }
 
     fun showQRScene() {
+        QRCodePane.showButtons()
         showScene(qrScene)
     }
 

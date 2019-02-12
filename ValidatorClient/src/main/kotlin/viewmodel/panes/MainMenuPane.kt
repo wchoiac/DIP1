@@ -104,6 +104,10 @@ object MainMenuPane : BorderPane() {
         })
     }
 
+    fun selectLast() {
+        if(nameList.isNotEmpty()) listView.selectionModel.selectLast()
+    }
+
     fun addToList(vararg name: String) {
         nameList.addAll(name)
     }
