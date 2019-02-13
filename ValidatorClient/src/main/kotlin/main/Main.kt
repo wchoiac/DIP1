@@ -10,6 +10,8 @@ class Main : Application() {
     override fun start(primaryStage: Stage) {
         Config.WIDTH = Screen.getScreens().first().visualBounds.width
         Config.HEIGHT = Screen.getScreens().first().visualBounds.height
+        Config.IMAGE_WIDTH = Config.WIDTH * 0.25
+        Config.IMAGE_HEIGHT = Config.HEIGHT * 0.25
         SceneManager.stage = primaryStage
         SceneManager.showLogInScene()
     }

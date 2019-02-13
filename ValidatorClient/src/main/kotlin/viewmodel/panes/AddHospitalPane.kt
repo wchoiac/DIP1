@@ -73,7 +73,7 @@ object AddHospitalPane : BorderPane() {
         publicKeyImport.setOnAction {
             val fc = FileChooser()
             fc.title = "Public Key Import"
-            fc.initialDirectory = File(System.getProperty("user.home"))
+            fc.initialDirectory = File("./src/main/resources")
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("pem files", "*.pem"))
 
@@ -128,14 +128,16 @@ object AddHospitalPane : BorderPane() {
 
                             val certBytes = Arrays.copyOfRange(data, 1, data.size)
                             val cert = SecurityHelper.getX509FromBytes(certBytes)
+                            val pubKeyDirectory = "${publicKeyFile!!.parentFile.canonicalPath.replace('\\', '/')}/${hospitalName.text}.cer"
                             SecurityHelper.writeX509ToDER(
                                 cert,
-                                File("${publicKeyFile!!.parentFile.absolutePath}${hospitalName.text}.cer")
+                                File(pubKeyDirectory)
                             )
 
-                            val alert = Alert(Alert.AlertType.CONFIRMATION)
+                            val alert = Alert(Alert.AlertType.INFORMATION)
                             alert.title = "Certificate Saved"
-                            alert.contentText = "Certificate saved in the public key directory"
+                            alert.headerText = "Certificate saved in the public key directory"
+                            alert.contentText = pubKeyDirectory
                             alert.dialogPane.setPrefSize(300.0, 100.0)
                             alert.showAndWait()
                         } catch (e: Exception) {

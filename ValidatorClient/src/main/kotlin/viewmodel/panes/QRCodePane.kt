@@ -31,17 +31,6 @@ object QRCodePane : BorderPane() {
         qrView.visibleProperty().set(true)
     }
 
-    fun removeQRCode() {
-        qrView.visibleProperty().set(false)
-    }
-
-    fun hideButtons() {
-        if(bottomBar.children.contains(scanButton))
-            bottomBar.children.remove(scanButton)
-        if(bottomBar.children.contains(backButton))
-            bottomBar.children.remove(backButton)
-    }
-
     fun showButtons() {
         if(!bottomBar.children.contains(backButton))
             bottomBar.children.add(backButton)

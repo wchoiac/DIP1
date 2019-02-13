@@ -9,13 +9,14 @@ import java.io.File
 import kotlin.text.Charsets.UTF_8
 
 object SceneManager {
-    private val logInScene = Scene(LogInPane, Config.WIDTH / 2, Config.HEIGHT / 2)
+    private val sizingIndex = if(Config.WIDTH < 1500) 1.5 else 2.0
+    private val logInScene = Scene(LogInPane, Config.WIDTH / sizingIndex, Config.HEIGHT / sizingIndex)
     private val mainMenuScene = Scene(MainMenuPane, Config.WIDTH, Config.HEIGHT)
     private val scanScene = Scene(ScanPane, Config.WIDTH, Config.HEIGHT)
     private val qrScene = Scene(QRCodePane, Config.WIDTH, Config.HEIGHT)
     private val hospitalScene = Scene(ViewHospitalsPane, Config.WIDTH, Config.HEIGHT)
-    private val addHospitalScene = Scene(AddHospitalPane, Config.WIDTH / 2, Config.HEIGHT / 2)
-    private val addRemoveValidatorScene = Scene(AddRemoveValidatorsPane, Config.WIDTH / 2, Config.HEIGHT / 2)
+    private val addHospitalScene = Scene(AddHospitalPane, Config.WIDTH / sizingIndex, Config.HEIGHT / sizingIndex)
+    private val addRemoveValidatorScene = Scene(AddRemoveValidatorsPane, Config.WIDTH / sizingIndex, Config.HEIGHT / sizingIndex)
     private val viewValidatorsScene = Scene(ViewValidatorsPane, Config.WIDTH, Config.HEIGHT)
     private val voteValidatorsScene = Scene(VoteValidatorsPane, Config.WIDTH, Config.HEIGHT)
     var stage: Stage? = null

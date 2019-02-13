@@ -48,6 +48,11 @@ VBox, HBox {
     -fx-font-size: 15;
 }
 
+.success-text {
+    -fx-text-fill: green;
+    -fx-font-size: 15;
+}
+
 .date-picker-popup > * > .spinner > .button {
     -fx-pref-width: 30;
     -fx-pref-height: 30;

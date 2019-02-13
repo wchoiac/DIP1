@@ -8,8 +8,8 @@ object Config {
     const val QRCODE_HEIGHT = 300.0
     const val QRCODE_WIDTH = 300.0
 
-    const val IMAGE_HEIGHT = 400.0
-    const val IMAGE_WIDTH = 400.0
+    var IMAGE_HEIGHT = 400.0
+    var IMAGE_WIDTH = 400.0
 
     const val IP_WARNING = "Please enter valid ip address"
     const val USERNAME_WARNING = "Please enter your username"

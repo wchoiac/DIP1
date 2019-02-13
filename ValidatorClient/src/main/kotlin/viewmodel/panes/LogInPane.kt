@@ -67,7 +67,7 @@ object LogInPane : BorderPane() {
     }
 
     private fun connectComponents() {
-        val invisibleLabel = Label("TLS/SSL")
+        val invisibleLabel = Label("SSSSS")
         invisibleLabel.isVisible = false
         val hBox0 = HBox(20.0, invisibleLabel, ipLabel, ip, ssl)
         hBox0.alignment = Pos.CENTER

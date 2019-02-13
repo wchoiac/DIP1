@@ -26,6 +26,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.crypto.spec.SecretKeySpec
 import javafx.scene.control.ListCell
+import javafx.scene.image.ImageView
 
 class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
     private val container = VBox(30.0)
@@ -48,6 +49,7 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
     private val cancelButton = Button("Cancel")
     private val createRecordButton = Button("Create Patient Record")
     private val errorLabel = Label()
+    private val qrView = ImageView()
     private val drawQR = Button("Draw Selected Timestamps")
     private val timeList = FXCollections.observableArrayList<HBox>()
     private val listView = ListView<HBox>(timeList)
@@ -57,7 +59,8 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
     private var allRecordsTimestamp: LongArray? = null
 
     init {
-        QRCodePane.hideButtons()
+        qrView.fitWidth = Config.WIDTH * 0.2
+        qrView.fitHeight = Config.WIDTH * 0.2
         allRecordsRaw = findRecord(Helper.generatePublicKey(keyTime.pubKeyEncoded))
         if(allRecordsRaw != null) fillUpData()
         listView.fixedCellSize = 50.0
@@ -73,7 +76,6 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
             }
         }
         sizeComponents()
-        QRCodePane.removeQRCode()
         connectComponents()
         styleComponents()
         setCallbacks()
@@ -210,7 +212,7 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
         val topBox = HBox(Config.WIDTH * 0.33, Label("Records"), Label("Information"), Label("Timestamp"))
         topBox.alignment = Pos.CENTER
         topBox.padding = Insets(Config.HEIGHT * 0.02, 0.0, 0.0, Config.WIDTH * 0.01)
-        val rightBox = VBox(QRCodePane)
+        val rightBox = VBox(qrView)
         rightBox.alignment = Pos.CENTER
         rightBox.padding = Insets(0.0, Config.WIDTH * 0.01, 0.0, 0.0)
         this.top = topBox
@@ -227,7 +229,6 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
 
     private fun setCallbacks() {
         cancelButton.setOnAction {
-            QRCodePane.showButtons()
             SceneManager.showMainMenuScene()
         }
 
@@ -278,7 +279,6 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
                             Gson().toJson(patientIdentity).replace("\\s".toRegex(), ""), timeList.isNotEmpty())
                     Helper.nameToPublicKey[name.text] = Helper.encodeToString(keyTime.pubKeyEncoded)
                     MainMenuPane.addToList(name.text)
-                    QRCodePane.showButtons()
                     SceneManager.showMainMenuScene()
                 }
             }
@@ -305,7 +305,7 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
             }
 
             Platform.runLater {
-                QRCodePane.drawQRCode(timestampList.toString())
+                Helper.drawQRCode(qrView, timestampList.toString())
             }
         }
     }

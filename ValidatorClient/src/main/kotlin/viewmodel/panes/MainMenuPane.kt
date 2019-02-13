@@ -3,10 +3,7 @@ package viewmodel.panes
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.geometry.Pos
-import javafx.scene.control.Button
-import javafx.scene.control.ListView
-import javafx.scene.control.Tab
-import javafx.scene.control.TabPane
+import javafx.scene.control.*
 import javafx.scene.image.Image
 import javafx.scene.image.ImageView
 import javafx.scene.layout.BorderPane
@@ -71,7 +68,7 @@ object MainMenuPane : BorderPane() {
             userContainer.children.add(tempBox)
         }
         listView.setPrefSize(Config.WIDTH * 0.2, Config.HEIGHT * 0.5)
-        val listViewBox = VBox(listView)
+        val listViewBox = VBox(20.0, Label("Unprocessed User List"), listView)
         listViewBox.alignment = Pos.CENTER
         userContainer.children.add(listViewBox)
         for(i in 0 until hospitalImages.size) {
