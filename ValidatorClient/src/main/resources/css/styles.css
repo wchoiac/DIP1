@@ -23,6 +23,16 @@ VBox, HBox {
 
 }
 
+.green-background {
+    -fx-background-color: rgb(149, 231, 26);
+    -fx-text-fill: #000000;
+}
+
+.grey-background {
+    -fx-background-color: rgb(120, 120, 120);
+    -fx-text-fill: #4c4c4c;
+}
+
 .small-size {
     -fx-pref-width: 100;
     -fx-pref-height: 30;
@@ -36,4 +46,14 @@ VBox, HBox {
 .warning-text {
     -fx-text-fill: red;
     -fx-font-size: 15;
+}
+
+.success-text {
+    -fx-text-fill: green;
+    -fx-font-size: 15;
+}
+
+.date-picker-popup > * > .spinner > .button {
+    -fx-pref-width: 30;
+    -fx-pref-height: 30;
 }

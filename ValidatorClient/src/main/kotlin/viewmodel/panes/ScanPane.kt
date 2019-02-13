@@ -161,7 +161,7 @@ object ScanPane : BorderPane() {
                                 throw IllegalArgumentException("NOT PUBLIC KEY")
                             this.resultKeyTime = keyTime
                             Platform.runLater{
-                                SceneManager.showPatientInfoScene(PatientInfoPane(keyTime, isViewOnly))
+                                SceneManager.showPatientInfoScene(PatientInfoPane(keyTime))
                             }
                         } catch (e: Exception) {
                             try {
@@ -170,11 +170,10 @@ object ScanPane : BorderPane() {
                                 val secretTime = Helper.deserialize(decode) as SecretTime
                                 this.resultAES = SecretKeySpec(secretTime.secretKeyEncoded, "AES")
                                 this.resultTimestamp = secretTime.timestamp
-                                val pane = SceneManager.lastPatientPane!!
                                 resultPatientInfo =
-                                    SecurityHelper.encryptAES(pane.info!!.toByteArray(), resultAES!!, ByteArray(16))
+                                    SecurityHelper.encryptAES(Helper.nameToInfoMap[Helper.lastPatientName]!!.first.toByteArray(), resultAES!!, ByteArray(16))
                                 val mergedBytes = Helper.mergeByteArrays(Helper.longToBytes(secretTime.timestamp), resultPatientInfo!!)
-                                Platform.runLater{
+                                Platform.runLater {
                                     QRCodePane.drawQRCode(Helper.getHash(mergedBytes))
                                     SceneManager.showQRScene()
                                 }
@@ -184,10 +183,10 @@ object ScanPane : BorderPane() {
                                     val signature = Helper.decodeFromString(decode)
                                     if (signature.size * 4 != 256 || type != TYPE.SIGNATURE)
                                         throw IllegalArgumentException("NOT SIGNATURE")
-                                    val publicKey = this.resultKeyTime!!.pubKeyEncoded
+                                    val publicKey = Helper.nameToPublicKey[Helper.lastPatientName]
                                     this.resultSignature = signature
                                     val response =
-                                        "${Config.BASE_URL}/patient/${if (SceneManager.lastPatientPane!!.allRecordsRaw == null) "register" else "update"}"
+                                        "${Config.BASE_URL}/patient/${if (Helper.nameToInfoMap[Helper.lastPatientName]!!.second) "update" else "register"}"
                                             .httpPut()
                                             .header(
                                                 mapOf(
@@ -196,7 +195,7 @@ object ScanPane : BorderPane() {
                                                 )
                                             )
                                             .body("""{
-                                                "timestamp": $resultTimestamp, "ecPublicKey": "${Helper.encodeToString(publicKey)}",
+                                                "timestamp": $resultTimestamp, "ecPublicKey": "$publicKey",
                                                 "encryptedInfo": "${Helper.encodeToString(resultPatientInfo!!)}",
                                                 "signature": "${Helper.encodeToString(resultSignature!!)}",
                                                 "keyDEREncoded": true, "signatureDEREncoded": false
@@ -205,9 +204,11 @@ object ScanPane : BorderPane() {
 
                                     if (response.second.statusCode == 200) {
                                         val responseInt = response.third.component1()!!.toInt()
-                                        if(responseInt == 0)
+                                        if(responseInt == 0) {
+                                            Helper.nameToInfoMap.remove(Helper.lastPatientName)
+                                            MainMenuPane.removeFromList(Helper.lastPatientName)
                                             println("REGISTERED: $responseInt")
-                                        else
+                                        } else
                                             println("THIS RECORD IS ALREADY REGISTERED: $responseInt")
                                     } else {
                                         println("FAILED TO REGISTER")
