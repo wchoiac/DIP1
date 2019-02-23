@@ -2,7 +2,7 @@
 Final Year Project for Storing and Accessing Medical Records Using Blockchain Technology
 
 ## Blockchain Platform (Validator Software and Full Node Software)
-Written in Java and handles blockchain ecosystem and provides APIs for utilization and management
+Written in Java. Backend software handling blockchain ecosystem and providing APIs for utilization and management
 
 ## Patient Mobile Application (Android)
 Mobile Application dedicated for patients
