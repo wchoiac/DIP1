@@ -32,4 +32,6 @@
     <string name="exportID">Export\nIdentity</string>
     <string name="importID">Import\nIdentity</string>
     <string name="scanTimestamp">Scan Timestamp</string>
+    <string name="info">Info</string>
+    <string name="mediRec">MediRec</string>
 </resources>

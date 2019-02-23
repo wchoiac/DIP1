@@ -37,7 +37,10 @@ class ScanTimestampActivity : AppCompatActivity() {
                 arr.forEach {
                     set.add(it.toString())
                 }
-                println("set: $set")
+                val currentSet = getSharedPreferences("UserData", MODE_PRIVATE).getStringSet("TimeSet", mutableSetOf())
+                currentSet?.forEach {
+                    set.add(it)
+                }
                 val editor = getSharedPreferences("UserData", MODE_PRIVATE).edit()
                 editor.putStringSet("TimeSet", set)
                 editor.apply()

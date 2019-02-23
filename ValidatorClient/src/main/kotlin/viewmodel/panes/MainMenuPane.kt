@@ -19,7 +19,7 @@ object MainMenuPane : BorderPane() {
     private val validatorContainer = HBox(50.0)
     private val nameList = FXCollections.observableArrayList<String>()
     private val listView = ListView<String>(nameList)
-    private val userButtons = arrayOf(Button("Create/Update Record"), Button("Scan AES Key"), Button("View Record"))
+    private val userButtons = arrayOf(Button("Create/Update Record"), Button("Scan AES Key"), Button("Delete Selected"))
     private val userImages = arrayOf(
         Image(Config.IMAGES["createRecord"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true),
         Image(Config.IMAGES["modifyRecord"], Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true)
@@ -68,7 +68,7 @@ object MainMenuPane : BorderPane() {
             userContainer.children.add(tempBox)
         }
         listView.setPrefSize(Config.WIDTH * 0.2, Config.HEIGHT * 0.5)
-        val listViewBox = VBox(20.0, Label("Unprocessed User List"), listView)
+        val listViewBox = VBox(20.0, Label("Unprocessed User List"), listView, userButtons[2])
         listViewBox.alignment = Pos.CENTER
         userContainer.children.add(listViewBox)
         for(i in 0 until hospitalImages.size) {
@@ -125,11 +125,11 @@ object MainMenuPane : BorderPane() {
             SceneManager.showScanScene(ScanPane.TYPE.SECRET_KEY)
         }
 
-//        userButtons[2].setOnAction {
-//            //SCAN USER KEY -> SEARCH BLOCKCHAIN -> GET RECORD
-//            ScanPane.isViewOnly = true
-//            SceneManager.showScanScene(ScanPane.TYPE.PUBLIC_KEY)
-//        }
+        userButtons[2].setOnAction {
+            val name = listView.selectionModel.selectedItem
+            Helper.nameToInfoMap.remove(name)
+            removeFromList(name)
+        }
     }
 
     private fun hospitalCallbacks() {

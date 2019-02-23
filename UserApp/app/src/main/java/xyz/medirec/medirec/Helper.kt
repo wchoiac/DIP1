@@ -128,7 +128,7 @@ object Helper {
 
     fun generateSecretKey(password: CharArray, salt: ByteArray): SecretKey {
         val keyFact = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        val hmacKey = keyFact.generateSecret(PBEKeySpec(password, salt, 1024, 256))
+        val hmacKey = keyFact.generateSecret(PBEKeySpec(password, salt, 7777 * 7, 256))
         return SecretKeySpec(hmacKey.encoded, "AES")
     }
 
