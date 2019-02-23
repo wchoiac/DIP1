@@ -56,6 +56,8 @@ public class Configuration {
     public static final File PATIENT_FOLDER = new File(BLOCKCHAIN_DATA_FOLDER,"patient");
     public static final File GENESISBLOCK_FILE = new File("genesisBlock");
     public static final String BLOCKCHAIN_LOG_FILENAME ="BlockChainLogFile.log";
+    public static final File BLOCKCHAIN_SEED =new File("seed");
+    public static final File BLOCKCHAIN_PREV_PEERS =new File("prev");
 
 
     //blockchain setting
@@ -72,6 +74,8 @@ public class Configuration {
     public static final String BLOCKCHAIN_HASH_ALGORITHM ="SHA-256";
     public static final int ELIPTIC_CURVE_COORDINATE_LENGTH=32;
     public static final int CHECK_POINT_BLOCK_INTERVAL =30000;
+    public static final int PEER_SAVE_INTERVAL = 60000*10;
+
     //block setting
     public static final int MAX_RECORD = 5000;
     public static final int MAX_AUTHORIZATION = 10;

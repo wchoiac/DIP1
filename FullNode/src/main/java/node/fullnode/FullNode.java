@@ -22,9 +22,7 @@ import node.PeerInfo;
 import rest.server.FullNodeRestServer;
 
 import javax.net.ssl.*;
-import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.security.*;
@@ -78,6 +76,7 @@ public class FullNode {
     private final LinkedHashMap<PeerInfo, ConnectionManager> outBoundConnectionList = new LinkedHashMap<>();
     private final LinkedHashMap<PeerInfo, ConnectionManager> inBoundConnectionList = new LinkedHashMap<>();
 
+    private long lastTimeSavedNodes = System.currentTimeMillis();
 
     private ArrayList<ArrayList<BlockHeader>> pendingHeadersList = new ArrayList<>();
     private ArrayList<BlockHeader> toBeRequestedHeaders = new ArrayList<>();
@@ -85,6 +84,7 @@ public class FullNode {
     private BlockHeader latestBlockHeaderRequested = null;
     private HashMap<BlockHeader, RequestInfo> requestedHeaderMap = new HashMap<>(); // for re-transmission
     private ArrayList<InetAddress> potentialPeerPool = new ArrayList<>();
+    private ArrayList<InetAddress> requestedPeerList = new ArrayList<>();
 
     private final ArrayList<Transaction> transactionPool = new ArrayList<>();
     private final ArrayList<Block> orphanBlockList = new ArrayList<>();
@@ -105,6 +105,7 @@ public class FullNode {
     private final ReentrantReadWriteLock requestedHeaderLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock orphanBlockLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock potentialPeerLock = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock requestedPeerLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock connectionLock = new ReentrantReadWriteLock();
 
     private class RequestInfo {
@@ -134,14 +135,23 @@ public class FullNode {
         return blockChainLogger;
     }
 
-    public void start(InetAddress[] initialPeerNodes) throws Exception {
+    public void start(ArrayList<InetAddress> potentialPeers) throws Exception {
 
         if (runningFullNode == null) {
 
             runningFullNode = this;
 
-            if (initialPeerNodes != null)
+
+            if (potentialPeers != null&&!potentialPeers.isEmpty()) {
+                boolean larger =potentialPeers.size()>Configuration.MAX_OUT_BOUND_CONNECTION;
+
+                InetAddress[] initialPeerNodes = potentialPeers.subList(0, larger?Configuration.MAX_OUT_BOUND_CONNECTION:potentialPeers.size() ).toArray(new InetAddress[0]);
+                if(larger)
+                {
+                    potentialPeerPool.addAll(potentialPeers.subList(Configuration.MAX_OUT_BOUND_CONNECTION, potentialPeers.size() ));
+                }
                 connectWithPeers(initialPeerNodes);
+            }
 
             startAcceptingConnectionRequest(port); //## for debug
             System.out.println("startAcceptingConnectionRequest called");//## for debug
@@ -553,8 +563,10 @@ public class FullNode {
         //connection
         ReadLock readConnectionLock = connectionLock.readLock();
 
+        ReadLock readRequestedPeerLock = requestedPeerLock.readLock();
 
-        System.out.println("startHandleConnection entered"); //debug
+
+    //    System.out.println("startHandleConnection entered"); //debug
 
 
         ArrayList<Lock> usingLockList = new ArrayList<>();
@@ -682,7 +694,7 @@ public class FullNode {
                             newPotentialAddressStrings.add(receivedAddress.getHostAddress());
                         }
 
-                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
+                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock, readRequestedPeerLock);
 
                         for (ConnectionManager inboundConnectionManager : inBoundConnectionList.values()) {
                             newPotentialAddressStrings.remove(inboundConnectionManager.getSocket().getInetAddress().getHostAddress());
@@ -694,6 +706,10 @@ public class FullNode {
 
                         for (InetAddress potentialPeerAddress : potentialPeerPool) {
                             newPotentialAddressStrings.remove(potentialPeerAddress.getHostAddress());
+                        }
+
+                        for (InetAddress requestedPeerAddress : requestedPeerList) {
+                            newPotentialAddressStrings.remove(requestedPeerAddress.getHostAddress());
                         }
 
                         if (!newPotentialAddressStrings.isEmpty()) {
@@ -786,12 +802,12 @@ public class FullNode {
 
                         blockChainLogger.info(peerAddressString + ": Received a block(" + GeneralHelper.bytesToStringHex(block7.calculateHash()) + ")\n Block number= " + block7.getHeader().getBlockNumber());
 
-                        System.out.println("pass1"); //debug
+                       // System.out.println("pass1"); //debug
 
                         GeneralHelper.lockForMe(usingLockList, writeChainInfoFilesLock, writeMyChainLock, writePendingHeaderLock, writeRequestedHeaderLock, writeOrphanBlockLock, writeTransactionLock,
                                 readConnectionLock);
 
-                        System.out.println("pass2"); //debug
+                       // System.out.println("pass2"); //debug
 
                         if (orphanBlockList.contains(block7) || myMainChain.hasBlock(block7) || BlockChainManager.hasBlock(block7.calculateHash())) {
                             GeneralHelper.unLockForMe(usingLockList);
@@ -799,7 +815,7 @@ public class FullNode {
                         }
 
                         boolean requested = false;
-                        System.out.println("pass3"); //debug
+                     //   System.out.println("pass3"); //debug
 
                         // check if it's requested block
                         if (toBeRequestedHeaders.size() != 0 || requestedHeaders.size() != 0) {
@@ -952,11 +968,11 @@ public class FullNode {
                                     }
                                 }
 
-                                System.out.println("pass6"); //debug
+                              //  System.out.println("pass6"); //debug
 
 
                                 if (newTotalScore > myMainChain.getTotalScore()) {
-                                    System.out.println("pass7"); //debug
+                            //        System.out.println("pass7"); //debug
 
                                     myMainChain.loadCurrentBest(transactionPool);
                                     refreshConnection(); // disconnect/connect based on current authority list and medical org list
@@ -968,7 +984,7 @@ public class FullNode {
 
                                 }
 
-                                System.out.println("pass8"); //debug
+                          //      System.out.println("pass8"); //debug
 
 
                             } else {
@@ -1129,7 +1145,26 @@ public class FullNode {
 
                 GeneralHelper.lockForMe(usingLockList, readConnectionLock, readPotentialPeerLock);
 
-                System.out.println("startRequestingPeerNodes entered"); //debug
+             //   System.out.println("startRequestingPeerNodes entered"); //debug
+
+                if(System.currentTimeMillis()-lastTimeSavedNodes>Configuration.PEER_SAVE_INTERVAL)
+                {
+                    try (BufferedWriter out = new BufferedWriter(new FileWriter(Configuration.BLOCKCHAIN_PREV_PEERS.getAbsoluteFile()))) {
+                        InetAddress[] peers=getPeerList(null);
+                        for(InetAddress peer:peers)
+                        {
+                            out.write(peer.getHostAddress());
+                        }
+                        out.flush();
+                    }
+                    catch (IOException e)
+                    {
+                        System.out.println("This message shouldn't pop up (startRequestingPeerNodes)");
+                    }
+
+                    lastTimeSavedNodes=System.currentTimeMillis();
+                    blockChainLogger.info("Saved peer nodes");
+                }
 
                 int diff = Configuration.MAX_OUT_BOUND_CONNECTION - outBoundConnectionList.size();
                 if (potentialPeerPool.size() < diff) {
@@ -1145,7 +1180,7 @@ public class FullNode {
                     e.printStackTrace();
                 }
             }
-            System.out.println("startRequestingPeerNodes terminated"); //debug
+          //  System.out.println("startRequestingPeerNodes terminated"); //debug
 
         }).start();
     }
@@ -1162,29 +1197,44 @@ public class FullNode {
 
                     ReadLock readConnectionLock = connectionLock.readLock();
                     WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();
+                    WriteLock writeRequestedPeerLock = requestedPeerLock.writeLock();
 
-                    GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
+                    GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock, writeRequestedPeerLock);
+
+//                    System.out.println("startRequestingConnection entered"); //debug
 
                     int diff = Configuration.MAX_OUT_BOUND_CONNECTION - outBoundConnectionList.size();
                     int max = potentialPeerPool.size();
-                    InetAddress[] potentialPeer = potentialPeerPool.subList(0, diff > max ? max : diff).toArray(new InetAddress[0]);
+                    InetAddress[] toBeRequestedPeer = potentialPeerPool.subList(0, diff > max ? max : diff).toArray(new InetAddress[0]);
 
-                    for (InetAddress address : potentialPeer)
+                    for (InetAddress address : toBeRequestedPeer) {
+                        requestedPeerList.add(address);
                         potentialPeerPool.remove(address);
+                    }
 
 
                     GeneralHelper.unLockForMe(usingLockList);
 
-                    connectWithPeers(potentialPeer); //## for debug
+                    connectWithPeers(toBeRequestedPeer);
+
+
+                    GeneralHelper.lockForMe(usingLockList,writeRequestedPeerLock);
+                    for (InetAddress address : toBeRequestedPeer) {
+                        requestedPeerList.remove(address);
+                    }
+                    GeneralHelper.unLockForMe(usingLockList);
+
 
                     Thread.sleep(Configuration.CONNECTION_REQUEST_INTERVAL);
 
                 }
+
             } catch (Exception e) {
                 e.printStackTrace();
                 shutdown();
-            } finally {
-                System.out.println("startRequestingConnection terminated"); //debug
+            }
+            finally {
+                //               System.out.println("startRequestingConnection terminated"); //debug
                 GeneralHelper.unLockForMe(usingLockList);
             }
         }).start();
@@ -1284,7 +1334,7 @@ public class FullNode {
                 e.printStackTrace();
                 shutdown();
             } finally {
-                System.out.println("startRequestingConnection terminated"); //debug
+             //   System.out.println("startRequestingConnection terminated"); //debug
                 GeneralHelper.unLockForMe(usingLockList);
             }
         }).start();
