@@ -301,7 +301,7 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
             val items = listView.selectionModel.selectedItems
             val timestampList = mutableListOf<String>()
             items.forEach {hBox ->
-                timestampList.add(timeToStampMap[(hBox.children.first() as Label).text]!!)
+                timestampList.add("-" + timeToStampMap[(hBox.children.first() as Label).text]!!)
             }
 
             Platform.runLater {

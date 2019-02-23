@@ -174,7 +174,7 @@ object ScanPane : BorderPane() {
                                     SecurityHelper.encryptAES(Helper.nameToInfoMap[Helper.lastPatientName]!!.first.toByteArray(), resultAES!!, ByteArray(16))
                                 val mergedBytes = Helper.mergeByteArrays(Helper.longToBytes(secretTime.timestamp), resultPatientInfo!!)
                                 Platform.runLater {
-                                    QRCodePane.drawQRCode(Helper.getHash(mergedBytes))
+                                    QRCodePane.drawQRCode("-" + Helper.getHash(mergedBytes))
                                     SceneManager.showQRScene()
                                 }
                             } catch (e : Exception) {

@@ -1,5 +1,6 @@
 package xyz.medirec.medirec
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -15,18 +16,20 @@ import java.util.*
 
 class SelectDatesActivity : AppCompatActivity() {
 
+    @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_select_dates)
-        val timeSet = getSharedPreferences("UserData", Context.MODE_PRIVATE).getStringSet("TimeSet", mutableSetOf())!!
-        timeSet.sorted()
-
-        val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm:ss Z", Locale.getDefault())
+        val initialSet = getSharedPreferences("UserData", Context.MODE_PRIVATE).getStringSet("TimeSet", mutableSetOf())!!
+        val sortedSet = initialSet.toSortedSet()
+        val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault())
         dateFormat.timeZone = TimeZone.getDefault()
-        for(timestamp in timeSet) {
+        for(timestamp in sortedSet) {
             val box = CheckBox(this)
-            val date = Date(timestamp.toLong())
-            box.text = dateFormat.format(date)
+            val timestampLong = timestamp.toLong()
+            val date = Date(Math.abs(timestampLong))
+            val addText = if(timestampLong < 0) getString(R.string.info) else getString(R.string.mediRec)
+            box.text = dateFormat.format(date) + " " + addText
             box.textSize = 20f
             dateList.addView(box)
         }
@@ -34,7 +37,7 @@ class SelectDatesActivity : AppCompatActivity() {
         generateKey.setOnClickListener {
             val list = mutableListOf<Long>()
             var i = 0
-            for(timestamp in timeSet)
+            for(timestamp in sortedSet)
                 if((dateList.getChildAt(i++) as CheckBox).isChecked)
                     list.add(timestamp.toLong())
 
@@ -46,11 +49,11 @@ class SelectDatesActivity : AppCompatActivity() {
         }
 
         backMain.setOnClickListener {
-            startActivity(Intent(this, MenuActivity::class.java))
+            goToMenu()
         }
 
         selectAll.setOnCheckedChangeListener { _, isChecked ->
-            for(i in 0 until timeSet.size)
+            for(i in 0 until sortedSet.size)
                 (dateList.getChildAt(i) as CheckBox).isChecked = isChecked
         }
 
@@ -64,17 +67,24 @@ class SelectDatesActivity : AppCompatActivity() {
                     while(i < dateList.childCount) {
                         if((dateList.getChildAt(i) as CheckBox).isChecked) {
                             val date = (dateList.getChildAt(i) as CheckBox).text
-                            for(time in timeSet) {
+                            for(time in sortedSet) {
                                 val dateString = dateFormat.format(Date(time.toLong()))
-                                if(dateString == date) {
-                                    timeSet.remove(time)
+                                if(date.contains(dateString)) {
+                                    sortedSet.remove(time)
                                     break
                                 }
                             }
                             dateList.removeViewAt(i)
                         } else ++i
                     }
-                    if(timeSet.isEmpty()) generateKey.performClick()
+
+                    val editor = getSharedPreferences("UserData", MODE_PRIVATE).edit()
+                    editor.putStringSet("TimeSet", sortedSet)
+                    editor.apply()
+
+                    if(sortedSet.isEmpty()) {
+                        generateKey.performClick()
+                    }
                 }
                 .setNegativeButton("No") { dialog, _ -> dialog.dismiss()}
 
@@ -89,6 +99,14 @@ class SelectDatesActivity : AppCompatActivity() {
         selectAll.performClick()
 
         // IF THERE IS NO TIMESET -> CREATE KEY
-        if(timeSet.isEmpty()) generateKey.performClick()
+        if(sortedSet.isEmpty()) generateKey.performClick()
+    }
+
+    override fun onBackPressed() {
+        goToMenu()
+    }
+
+    private fun goToMenu() {
+        startActivity(Intent(this, MenuActivity::class.java))
     }
 }

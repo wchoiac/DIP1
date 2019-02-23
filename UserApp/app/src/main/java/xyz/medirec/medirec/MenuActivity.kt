@@ -82,6 +82,10 @@ class MenuActivity : AppCompatActivity() {
         buttons[5].setOnClickListener { exitApp() }
     }
 
+    override fun onBackPressed() {
+        exitApp()
+    }
+
     private fun askForPermission(vararg permissions: String) {
         val tempList = mutableListOf<String>()
         permissions.forEach {
