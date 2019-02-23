@@ -8,8 +8,11 @@ import java.io.Console;
 import java.io.FileInputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.security.KeyStore;
 import java.security.Security;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 
@@ -76,9 +79,11 @@ public class Main {
             }
         }
 
+
+        ArrayList<InetAddress> potentialPeers = new ArrayList<>();
+
         System.out.print("Enter number of known peer nodes: ");
         int numOfPeerNodeKnown = sc.nextInt();
-        InetAddress[] initialPeerNodes = new InetAddress[numOfPeerNodeKnown];
 
         for (int i = 0; i < numOfPeerNodeKnown; ++i) {
             while (true) {
@@ -86,12 +91,45 @@ public class Main {
                 String hostName = sc.next();
 
                 try {
-                    initialPeerNodes[i] = InetAddress.getByName(hostName);
+                    potentialPeers.add(InetAddress.getByName(hostName));
                     break;
                 } catch (UnknownHostException e) {
                     System.out.println("Not appropriate ip Address or port");
                 }
             }
+        }
+
+        if(Configuration.BLOCKCHAIN_PREV_PEERS.exists())
+        {
+            List<String> prevNodes =Files.readAllLines(Configuration.BLOCKCHAIN_PREV_PEERS.toPath());
+
+            for(String prevNode:prevNodes)
+            {
+                try {
+                    InetAddress potentialPeer =InetAddress.getByName(prevNode);
+                    if(!potentialPeers.contains(potentialPeer))
+                        potentialPeers.add(potentialPeer);
+                } catch (UnknownHostException e) {
+                    System.out.println("Previous node file is corrupted");
+                }
+            }
+        }
+
+        if(Configuration.BLOCKCHAIN_SEED.exists())
+        {
+            List<String> seedNodes =Files.readAllLines(Configuration.BLOCKCHAIN_SEED.toPath());
+
+            for(String seed:seedNodes)
+            {
+                try {
+                    InetAddress potentialPeer =InetAddress.getByName(seed);
+                    if(!potentialPeers.contains(potentialPeer))
+                        potentialPeers.add(potentialPeer);
+                } catch (UnknownHostException e) {
+                    System.out.println("Seed file is corrupted");
+                }
+            }
+
         }
 
         KeyStore apiKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
@@ -135,7 +173,7 @@ public class Main {
         }
         }, "Shutdown-thread"));
 
-        validator.start(initialPeerNodes);  //## for debug
+        validator.start(potentialPeers);  //## for debug
         restServer.start();
     }
 }
