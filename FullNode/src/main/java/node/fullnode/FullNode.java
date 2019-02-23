@@ -76,15 +76,13 @@ public class FullNode {
     private final LinkedHashMap<PeerInfo, ConnectionManager> outBoundConnectionList = new LinkedHashMap<>();
     private final LinkedHashMap<PeerInfo, ConnectionManager> inBoundConnectionList = new LinkedHashMap<>();
 
-    private long lastTimeSavedNodes = System.currentTimeMillis();
-
     private ArrayList<ArrayList<BlockHeader>> pendingHeadersList = new ArrayList<>();
     private ArrayList<BlockHeader> toBeRequestedHeaders = new ArrayList<>();
     private final ArrayList<BlockHeader> requestedHeaders = new ArrayList<>();
     private BlockHeader latestBlockHeaderRequested = null;
     private HashMap<BlockHeader, RequestInfo> requestedHeaderMap = new HashMap<>(); // for re-transmission
     private ArrayList<InetAddress> potentialPeerPool = new ArrayList<>();
-
+    private ArrayList<InetAddress> requestedPeerList = new ArrayList<>();
     private final ArrayList<Transaction> transactionPool = new ArrayList<>();
     private final ArrayList<Block> orphanBlockList = new ArrayList<>();
 
@@ -93,6 +91,7 @@ public class FullNode {
     private Random rand = new Random();
 
     private long lastBroadCastHeadersRequestTime = -1;
+    private long lastTimeSavedNodes = System.currentTimeMillis();
 
     // Lock
     public static final ReentrantReadWriteLock chainInfoFilesLock = new ReentrantReadWriteLock();
@@ -104,6 +103,7 @@ public class FullNode {
     private final ReentrantReadWriteLock requestedHeaderLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock orphanBlockLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock potentialPeerLock = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock requestedPeerLock = new ReentrantReadWriteLock();
     private final ReentrantReadWriteLock connectionLock = new ReentrantReadWriteLock();
 
     private class RequestInfo {
@@ -141,24 +141,17 @@ public class FullNode {
 
 
             if (potentialPeers != null&&!potentialPeers.isEmpty()) {
-                boolean larger =potentialPeers.size()>Configuration.MAX_OUT_BOUND_CONNECTION;
-
-                InetAddress[] initialPeerNodes = potentialPeers.subList(0, larger?Configuration.MAX_OUT_BOUND_CONNECTION:potentialPeers.size() ).toArray(new InetAddress[0]);
-                if(larger)
-                {
-                    potentialPeerPool.addAll(potentialPeers.subList(Configuration.MAX_OUT_BOUND_CONNECTION, potentialPeers.size() ));
-                }
-                connectWithPeers(initialPeerNodes);
+                potentialPeerPool.addAll(potentialPeers);
             }
 
             startAcceptingConnectionRequest(port); //## for debug
             System.out.println("startAcceptingConnectionRequest called");//## for debug
 
-            startRequestingPeerNodes();
-            System.out.println("startRequestingPeerNodes called");//## for debug
-
             startRequestingConnection();
             System.out.println("startRequestingConnection called");//## for debug
+
+            startRequestingPeerNodes();
+            System.out.println("startRequestingPeerNodes called");//## for debug
 
             startRequestingBlocksAndBlockHeaders();
             System.out.println("startRequestingBlockHeaders called");//## for debug
@@ -283,7 +276,7 @@ public class FullNode {
                         ReadLock myChainReadLock = myChainLock.readLock();
 
                         try {
-                            System.out.println("Start checking client's cert");
+                            System.out.println("Start checking server's cert");
 
                             for (X509Certificate cert : certs) {
                                 cert.checkValidity();
@@ -322,7 +315,7 @@ public class FullNode {
                             } else
                                 throw new CertificateException("The signing cert's issuer is not a valid authority");
 
-                            System.out.println("Finished checking client's cert");
+                            System.out.println("Finished checking server's cert");
                         } catch (CertificateException e) {
                             throw e;
                         } catch (Exception e) {
@@ -381,7 +374,7 @@ public class FullNode {
                 );
                 newConnection.startHandshake();
 
-            } catch (IOException e) {
+            } catch (Exception e) {
                 blockChainLogger.info(peer.getHostAddress() + ": Not responding");
                 System.out.println(peer.getHostAddress() + ": Not responding"); //for debug
             }
@@ -405,9 +398,8 @@ public class FullNode {
                         verifyAndHandleConnection(newConnection, false);
                     });
                     newConnection.startHandshake();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     blockChainLogger.info("Server Socket accept error");
-                    e.printStackTrace(); //for debug
                 }
             }
         }).start();
@@ -483,6 +475,7 @@ public class FullNode {
 
                 } else {
                     outBoundConnectionList.put(peerInfo, newConnectionManager);
+
                 }
 
                 GeneralHelper.unLockForMe(usingLockList);
@@ -570,6 +563,8 @@ public class FullNode {
 
         //connection
         ReadLock readConnectionLock = connectionLock.readLock();
+
+        ReadLock readRequestedPeerLock = requestedPeerLock.readLock();
 
 
 
@@ -701,7 +696,7 @@ public class FullNode {
                             newPotentialAddressStrings.add(receivedAddress.getHostAddress());
                         }
 
-                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
+                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock,readRequestedPeerLock);
 
                         for (ConnectionManager inboundConnectionManager : inBoundConnectionList.values()) {
                             newPotentialAddressStrings.remove(inboundConnectionManager.getSocket().getInetAddress().getHostAddress());
@@ -713,6 +708,10 @@ public class FullNode {
 
                         for (InetAddress potentialPeerAddress : potentialPeerPool) {
                             newPotentialAddressStrings.remove(potentialPeerAddress.getHostAddress());
+                        }
+
+                        for (InetAddress requestedPeerAddress : requestedPeerList) {
+                            newPotentialAddressStrings.remove(requestedPeerAddress.getHostAddress());
                         }
 
                         if (!newPotentialAddressStrings.isEmpty()) {
@@ -1204,8 +1203,11 @@ public class FullNode {
 
                     ReadLock readConnectionLock = connectionLock.readLock();
                     WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();
+                    WriteLock writeRequestedPeerLock = requestedPeerLock.writeLock();
 
-                    GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock);
+                    GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock,writeRequestedPeerLock);
+
+                    requestedPeerList.clear();
 
 //                    System.out.println("startRequestingConnection entered"); //debug
 
@@ -1214,6 +1216,7 @@ public class FullNode {
                     InetAddress[] toBeRequestedPeer = potentialPeerPool.subList(0, diff > max ? max : diff).toArray(new InetAddress[0]);
 
                     for (InetAddress address : toBeRequestedPeer) {
+                        requestedPeerList.add(address);
                         potentialPeerPool.remove(address);
                     }
 
