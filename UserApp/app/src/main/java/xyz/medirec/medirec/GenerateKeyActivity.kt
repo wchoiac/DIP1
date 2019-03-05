@@ -44,6 +44,7 @@ class GenerateKeyActivity : AppCompatActivity() {
         editor.apply()
         val intent = Intent(this, ScanQrActivity::class.java)
         intent.putExtra("privateKey", this.intent.getSerializableExtra("privateKey"))
+        intent.putExtra("timestamp", currentTimestamp)
         startActivity(intent)
     }
 }

@@ -39,4 +39,5 @@ dependencies {
     implementation group: 'com.google.zxing', name: 'core', version: '3.3.3'
     implementation group: 'com.journeyapps', name: 'zxing-android-embedded', version: '3.6.0'
     implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.8.1'
+    implementation 'com.beust:klaxon:5.0.1'
 }
