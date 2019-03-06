@@ -1867,6 +1867,7 @@ public class Validator {
         } else if (PatientInfoManager.patientExists(myMainChain.getLatestBlockHash(), patientInfo.getPatientIdentifier())) {
             result = 2;
         } else if (!patientInfo.verify()) {
+            GeneralHelper.unLockForMe(usingLock);
             System.out.println("This message shouldn't pop up");//debug
             throw new BadRequest();
         }
@@ -1905,6 +1906,7 @@ public class Validator {
         } else if (PatientInfoManager.patientInfoExists(myMainChain.getLatestBlockHash(), patientInfo.getPatientIdentifier(), patientInfo.calculateInfoHash())) {
             result = 3;
         } else if (!patientInfo.verify()) {
+            GeneralHelper.unLockForMe(usingLock);
             System.out.println("This message shouldn't pop up");//debug
             throw new BadRequest();
         }
@@ -1940,6 +1942,7 @@ public class Validator {
         GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRevocationLock);
 
         if (!myMainChain.hasMedicalOrg(identifier)) {
+            GeneralHelper.unLockForMe(usingLock);
             throw new NotFound();
         } else {
             if (medicalOrgRevocationList.contains(identifier)) {
