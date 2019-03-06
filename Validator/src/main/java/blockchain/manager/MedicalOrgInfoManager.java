@@ -112,8 +112,8 @@ public class MedicalOrgInfoManager {
                 } else {
                     if (bis.read(revocationReadArray) != revocationReadArray.length)
                         throw new BlockChainObjectParsingException();
-                    byte[] processingBlockHash = Arrays.copyOfRange(authorizationReadArray, 0, Configuration.HASH_LENGTH);
-                    byte[] processingMedicalOrgIdentifier = Arrays.copyOfRange(authorizationReadArray, Configuration.HASH_LENGTH, revocationReadArray.length - 1);
+                    byte[] processingBlockHash = Arrays.copyOfRange(revocationReadArray, 0, Configuration.HASH_LENGTH);
+                    byte[] processingMedicalOrgIdentifier = Arrays.copyOfRange(revocationReadArray, Configuration.HASH_LENGTH, revocationReadArray.length);
 
                     MedicalOrgShortInfo processingMedicalOrgShortInfo = new MedicalOrgShortInfo("", processingMedicalOrgIdentifier);
 

@@ -88,8 +88,6 @@ public class Validator {
     private final LinkedHashMap<PeerInfo, ConnectionManager> outBoundConnectionList = new LinkedHashMap<>();
     private final LinkedHashMap<PeerInfo, ConnectionManager> inBoundConnectionList = new LinkedHashMap<>();
 
-    private long lastTimeSavedNodes = System.currentTimeMillis();
-
 
     private ArrayList<ArrayList<BlockHeader>> pendingHeadersList = new ArrayList<>();
     private ArrayList<BlockHeader> toBeRequestedHeaders = new ArrayList<>();
@@ -98,7 +96,6 @@ public class Validator {
     private HashMap<BlockHeader, RequestInfo> requestedHeaderMap = new HashMap<>(); // for re-transmission
     private ArrayList<InetAddress> potentialPeerPool = new ArrayList<>();
     private ArrayList<InetAddress> requestedPeerList = new ArrayList<>();
-
     private final ArrayList<Transaction> transactionPool = new ArrayList<>();
     private final ArrayList<Vote> myVotes = new ArrayList<>();
     private final ArrayList<Block> orphanBlockList = new ArrayList<>();
@@ -108,6 +105,7 @@ public class Validator {
     private Random rand = new Random();
 
     private long lastBroadCastHeadersRequestTime = -1;
+    private long lastTimeSavedNodes = System.currentTimeMillis();
 
     // Lock
     private static final ReentrantReadWriteLock chainInfoFilesLock = new ReentrantReadWriteLock();
@@ -159,25 +157,31 @@ public class Validator {
 
             runningValidator = this;
 
-            if (potentialPeers != null&&!potentialPeers.isEmpty()) {
-                boolean larger =potentialPeers.size()>Configuration.MAX_OUT_BOUND_CONNECTION;
+//            if (potentialPeers != null&&!potentialPeers.isEmpty()) {
+//                boolean larger =potentialPeers.size()>Configuration.MAX_OUT_BOUND_CONNECTION;
+//
+//                InetAddress[] initialPeerNodes = potentialPeers.subList(0, larger?Configuration.MAX_OUT_BOUND_CONNECTION:potentialPeers.size() ).toArray(new InetAddress[0]);
+//                if(larger)
+//                {
+//                    potentialPeerPool.addAll(potentialPeers.subList(Configuration.MAX_OUT_BOUND_CONNECTION, potentialPeers.size() ));
+//                }
+//                connectWithPeers(initialPeerNodes);
+//            }
 
-                InetAddress[] initialPeerNodes = potentialPeers.subList(0, larger?Configuration.MAX_OUT_BOUND_CONNECTION:potentialPeers.size() ).toArray(new InetAddress[0]);
-                if(larger)
-                {
-                    potentialPeerPool.addAll(potentialPeers.subList(Configuration.MAX_OUT_BOUND_CONNECTION, potentialPeers.size() ));
-                }
-                connectWithPeers(initialPeerNodes);
+            if (potentialPeers != null&&!potentialPeers.isEmpty()) {
+                potentialPeerPool.addAll(potentialPeers);
             }
+
 
             startAcceptingConnectionRequest(port);
             System.out.println("startAcceptingConnectionRequest called");//## for debug
 
-            startRequestingPeerNodes();
-            System.out.println("startRequestingPeerNodes called");//## for debug
 
             startRequestingConnection();
             System.out.println("startRequestingConnection called");//## for debug
+
+            startRequestingPeerNodes();
+            System.out.println("startRequestingPeerNodes called");//## for debug
 
             startRequestingBlocksAndBlockHeaders();
             System.out.println("startRequestingBlockHeaders called");//## for debug
@@ -303,7 +307,8 @@ public class Validator {
                         ReadLock readMyChainLock = myChainLock.readLock();
 
                         try {
-                            System.out.println("Start checking client's cert");
+                            System.out.println("Start checking server's cert");
+
 
                             for (X509Certificate cert : certs) {
                                 cert.checkValidity();
@@ -342,7 +347,7 @@ public class Validator {
                             } else
                                 throw new CertificateException("The signing cert's issuer is not a valid authority");
 
-                            System.out.println("Finished checking client's cert");
+                            System.out.println("Finished checking server's cert");
                         } catch (CertificateException e) {
                             throw e;
                         } catch (Exception e) {
@@ -400,14 +405,12 @@ public class Validator {
                 );
                 newConnection.startHandshake();
 
-            } catch (IOException e) {
+            } catch (Exception e) {
                 blockChainLogger.info(peer.getHostAddress() + ": Not responding");
                 System.out.println(peer.getHostAddress() + ": Not responding"); //for debug
             }
 
         }
-
-
     }
 
     private void startAcceptingConnectionRequest(int server_port) throws IOException {
@@ -420,14 +423,14 @@ public class Validator {
             while (!isTerminated) {
                 try {
                     SSLSocket newConnection = (SSLSocket) serverSocket.accept();
+
                     newConnection.setSoTimeout(5000);
                     newConnection.addHandshakeCompletedListener((ex) -> {
                         verifyAndHandleConnection(newConnection, false);
                     });
                     newConnection.startHandshake();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     blockChainLogger.info("Server Socket accept error");
-                    e.printStackTrace(); //for debug
                 }
             }
         }).start();
@@ -439,6 +442,7 @@ public class Validator {
 
             PeerInfo peerInfo = null;
             WriteLock writeConnectionLock = connectionLock.writeLock();
+            WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();
             ReadLock readMyChainLock = myChainLock.readLock();
             ArrayList<Lock> usingLockList = new ArrayList<>();
 
@@ -468,8 +472,8 @@ public class Validator {
                 if (checkIfConnectionExists(peerInfo)) {
                     GeneralHelper.unLockForMe(usingLockList);
                     newConnection.close();
-                    blockChainLogger.info(newConnection.getInetAddress().getHostAddress() + ": Connection already exists");
-                    System.out.println(newConnection.getInetAddress().getHostAddress() + ": Connection already exists"); //for debug
+                    blockChainLogger.info(newConnection.getInetAddress().getHostAddress() + ": Connection already exists "+isOutBound);
+                    System.out.println(newConnection.getInetAddress().getHostAddress() + ": Connection already exists "+isOutBound); //for debug
                     return;
                 }
 
@@ -490,6 +494,15 @@ public class Validator {
                 ConnectionManager newConnectionManager = new ConnectionManager(newConnection, isConfirmed);
                 if (!isOutBound) {
                     inBoundConnectionList.put(peerInfo, newConnectionManager);
+                    GeneralHelper.lockForMe(usingLockList,writePotentialPeerLock);
+                    for(int i=0;i< potentialPeerPool.size();++i)
+                    {
+                        if(potentialPeerPool.get(i).getHostAddress().equals(newConnectionManager.getSocket().getInetAddress().getHostAddress())) {
+                            potentialPeerPool.remove(i);
+                            break;
+                        }
+                    }
+
                 } else {
                     outBoundConnectionList.put(peerInfo, newConnectionManager);
                 }
@@ -592,8 +605,8 @@ public class Validator {
         //connection
         ReadLock readConnectionLock = connectionLock.readLock();
 
-
         ReadLock readRequestedPeerLock = requestedPeerLock.readLock();
+
 
 
  //       System.out.println("startHandleConnection entered"); //debug
@@ -725,7 +738,7 @@ public class Validator {
                             newPotentialAddressStrings.add(receivedAddress.getHostAddress());
                         }
 
-                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock, readRequestedPeerLock);
+                        GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock,readRequestedPeerLock);
 
                         for (ConnectionManager inboundConnectionManager : inBoundConnectionList.values()) {
                             newPotentialAddressStrings.remove(inboundConnectionManager.getSocket().getInetAddress().getHostAddress());
@@ -749,7 +762,7 @@ public class Validator {
                             {
                                 potentialPeerPool.add(InetAddress.getByName(receivedAddressString));
                             }
-                            blockChainLogger.info(peerAddressString + ": Added peer node list of size" + newPotentialAddressStrings.size());
+                            blockChainLogger.info(peerAddressString + ": Added peer node list of size " + newPotentialAddressStrings.size());
                         }
 
                         GeneralHelper.unLockForMe(usingLockList);
@@ -1183,16 +1196,19 @@ public class Validator {
                 if(System.currentTimeMillis()-lastTimeSavedNodes>Configuration.PEER_SAVE_INTERVAL)
                 {
                     try (BufferedWriter out = new BufferedWriter(new FileWriter(Configuration.BLOCKCHAIN_PREV_PEERS.getAbsoluteFile()))) {
-                        InetAddress[] peers=getPeerList(null);
-                        for(InetAddress peer:peers)
-                        {
-                            out.write(peer.getHostAddress());
+                        for (PeerInfo peerInfo : inBoundConnectionList.keySet()) {
+                            out.write(inBoundConnectionList.get(peerInfo).getSocket().getInetAddress().getHostAddress()+"\n");
                         }
-                        out.flush();
+                        for (PeerInfo peerInfo : outBoundConnectionList.keySet()) {
+                            out.write(outBoundConnectionList.get(peerInfo).getSocket().getInetAddress().getHostAddress()+"\n");
+                        }
+                        for (InetAddress potentialPeer : potentialPeerPool) {
+                            out.write(potentialPeer.getHostAddress()+"\n");
+                        }
                     }
                     catch (IOException e)
                     {
-                        System.out.println("This message shouldn't pop up (startRequestingPeerNodes)");
+                        blockChainLogger.info("This message shouldn't pop up (startRequestingPeerNodes)");
                     }
 
                     lastTimeSavedNodes=System.currentTimeMillis();
@@ -1234,7 +1250,9 @@ public class Validator {
                     WriteLock writePotentialPeerLock = potentialPeerLock.writeLock();
                     WriteLock writeRequestedPeerLock = requestedPeerLock.writeLock();
 
-                    GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock, writeRequestedPeerLock);
+                    GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock,writeRequestedPeerLock);
+
+                    requestedPeerList.clear();
 
 //                    System.out.println("startRequestingConnection entered"); //debug
 
@@ -1247,18 +1265,9 @@ public class Validator {
                         potentialPeerPool.remove(address);
                     }
 
-
                     GeneralHelper.unLockForMe(usingLockList);
 
                     connectWithPeers(toBeRequestedPeer);
-
-
-                    GeneralHelper.lockForMe(usingLockList,writeRequestedPeerLock);
-                    for (InetAddress address : toBeRequestedPeer) {
-                        requestedPeerList.remove(address);
-                    }
-                    GeneralHelper.unLockForMe(usingLockList);
-
 
                     Thread.sleep(Configuration.CONNECTION_REQUEST_INTERVAL);
 
@@ -1858,6 +1867,7 @@ public class Validator {
         } else if (PatientInfoManager.patientExists(myMainChain.getLatestBlockHash(), patientInfo.getPatientIdentifier())) {
             result = 2;
         } else if (!patientInfo.verify()) {
+            GeneralHelper.unLockForMe(usingLock);
             System.out.println("This message shouldn't pop up");//debug
             throw new BadRequest();
         }
@@ -1896,6 +1906,7 @@ public class Validator {
         } else if (PatientInfoManager.patientInfoExists(myMainChain.getLatestBlockHash(), patientInfo.getPatientIdentifier(), patientInfo.calculateInfoHash())) {
             result = 3;
         } else if (!patientInfo.verify()) {
+            GeneralHelper.unLockForMe(usingLock);
             System.out.println("This message shouldn't pop up");//debug
             throw new BadRequest();
         }
@@ -1931,6 +1942,7 @@ public class Validator {
         GeneralHelper.lockForMe(usingLock, readMyChainLock, writeRevocationLock);
 
         if (!myMainChain.hasMedicalOrg(identifier)) {
+            GeneralHelper.unLockForMe(usingLock);
             throw new NotFound();
         } else {
             if (medicalOrgRevocationList.contains(identifier)) {
