@@ -2059,6 +2059,17 @@ public class Validator {
 
         ArrayList<MedicalOrgShortInfo> medicalOrgShortInfos = MedicalOrgInfoManager.loadEveryShortInfo(myMainChain.getLatestBlockHash(), authorityIdentifier);
 
+        if(Arrays.equals(authorityIdentifier,myIdentifier))
+        {
+            Iterator<byte[]> iterator = medicalOrgRevocationList.iterator();
+
+            while(iterator.hasNext())
+            {
+                medicalOrgShortInfos.remove(new MedicalOrgShortInfo(null, iterator.next()));
+            }
+
+        }
+
         readMyChainLock.unlock();
 
         return medicalOrgShortInfos;
