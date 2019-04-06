@@ -54,7 +54,7 @@ object ViewValidatorsPane : BorderPane() {
                 val disqualifyButton = Button("Start voting on disqualification")
                 val buttonBox = HBox(20.0, disqualifyButton)
                 buttonBox.alignment = Pos.CENTER
-                val tempBox = HBox(Config.WIDTH / 2, Label(it["name"] as String), buttonBox)
+                val tempBox = HBox(Config.WIDTH * 9 / 16, Label(it["name"] as String), buttonBox)
                 tempBox.alignment = Pos.CENTER_RIGHT
                 validatorList.add(tempBox)
                 disqualifyButton.setOnAction {

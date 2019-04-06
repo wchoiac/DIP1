@@ -5,7 +5,10 @@ import com.beust.klaxon.Parser
 import com.github.kittinunf.fuel.httpPut
 import javafx.geometry.Insets
 import javafx.geometry.Pos
-import javafx.scene.control.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.Label
+import javafx.scene.control.TextField
 import javafx.scene.layout.BorderPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
@@ -18,7 +21,6 @@ import java.io.File
 import java.lang.Exception
 import java.lang.StringBuilder
 import java.security.PublicKey
-import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -27,23 +29,24 @@ object AddHospitalPane : BorderPane() {
     private val hospitalNameLabel = Label("Medical Organization Name")
     private val publicKeyImport = Button("Import public key")
     private val publicKeyImportLabel = Label("Medical Organization Public Key")
+    private val dateNoAfter = TextField()
     private val dateNoAfterLabel = Label("Validate until")
     private val warningText = Label()
     private val addButton = Button("Add")
     private val backButton = Button("Back To Main")
     private var publicKey : PublicKey? = null
     private var publicKeyFile : File? = null
-    private val dateNoAfter = DatePicker()
 
     init {
         hospitalName.promptText = "Medical Organization Name"
+        dateNoAfter.promptText = "YYYY-MM-DD"
         connectComponents()
         styleComponents()
         setCallbacks()
 
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         dateFormat.timeZone = TimeZone.getDefault()
-        dateNoAfter.value = Timestamp((System.currentTimeMillis() + (86_400_000 * (365.25 * 2 - 1))).toLong()).toLocalDateTime().toLocalDate()
+        dateNoAfter.text = dateFormat.format(Date(System.currentTimeMillis() + (86_400_000 * (365.25 * 2 - 1)).toLong()))
     }
 
     private fun connectComponents() {
@@ -73,7 +76,7 @@ object AddHospitalPane : BorderPane() {
         publicKeyImport.setOnAction {
             val fc = FileChooser()
             fc.title = "Public Key Import"
-            fc.initialDirectory = File("./src/main/resources")
+            fc.initialDirectory = File(System.getProperty("user.home"))
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("pem files", "*.pem"))
 
@@ -94,7 +97,7 @@ object AddHospitalPane : BorderPane() {
                 publicKey == null -> {
                     warningText.text = "Please import the medical organization's public key"
                 }
-                dateNoAfter.value.toString() == "" -> {
+                dateNoAfter.text == "" -> {
                     dateNoAfter.requestFocus()
                     warningText.text = "Please input correct date"
                 }
@@ -115,7 +118,7 @@ object AddHospitalPane : BorderPane() {
                                     "ecPublicKey": "${Helper.encodeToString(publicKey!!.encoded)}",
                                     "keyDEREncoded": true
                                 },
-                                "noAfter": "${dateNoAfter.value}"
+                                "noAfter": "${dateNoAfter.text}"
                             }""".replace("\\s".toRegex(), ""), Charsets.UTF_8)
                             .responseString()
                     if(response.second.statusCode == 200) {
@@ -128,16 +131,14 @@ object AddHospitalPane : BorderPane() {
 
                             val certBytes = Arrays.copyOfRange(data, 1, data.size)
                             val cert = SecurityHelper.getX509FromBytes(certBytes)
-                            val pubKeyDirectory = "${publicKeyFile!!.parentFile.canonicalPath.replace('\\', '/')}/${hospitalName.text}.cer"
                             SecurityHelper.writeX509ToDER(
                                 cert,
-                                File(pubKeyDirectory)
+                                File("${publicKeyFile!!.parentFile.absolutePath}${hospitalName.text}.cer")
                             )
 
-                            val alert = Alert(Alert.AlertType.INFORMATION)
+                            val alert = Alert(Alert.AlertType.CONFIRMATION)
                             alert.title = "Certificate Saved"
-                            alert.headerText = "Certificate saved in the public key directory"
-                            alert.contentText = pubKeyDirectory
+                            alert.contentText = "Certificate saved in the public key directory"
                             alert.dialogPane.setPrefSize(300.0, 100.0)
                             alert.showAndWait()
                         } catch (e: Exception) {
@@ -146,17 +147,13 @@ object AddHospitalPane : BorderPane() {
                     } else {
                         println(response)
                     }
-                    toMainMenu()
+                    SceneManager.showMainMenuScene()
                 }
             }
         }
 
         backButton.setOnAction {
-            toMainMenu()
+            SceneManager.showMainMenuScene()
         }
-    }
-
-    private fun toMainMenu() {
-        SceneManager.showMainMenuScene()
     }
 }

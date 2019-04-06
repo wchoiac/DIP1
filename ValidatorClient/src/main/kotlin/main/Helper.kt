@@ -1,8 +1,5 @@
 package main
 
-import com.beust.klaxon.JsonArray
-import com.beust.klaxon.JsonObject
-import com.beust.klaxon.Parser
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.WriterException
 import com.google.zxing.qrcode.QRCodeWriter
@@ -28,7 +25,6 @@ import org.bouncycastle.cert.X509v3CertificateBuilder
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import viewmodel.Config
-import viewmodel.panes.MainMenuPane
 import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.image.BufferedImage
@@ -37,29 +33,13 @@ import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.X509EncodedKeySpec
 import java.util.*
-import kotlin.text.Charsets.UTF_8
 
 
 object Helper {
 
     var token = ""
-    var nameToInfoMap = mutableMapOf<String, Pair<String, Boolean>>()
-    var lastPatientName = ""
-    var nameToPublicKey = mutableMapOf<String, String>()
 
     init {
-        val file = this.javaClass.classLoader.getResource("savedPatientsNotScanned.txt")?.file
-        if(file != null) {
-            val fileText = File(file).readText(UTF_8)
-            val jsonArray = Parser().parse(StringBuilder(fileText)) as JsonArray<*>
-            jsonArray.forEach {
-                it as JsonObject
-                nameToInfoMap[it["name"] as String] = Pair((it["info"] as JsonObject).toJsonString(), it["notFirst"] as Boolean)
-                nameToPublicKey[it["name"] as String] = it["pubKey"] as String
-            }
-            MainMenuPane.addToList(*nameToInfoMap.keys.toTypedArray())
-        }
-
         Security.addProvider(BouncyCastleProvider())
     }
 

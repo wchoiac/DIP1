@@ -65,7 +65,7 @@ object ViewHospitalsPane : BorderPane() {
                 val renewButton = Button("Renew Certificate")
                 val buttonBox = HBox(20.0, getButton, revokeButton, renewButton)
                 buttonBox.alignment = Pos.CENTER
-                val tempBox = HBox(Config.WIDTH / 13, Label(it["name"] as String), buttonBox)
+                val tempBox = HBox(150.0, Label(it["name"] as String), buttonBox)
                 tempBox.alignment = Pos.CENTER_RIGHT
                 hospitalList.add(tempBox)
 
