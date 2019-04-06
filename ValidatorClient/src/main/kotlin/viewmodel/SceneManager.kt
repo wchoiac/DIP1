@@ -3,20 +3,16 @@ package viewmodel
 import javafx.scene.Scene
 import javafx.scene.image.Image
 import javafx.stage.Stage
-import main.Helper
 import viewmodel.panes.*
-import java.io.File
-import kotlin.text.Charsets.UTF_8
 
 object SceneManager {
-    private val sizingIndex = if(Config.WIDTH < 1500) 1.5 else 2.0
-    private val logInScene = Scene(LogInPane, Config.WIDTH / sizingIndex, Config.HEIGHT / sizingIndex)
+    private val logInScene = Scene(LogInPane, Config.WIDTH / 2, Config.HEIGHT / 2)
     private val mainMenuScene = Scene(MainMenuPane, Config.WIDTH, Config.HEIGHT)
     private val scanScene = Scene(ScanPane, Config.WIDTH, Config.HEIGHT)
     private val qrScene = Scene(QRCodePane, Config.WIDTH, Config.HEIGHT)
     private val hospitalScene = Scene(ViewHospitalsPane, Config.WIDTH, Config.HEIGHT)
-    private val addHospitalScene = Scene(AddHospitalPane, Config.WIDTH / sizingIndex, Config.HEIGHT / sizingIndex)
-    private val addRemoveValidatorScene = Scene(AddRemoveValidatorsPane, Config.WIDTH / sizingIndex, Config.HEIGHT / sizingIndex)
+    private val addHospitalScene = Scene(AddHospitalPane, Config.WIDTH / 2, Config.HEIGHT / 2)
+    private val addRemoveValidatorScene = Scene(AddRemoveValidatorsPane, Config.WIDTH / 2, Config.HEIGHT / 2)
     private val viewValidatorsScene = Scene(ViewValidatorsPane, Config.WIDTH, Config.HEIGHT)
     private val voteValidatorsScene = Scene(VoteValidatorsPane, Config.WIDTH, Config.HEIGHT)
     var stage: Stage? = null
@@ -29,25 +25,6 @@ object SceneManager {
             field!!.setOnCloseRequest {
                 println("Exiting...")
                 (scanScene.root as ScanPane).disposeWebCamCamera()
-                val file = File("./src/main/resources/savedPatientsNotScanned.txt")
-                if(Helper.nameToInfoMap.isNotEmpty()) {
-                    val nameToInfoJsonString = StringBuilder("[")
-                    Helper.nameToInfoMap.forEach { entry ->
-                        nameToInfoJsonString.append("""{
-                            "name": "${entry.key}",
-                            "info": ${entry.value.first},
-                            "pubKey": "${Helper.nameToPublicKey[entry.key]}",
-                            "notFirst": ${entry.value.second}
-                        },""")
-                    }
-
-                    file.writeText((nameToInfoJsonString.substring(0, nameToInfoJsonString.length - 1) + "]")
-                            .replace("\\s".toRegex(), ""), UTF_8)
-                } else {
-                    if(file.exists()) {
-                        file.delete()
-                    }
-                }
             }
         }
     private var lastPatientInfoScene : Scene? = null
@@ -71,18 +48,10 @@ object SceneManager {
     private fun showScene(scene: Scene) {
         if (stage == null)
             return
-        stage!!.scene = scene
-        if(!stage!!.isShowing)
-            stage!!.show()
-        maximize((scene != addHospitalScene && scene != logInScene && scene != addRemoveValidatorScene))
-    }
 
-    private fun maximize(maximize : Boolean) {
-        stage!!.isMaximized = false
-        if(maximize)
-            stage!!.isMaximized = true
-        else
-            stage!!.sizeToScene()
+        stage!!.hide()
+        stage!!.scene = scene
+        stage!!.show()
     }
 
     fun showLogInScene() {
@@ -90,7 +59,6 @@ object SceneManager {
     }
 
     fun showMainMenuScene() {
-        MainMenuPane.selectLast()
         showScene(mainMenuScene)
     }
 
@@ -101,7 +69,6 @@ object SceneManager {
     }
 
     fun showQRScene() {
-        QRCodePane.showButtons()
         showScene(qrScene)
     }
 
