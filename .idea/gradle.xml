@@ -9,8 +9,8 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/APIUserManager" />
+            <option value="$PROJECT_DIR$/DoctorApp" />
             <option value="$PROJECT_DIR$/FullNode" />
-            <option value="$PROJECT_DIR$/FullNodeClient" />
             <option value="$PROJECT_DIR$/GenesisBlockMaker" />
             <option value="$PROJECT_DIR$/HospitalApp" />
             <option value="$PROJECT_DIR$/UserApp" />

@@ -1,15 +1,28 @@
 plugins {
     id 'java'
-    id 'org.jetbrains.kotlin.jvm' version '1.3.20'
+    id "com.github.johnrengelman.shadow" version "4.0.3"
+    id 'org.jetbrains.kotlin.jvm' version '1.3.21'
 }
-
 group 'ValidatorClient'
 
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 repositories {
     mavenCentral()
     jcenter()
 }
+
+task validatorClientJar(type: ShadowJar) {
+    manifest.attributes 'Main-Class': 'main.Main'
+    baseName = 'validatorClient'
+    destinationDir = file('./jars')
+
+    from(project.convention.getPlugin(JavaPluginConvention).sourceSets.main.output)
+
+    configurations = [project.configurations.runtime]
+    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+}
+
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
