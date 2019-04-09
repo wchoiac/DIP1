@@ -22,6 +22,12 @@ Button:hover {
     -fx-text-fill: white;
 }
 
+.small-button{
+    -fx-font-size: 16;
+    -fx-pref-width: 150;
+    -fx-pref-height: 30;
+}
+
 ToggleButton {
     -fx-font-size: 20;
     -fx-font-family: "Arial";

@@ -1,6 +1,8 @@
+import com.github.kittinunf.fuel.httpPost
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.WriterException
 import com.google.zxing.qrcode.QRCodeWriter
+import javafx.application.Platform
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.ImageView
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -39,6 +41,33 @@ object KTHelper {
 
     init {
         Security.addProvider(BouncyCastleProvider())
+    }
+
+    /*
+    0: connecct
+    1: timeout
+    2: wrong warning
+    */
+    @JvmStatic
+    fun SSL(username:String, password:String): Int{
+        var returnValue = 0
+        val currentTime = System.currentTimeMillis()
+        "${Config.BASE_URL}"
+                .httpPost()
+                .header(mapOf("Content-Type" to "application/json; charset=utf-8"))
+                .body("""{"username":"$username","password":"$password"}""", Charsets.UTF_8)
+                .timeout(500)
+                .responseString { _, _, third ->
+                    if(third.component1() != null && third.component1() != "") {
+                        token = third.component1()!!
+                        returnValue = 0
+                    } else {
+                        if(System.currentTimeMillis() - currentTime > 500)
+                            returnValue = 1
+                        else returnValue = 2
+                    }
+                }
+        return returnValue
     }
 
     fun generatePublicKey(keyEncoded: ByteArray) : ECPublicKey {

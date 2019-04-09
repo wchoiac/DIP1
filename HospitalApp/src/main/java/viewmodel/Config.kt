@@ -1,7 +1,8 @@
 package viewmodel
 
 object Config {
-    const val BASE_URL = "https://25.30.118.78/api"
+    @JvmField
+    var BASE_URL = "https://25.30.118.78/api"
     const val WIDTH = 1600.0
     const val HEIGHT = 900.0
 
@@ -11,11 +12,27 @@ object Config {
     const val IMAGE_HEIGHT = 400.0
     const val IMAGE_WIDTH = 400.0
 
-    const val USERNAME_WARNING = "Please enter your username"
-    const val PASSWORD_WARNING = "Please enter your password"
+    @JvmField
+    val IP_WARNING = "Please enter an IP address"
+
+
+    @JvmField
+    val USERNAME_WARNING = "Please enter your username"
+
+    @JvmField
+    val PASSWORD_WARNING = "Please enter your password"
 
     @JvmField
     val WRONG_WARNING = "You entered wrong Username or Password"
+
+    @JvmField
+    val WRONG_CET = "Please import a certificate"
+
+    @JvmField
+    val WRONG_SQL_WARNING = "You entered wrong SQL server location"
+
+    @JvmField
+    val TIMEOUT = "Failed to connect"
 
     val CERT_URL = Config::class.java.classLoader.getResource("auth0.cer")!!
 
