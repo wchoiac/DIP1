@@ -25,7 +25,6 @@ object AddRemoveValidatorsPane : BorderPane() {
     private val authorityNameLabel = Label("New Authority Name")
     private val publicKeyImport = Button("Import public key")
     private val publicKeyImportLabel = Label("New Authority's Public Key")
-    private val publicKeyConfirm = Label("Public Key Imported!")
     private val addButton = Button("Start Voting")
     private val backButton = Button("Back To Main")
     private val warningText = Label()
@@ -43,9 +42,7 @@ object AddRemoveValidatorsPane : BorderPane() {
     private fun connectComponents() {
         val container = VBox(30.0)
         container.alignment = Pos.CENTER
-        publicKeyConfirm.visibleProperty().set(false)
         container.children.addAll(
-                HBox(30.0, publicKeyConfirm),
                 HBox(30.0, authorityNameLabel, authorityName),
                 HBox(30.0, publicKeyImportLabel, publicKeyImport),
                 HBox(30.0, warningText)
@@ -61,7 +58,6 @@ object AddRemoveValidatorsPane : BorderPane() {
     }
 
     private fun styleComponents() {
-        publicKeyConfirm.styleClass.add("success-text")
         warningText.styleClass.add("warning-text")
     }
 
@@ -69,7 +65,7 @@ object AddRemoveValidatorsPane : BorderPane() {
         publicKeyImport.setOnAction {
             val fc = FileChooser()
             fc.title = "Public Key Import"
-            fc.initialDirectory = File("./src/main/resources")
+            fc.initialDirectory = File(System.getProperty("user.home"))
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("pem files", "*.pem"))
             try {
@@ -77,9 +73,6 @@ object AddRemoveValidatorsPane : BorderPane() {
                 if (file != null) {
                     publicKeyFile = file
                     publicKey = SecurityHelper.getPublicKeyFromPEM(file, "EC")
-                    publicKeyConfirm.visibleProperty().set(true)
-                } else {
-                    publicKeyConfirm.visibleProperty().set(false)
                 }
             } catch(e: Exception) {
                 println("Wrong public key file: ${e.message}")
@@ -116,27 +109,40 @@ object AddRemoveValidatorsPane : BorderPane() {
                             "agree": true
                         }""".replace("\\s".toRegex(), ""), Charsets.UTF_8)
                         .responseString()
+                    println("response")
                     if(response.second.statusCode == 200) {
                         try {
-                            if (response.third.component1()!!.toInt() != 0)
-                                throw IllegalStateException("FAILED TO REGISTER: ${response.third.component1()!!}")
+                            val jsonData = Parser().parse(StringBuilder(response.third.component1()!!)) as JsonObject
+                            val data = Helper.decodeFromString(jsonData["content"] as String)
+
+                            if (data[0].toInt() != 0)
+                                throw IllegalStateException("FAILED TO REGISTER: ${data[0].toInt()}")
+
+                            val certBytes = Arrays.copyOfRange(data, 1, data.size)
+                            val cert = SecurityHelper.getX509FromBytes(certBytes)
+                            SecurityHelper.writeX509ToDER(
+                                    cert,
+                                    File("${publicKeyFile!!.parentFile.absolutePath}${authorityName.text}.cer")
+                            )
+
+                            val alert = Alert(Alert.AlertType.CONFIRMATION)
+                            alert.title = "Certificate Saved"
+                            alert.contentText = "Certificate saved in the public key directory"
+                            alert.dialogPane.setPrefSize(300.0, 100.0)
+                            alert.showAndWait()
                         } catch (e: Exception) {
-                            e.printStackTrace()
+                            println(e.message)
                         }
                     } else {
                         println(response)
                     }
-                    toMainMenu()
+                    SceneManager.showMainMenuScene()
                 }
             }
         }
 
         backButton.setOnAction {
-            toMainMenu()
+            SceneManager.showMainMenuScene()
         }
-    }
-
-    private fun toMainMenu() {
-        SceneManager.showMainMenuScene()
     }
 }

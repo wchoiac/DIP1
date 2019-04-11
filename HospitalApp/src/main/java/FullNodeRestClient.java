@@ -61,24 +61,26 @@ public class FullNodeRestClient {
      */
 
     public void login(String name, char[] password) throws InvalidUserInfo {
-        WebTarget webTarget = base.path("user/login");
+            WebTarget webTarget = base.path("user/login");
 
-        Invocation.Builder invocationBuilder = webTarget.request(MediaType.TEXT_PLAIN);
+            Invocation.Builder invocationBuilder = webTarget.request(MediaType.TEXT_PLAIN);
 
-        UserInfoPojo userInfoPojo = new UserInfoPojo();
-        userInfoPojo.setUsername(name);
-        userInfoPojo.setPassword(password);
+            UserInfoPojo userInfoPojo = new UserInfoPojo();
+            userInfoPojo.setUsername(name);
+            userInfoPojo.setPassword(password);
 
-        Response response = invocationBuilder.post(Entity.json(userInfoPojo));
+            Response response = invocationBuilder.post(Entity.json(userInfoPojo));
 
-        if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode())
-            throw new InvalidUserInfo();
+            if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode())
+                throw new InvalidUserInfo();
 
-        String result = response.readEntity(String.class);
-        response.close();
-        token = result;
+            String result = response.readEntity(String.class);
+            response.close();
+            token = result;
+            System.out.println(token);
 
     }
+
 
     /*
      * If successful, returns return transaction id(32 byte)

@@ -58,7 +58,7 @@ object VoteValidatorsPane : BorderPane() {
                 val labelBox = HBox(Label("Agree count: ${it["agree"] as Int}, Disagree count: ${it["disagree"] as Int}"))
                 labelBox.alignment = Pos.CENTER
                 buttonBox.alignment = Pos.CENTER
-                val tempBox = HBox(Config.WIDTH / 20, Label("Name: $name"), labelBox, buttonBox)
+                val tempBox = HBox(100.0, Label("Name: $name"), labelBox, buttonBox)
                 tempBox.background = Background(BackgroundFill(
                         if(it["add"] as Boolean) Color.LIGHTGREEN else Color.PINK, CornerRadii.EMPTY, Insets.EMPTY))
                 tempBox.alignment = Pos.CENTER_RIGHT
