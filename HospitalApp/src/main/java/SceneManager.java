@@ -35,6 +35,10 @@ public class SceneManager {
         }
     }
 
+    public static Stage getStage() {
+        return stage;
+    }
+
     public static void setStage(Stage stage_arg) {
         stage = stage_arg;
         stage.setTitle("MediRec");

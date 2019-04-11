@@ -3,13 +3,12 @@ import general.utility.GeneralHelper;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import viewmodel.Config;
+import com.github.kittinunf.fuel.core.FuelManager;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -25,6 +24,14 @@ public class LogInPane  {
     private static final PasswordField password = new PasswordField();
     private static final Button submitBtn = new Button("Sign In");
 
+    private static final Label CertLabel = new Label("Certificate");
+    private static final Label getCertLabel = new Label("");
+    private static final Button CertImport = new Button("Import Certificate");
+
+    private static final Label IPlabel = new Label("IP Address");
+    private static final TextField IPtext = new TextField();
+    private static final CheckBox ssl = new CheckBox("TLS/SSL");
+
     private static final Label SQLlocationLabel = new Label("SQL Server location");
     private static final TextField SQLlocation = new TextField();
     private static final Label DBnameLabel = new Label("Database");
@@ -33,47 +40,88 @@ public class LogInPane  {
     private static final TextField SQLusername = new TextField();
     private static final Label SQLpwLabel = new Label("Database Password");
     private static final PasswordField SQLpw = new PasswordField();
+    private static File file = null;
 
     public static Scene scene = new Scene(new Group(), Config.WIDTH / 2, Config.HEIGHT / 2);
 
     public static void login() throws Exception{
-        InetAddress inetAddress = InetAddress.getByName("25.43.79.11");
-        GlobalVar.fullNodeRestClient = new FullNodeRestClient(inetAddress, SecurityHelper.getX509FromDER(new File("med0.cer")));
+        InetAddress inetAddress = InetAddress.getByName(IPtext.getText());
+        GlobalVar.fullNodeRestClient = new FullNodeRestClient(inetAddress, SecurityHelper.getX509FromDER(file));
+        GlobalVar.fullNodeRestClient.login(username.getText(), password.getText().toCharArray());
+    }
+
+    public static void SQLlogin() throws Exception{
+        String connectionUrl = "jdbc:sqlserver://" +
+                SQLlocation.getText() +
+                ";databaseName=" +
+                DBname.getText() +
+                ";user=" +
+                SQLusername.getText() +
+                ";password=" +
+                SQLpw.getText() +
+                "";
+        Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        GlobalVar.conn = DriverManager.getConnection(connectionUrl);
+        GlobalVar.statement = GlobalVar.conn.createStatement();
     }
 
     {
-
+        CertImport.getStyleClass().add("small-button");
         container.setAlignment(Pos.CENTER);
         username.setPromptText("Username");
         password.setPromptText("Password");
+        IPtext.setPromptText("IP Address");
         invalidWarning.visibleProperty().setValue(false);
 
-        submitBtn.setOnAction(event -> {
-            try{
-                login();
-                GlobalVar.fullNodeRestClient.login(username.getText(), password.getText().toCharArray());
-                String connectionUrl = "jdbc:sqlserver://" +
-                        SQLlocation.getText() +
-                        ";databaseName=" +
-                        DBname.getText() +
-                        ";user=" +
-                        SQLusername.getText() +
-                        ";password=" +
-                        SQLpw.getText() +
-                        "";
-                Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-                GlobalVar.conn = DriverManager.getConnection(connectionUrl);
-                GlobalVar.statement = GlobalVar.conn.createStatement();
-                // Iterate through the data in the result set and display it.
-                System.out.println(GeneralHelper.bytesToStringHex(GlobalVar.fullNodeRestClient.getMedicalOrgIdentifier()));
-                SceneManager.showMainMenuScene();
-            } catch (Exception e){
-                invalidWarning.visibleProperty().setValue(true);
-                invalidWarning.setText(Config.WRONG_WARNING);
+        CertImport.setOnAction(event -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Open Certificate File");
+            file = fileChooser.showOpenDialog(SceneManager.getStage());
+            if(file != null)
+            if (file.exists()){
+                System.out.println(file);
+                String fileName = file.toString().substring(file.toString().lastIndexOf('\\') + 1);
+                getCertLabel.setText(fileName);
             }
         });
 
-        VBox vbox = new VBox(15); // spacing = 8
+
+        submitBtn.setOnAction(event -> {
+            if(file == null){
+                invalidWarning.visibleProperty().setValue(true);
+                invalidWarning.setText(Config.WRONG_CET);
+            } else if(username.getText().isEmpty()){
+                invalidWarning.visibleProperty().setValue(true);
+                invalidWarning.setText(Config.USERNAME_WARNING);
+            } else if(password.getText().isEmpty()) {
+                invalidWarning.visibleProperty().setValue(true);
+                invalidWarning.setText(Config.PASSWORD_WARNING);
+            } else if(IPtext.getText().isEmpty()){
+                invalidWarning.visibleProperty().setValue(true);
+                invalidWarning.setText(Config.IP_WARNING);
+            }
+
+
+            try{
+                login();
+                System.out.println(GeneralHelper.bytesToStringHex(GlobalVar.fullNodeRestClient.getMedicalOrgIdentifier()));
+                try {
+                    SQLlogin();
+                    SceneManager.showMainMenuScene();
+                } catch (Exception e) {
+                    invalidWarning.visibleProperty().setValue(true);
+                    invalidWarning.setText(Config.WRONG_SQL_WARNING);
+                }
+            } catch (Exception e){
+            }
+        });
+
+
+        VBox vbox = new VBox(12); // spacing = 8
+        HBox hBox0 = new HBox(20.0, CertLabel, CertImport, getCertLabel);
+        hBox0.setAlignment(Pos.CENTER);
+        HBox hBox01 = new HBox(20.0, IPlabel, IPtext);
+        hBox01.setAlignment(Pos.CENTER);
         HBox hBox1 = new HBox(20.0, SQLlocationLabel, SQLlocation);
         hBox1.setAlignment(Pos.CENTER);
         HBox hBox2 = new HBox(20.0, DBnameLabel, DBname);
@@ -88,6 +136,8 @@ public class LogInPane  {
         hBox6.setAlignment(Pos.CENTER);
         vbox.getChildren().addAll(
                 title,
+                hBox0,
+                hBox01,
                 hBox1,
                 hBox2,
                 hBox3,
