@@ -73,7 +73,7 @@ object AddHospitalPane : BorderPane() {
         publicKeyImport.setOnAction {
             val fc = FileChooser()
             fc.title = "Public Key Import"
-            fc.initialDirectory = File("./src/main/resources")
+            fc.initialDirectory = File(System.getProperty("user.home"))
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("pem files", "*.pem"))
 
