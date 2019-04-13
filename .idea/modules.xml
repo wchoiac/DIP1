@@ -2,14 +2,14 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/APIUserManager/APIUserManager.iml" filepath="$PROJECT_DIR$/APIUserManager/APIUserManager.iml" group="APIUserManager" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/APIUserManager/APIUserManager_main.iml" filepath="$PROJECT_DIR$/.idea/modules/APIUserManager/APIUserManager_main.iml" group="APIUserManager" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/APIUserManager/APIUserManager_test.iml" filepath="$PROJECT_DIR$/.idea/modules/APIUserManager/APIUserManager_test.iml" group="APIUserManager" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/APIUserManager/APIUserManager.iml" filepath="$PROJECT_DIR$/.idea/modules/APIUserManager/APIUserManager.iml" group="APIUserManager" />
       <module fileurl="file://$PROJECT_DIR$/DIP1.iml" filepath="$PROJECT_DIR$/DIP1.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/APIUserManager/DIP1-APIUserManager_main.iml" filepath="$PROJECT_DIR$/.idea/modules/APIUserManager/DIP1-APIUserManager_main.iml" group="APIUserManager" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/APIUserManager/DIP1-APIUserManager_test.iml" filepath="$PROJECT_DIR$/.idea/modules/APIUserManager/DIP1-APIUserManager_test.iml" group="APIUserManager" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/FullNode/DIP1-FullNode_main.iml" filepath="$PROJECT_DIR$/.idea/modules/FullNode/DIP1-FullNode_main.iml" group="FullNode" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/FullNode/DIP1-FullNode_test.iml" filepath="$PROJECT_DIR$/.idea/modules/FullNode/DIP1-FullNode_test.iml" group="FullNode" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/DIP1-GenesisBlockMaker_main.iml" filepath="$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/DIP1-GenesisBlockMaker_main.iml" group="GenesisBlockMaker" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/DIP1-GenesisBlockMaker_test.iml" filepath="$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/DIP1-GenesisBlockMaker_test.iml" group="GenesisBlockMaker" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/ValidatorClient/DIP1-ValidatorClient_main.iml" filepath="$PROJECT_DIR$/.idea/modules/ValidatorClient/DIP1-ValidatorClient_main.iml" group="ValidatorClient" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/ValidatorClient/DIP1-ValidatorClient_test.iml" filepath="$PROJECT_DIR$/.idea/modules/ValidatorClient/DIP1-ValidatorClient_test.iml" group="ValidatorClient" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/Validator/DIP1-Validator_main.iml" filepath="$PROJECT_DIR$/.idea/modules/Validator/DIP1-Validator_main.iml" group="Validator" />
@@ -17,28 +17,14 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/DoctorApp/Database-DoctorApp_main.iml" filepath="$PROJECT_DIR$/.idea/modules/DoctorApp/Database-DoctorApp_main.iml" group="DoctorApp" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/DoctorApp/Database-DoctorApp_test.iml" filepath="$PROJECT_DIR$/.idea/modules/DoctorApp/Database-DoctorApp_test.iml" group="DoctorApp" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/DoctorApp/DoctorApp.iml" filepath="$PROJECT_DIR$/.idea/modules/DoctorApp/DoctorApp.iml" group="DoctorApp" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/DoctorApp/DoctorApp_main.iml" filepath="$PROJECT_DIR$/.idea/modules/DoctorApp/DoctorApp_main.iml" group="DoctorApp" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/DoctorApp/DoctorApp_test.iml" filepath="$PROJECT_DIR$/.idea/modules/DoctorApp/DoctorApp_test.iml" group="DoctorApp" />
-      <module fileurl="file://$PROJECT_DIR$/FullNode/FullNode.iml" filepath="$PROJECT_DIR$/FullNode/FullNode.iml" group="FullNode" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/FullNode/FullNode.iml" filepath="$PROJECT_DIR$/.idea/modules/FullNode/FullNode.iml" group="FullNode" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/HospitalApp/FullNodeClient-HospitalApp_main.iml" filepath="$PROJECT_DIR$/.idea/modules/HospitalApp/FullNodeClient-HospitalApp_main.iml" group="HospitalApp" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/HospitalApp/FullNodeClient-HospitalApp_test.iml" filepath="$PROJECT_DIR$/.idea/modules/HospitalApp/FullNodeClient-HospitalApp_test.iml" group="HospitalApp" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/FullNode/FullNode_main.iml" filepath="$PROJECT_DIR$/.idea/modules/FullNode/FullNode_main.iml" group="FullNode" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/FullNode/FullNode_test.iml" filepath="$PROJECT_DIR$/.idea/modules/FullNode/FullNode_test.iml" group="FullNode" />
-      <module fileurl="file://$PROJECT_DIR$/GenesisBlockMaker/GenesisBlockMaker.iml" filepath="$PROJECT_DIR$/GenesisBlockMaker/GenesisBlockMaker.iml" group="GenesisBlockMaker" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GenesisBlockMaker_main.iml" filepath="$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GenesisBlockMaker_main.iml" group="GenesisBlockMaker" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GenesisBlockMaker_test.iml" filepath="$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GenesisBlockMaker_test.iml" group="GenesisBlockMaker" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GensisBlockMaker-GenesisBlockMaker_main.iml" filepath="$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GensisBlockMaker-GenesisBlockMaker_main.iml" group="GenesisBlockMaker" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GensisBlockMaker-GenesisBlockMaker_test.iml" filepath="$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GensisBlockMaker-GenesisBlockMaker_test.iml" group="GenesisBlockMaker" />
-      <module fileurl="file://$PROJECT_DIR$/HospitalApp/HospitalApp.iml" filepath="$PROJECT_DIR$/HospitalApp/HospitalApp.iml" group="HospitalApp" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/HospitalApp/HospitalApp_main.iml" filepath="$PROJECT_DIR$/.idea/modules/HospitalApp/HospitalApp_main.iml" group="HospitalApp" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/HospitalApp/HospitalApp_test.iml" filepath="$PROJECT_DIR$/.idea/modules/HospitalApp/HospitalApp_test.iml" group="HospitalApp" />
-      <module fileurl="file://$PROJECT_DIR$/UserApp/UserApp.iml" filepath="$PROJECT_DIR$/UserApp/UserApp.iml" group="UserApp" />
-      <module fileurl="file://$PROJECT_DIR$/Validator/Validator.iml" filepath="$PROJECT_DIR$/Validator/Validator.iml" group="Validator" />
-      <module fileurl="file://$PROJECT_DIR$/ValidatorClient/ValidatorClient.iml" filepath="$PROJECT_DIR$/ValidatorClient/ValidatorClient.iml" group="ValidatorClient" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ValidatorClient/ValidatorClient_main.iml" filepath="$PROJECT_DIR$/.idea/modules/ValidatorClient/ValidatorClient_main.iml" group="ValidatorClient" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ValidatorClient/ValidatorClient_test.iml" filepath="$PROJECT_DIR$/.idea/modules/ValidatorClient/ValidatorClient_test.iml" group="ValidatorClient" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Validator/Validator_main.iml" filepath="$PROJECT_DIR$/.idea/modules/Validator/Validator_main.iml" group="Validator" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Validator/Validator_test.iml" filepath="$PROJECT_DIR$/.idea/modules/Validator/Validator_test.iml" group="Validator" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GenesisBlockMaker.iml" filepath="$PROJECT_DIR$/.idea/modules/GenesisBlockMaker/GenesisBlockMaker.iml" group="GenesisBlockMaker" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/HospitalApp/HospitalApp.iml" filepath="$PROJECT_DIR$/.idea/modules/HospitalApp/HospitalApp.iml" group="HospitalApp" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/UserApp/UserApp.iml" filepath="$PROJECT_DIR$/.idea/modules/UserApp/UserApp.iml" group="UserApp" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Validator/Validator.iml" filepath="$PROJECT_DIR$/.idea/modules/Validator/Validator.iml" group="Validator" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ValidatorClient/ValidatorClient.iml" filepath="$PROJECT_DIR$/.idea/modules/ValidatorClient/ValidatorClient.iml" group="ValidatorClient" />
     </modules>
   </component>
 </project>

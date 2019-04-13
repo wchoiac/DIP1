@@ -5,7 +5,7 @@ plugins {
     id "com.github.johnrengelman.shadow" version "4.0.3"
 }
 
-group 'GensisBlockMaker'
+group 'DIP1'
 
 
 repositories {

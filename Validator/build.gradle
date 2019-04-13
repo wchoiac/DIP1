@@ -17,7 +17,7 @@ plugins {
 
 }
 
-group 'Validator'
+group 'DIP1'
 
 repositories {
     // Use jcenter for resolving your dependencies.

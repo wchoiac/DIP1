@@ -15,7 +15,7 @@ plugins {
 
 }
 
-group 'FullNode'
+group 'DIP1'
 
 
 repositories {

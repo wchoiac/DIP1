@@ -1,0 +1,11 @@
+rootProject.name = 'DIP1'
+
+include 'APIUserManager'
+include 'FullNode'
+include 'GenesisBlockMaker'
+include 'HospitalApp'
+include 'Validator'
+include 'ValidatorClient'
+include 'UserApp'
+include 'DoctorApp'
+
