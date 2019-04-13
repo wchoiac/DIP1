@@ -1,1 +1,0 @@
-{"certUrl":"C:/Users/dnjsd/Desktop/dip1_signing.cer","secured":true"ipAddress":"25.32.60.79","username":"root","password":"1234"}
