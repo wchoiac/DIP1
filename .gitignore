@@ -1,5 +1,6 @@
-/out
-/.gradle
-/.idea
-/gradle
-/*.iml
+out/
+.gradle/
+.idea/
+jars/
+gradle/
+*.iml
