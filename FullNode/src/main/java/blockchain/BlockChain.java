@@ -29,7 +29,7 @@ public class BlockChain {
     private int totalScore = 0;
     private ArrayList<byte[]> currentOverallAuthorityIdentifierList = new ArrayList<>();
     private ArrayList<Block> cachedCurrentChain = new ArrayList<>(); // always at least one block inside
-    private TreeMap<byte[], MedicalOrgInfoForInternal> cachedCurrentMedicalOrgList = new TreeMap<>(new GeneralHelper.byteArrayComparator()); // ## periodically drop some medical orgs
+    private TreeMap<byte[], MedicalOrgInfoForInternal> cachedCurrentMedicalOrgList = new TreeMap<>(new GeneralHelper.byteArrayComparator());
     private TreeMap<byte[], AuthorityInfoForInternal> cachedCurrentAuthorityList = new TreeMap<>(new GeneralHelper.byteArrayComparator());
 
 
@@ -607,8 +607,10 @@ public class BlockChain {
             cachedCurrentChain.remove(0);
 
         if (block.getHeader().getValidatorIdentifier() != null) {
+            AuthorityInfoForInternal temp = getAuthorityInfoForInternal(block.getHeader().getValidatorIdentifier());
 
-            getAuthorityInfoForInternal(block.getHeader().getValidatorIdentifier()).setLastSignedBlockNumber(block.getHeader().getBlockNumber());
+            if(temp!=null) // might be disqualified with this block (vote for self-disqualification)
+                temp.setLastSignedBlockNumber(block.getHeader().getBlockNumber());
         }
 
         totalScore += block.getHeader().getScore();

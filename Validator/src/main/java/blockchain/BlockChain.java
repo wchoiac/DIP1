@@ -31,7 +31,7 @@ public class BlockChain {
     private int totalScore = 0;
     private ArrayList<byte[]> currentOverallAuthorityIdentifierList = new ArrayList<>();
     private ArrayList<Block> cachedCurrentChain = new ArrayList<>(); // always at least one block inside
-    private TreeMap<byte[], MedicalOrgInfoForInternal> cachedCurrentMedicalOrgList = new TreeMap<>(new GeneralHelper.byteArrayComparator()); // ## periodically drop some medical orgs
+    private TreeMap<byte[], MedicalOrgInfoForInternal> cachedCurrentMedicalOrgList = new TreeMap<>(new GeneralHelper.byteArrayComparator());
     private TreeMap<byte[], AuthorityInfoForInternal> cachedCurrentAuthorityList = new TreeMap<>(new GeneralHelper.byteArrayComparator());
 
 
@@ -608,7 +608,7 @@ public class BlockChain {
         if (block.getHeader().getVote() != null) {
             if (Arrays.equals(block.getHeader().getValidatorIdentifier(), myIdentifier))
                 myVotes.remove(block.getHeader().getVote()); // my vote processed, so remove
-            processVote(block.getHeader().getValidatorIdentifier(), block.getHeader().getVote(), myVotes, myIdentifier,block.calculateHash());
+            processedAuthority = processVote(block.getHeader().getValidatorIdentifier(), block.getHeader().getVote(), myVotes, myIdentifier,block.calculateHash());
         } else if (block.getHeader().getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0) {
             ArrayList<Vote> droppedVotes = new ArrayList<>();
             Iterator<Vote> iterator = myVotes.iterator();
@@ -656,7 +656,10 @@ public class BlockChain {
 
         if (block.getHeader().getValidatorIdentifier() != null) {
 
-            getAuthorityInfoForInternal(block.getHeader().getValidatorIdentifier()).setLastSignedBlockNumber(block.getHeader().getBlockNumber());
+            AuthorityInfoForInternal temp = getAuthorityInfoForInternal(block.getHeader().getValidatorIdentifier());
+
+            if(temp!=null) // might be disqualified with this block (vote for self-disqualification)
+                temp.setLastSignedBlockNumber(block.getHeader().getBlockNumber());
         }
 
         totalScore += block.getHeader().getScore();
