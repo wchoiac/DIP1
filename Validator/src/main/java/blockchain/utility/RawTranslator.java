@@ -38,7 +38,9 @@ public class RawTranslator {
             while(!byteArrayReader.isFinished())
             {
                 int length = byteArrayReader.readInt();
-                addresses.add(InetAddress.getByName(new String(byteArrayReader.readBytes(length))).getHostName());
+                String tempString =new String(byteArrayReader.readBytes(length));
+                InetAddress.getByName(tempString);
+                addresses.add(tempString);
             }} catch (UnknownHostException e) {
             e.printStackTrace();
             throw new BlockChainObjectParsingException();

@@ -709,23 +709,23 @@ public class FullNode {
                         GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock,readRequestedPeerLock);
 
                         for (ConnectionManager inboundConnectionManager : inBoundConnectionList.values()) {
-                            newPotentialAddressStrings.remove(inboundConnectionManager.getExplicitHostName());
-                            newPotentialAddressStrings.remove(inboundConnectionManager.getAddressString());
+                            if(!newPotentialAddressStrings.remove(inboundConnectionManager.getAddressString()))
+                                newPotentialAddressStrings.remove(inboundConnectionManager.getExplicitHostName());
                         }
 
                         for (ConnectionManager outboundConnectionManager : outBoundConnectionList.values()) {
-                            newPotentialAddressStrings.remove(outboundConnectionManager.getExplicitHostName());
-                            newPotentialAddressStrings.remove(outboundConnectionManager.getAddressString());
+                            if(!newPotentialAddressStrings.remove(outboundConnectionManager.getAddressString()))
+                                newPotentialAddressStrings.remove(outboundConnectionManager.getExplicitHostName());
                         }
 
                         for (InetAddress potentialPeerAddress : potentialPeerPool) {
-                            newPotentialAddressStrings.remove(potentialPeerAddress.getHostAddress());
-                            newPotentialAddressStrings.remove(potentialPeerAddress.getHostName());
+                            if(!newPotentialAddressStrings.remove(potentialPeerAddress.getHostAddress()))
+                                newPotentialAddressStrings.remove(potentialPeerAddress.getHostName());
                         }
 
                         for (InetAddress requestedPeerAddress : requestedPeerList) {
-                            newPotentialAddressStrings.remove(requestedPeerAddress.getHostAddress());
-                            newPotentialAddressStrings.remove(requestedPeerAddress.getHostName());
+                            if(!newPotentialAddressStrings.remove(requestedPeerAddress.getHostAddress()))
+                                newPotentialAddressStrings.remove(requestedPeerAddress.getHostName());
                         }
 
 

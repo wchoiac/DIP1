@@ -134,6 +134,7 @@ public class BlockChainManager {
                 if (changedAuthorityVoting.getNumAgree() >= tempValidationInterval) {
                     if(changedAuthorityVoting.isAdd()) {
                         tempOverallAuthorityList.add(changedAuthorityVoting.getBeneficiary().getIdentifier());
+                        tempAuthorityList.put(changedAuthorityVoting.getBeneficiary().getIdentifier(), new AuthorityInfoForInternal(changedAuthorityVoting.getBeneficiary(),-1,null));
                     }
                     else
                     {

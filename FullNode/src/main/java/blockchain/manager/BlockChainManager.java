@@ -49,7 +49,6 @@ public class BlockChainManager {
                 return -1;
             else {
                 if (!tempAuthorityList.containsKey(header.getValidatorIdentifier())) {
-
                     AuthorityInfoForInternal authorityInfoForInternal = AuthorityInfoManager.load(initPrevBlockHash, header.getValidatorIdentifier());
                     tempAuthorityList.put(header.getValidatorIdentifier(), authorityInfoForInternal);
                 }
@@ -57,6 +56,9 @@ public class BlockChainManager {
 
 
             AuthorityInfoForInternal validatorInfoForInternal = tempAuthorityList.get(header.getValidatorIdentifier());
+
+            if(validatorInfoForInternal==null)
+                System.out.println("Bust no infoForInternal");
 
             try {
                 if(!SecurityHelper.verifyRawECDSASignatureWithContent(validatorInfoForInternal.getAuthorityInfo().getPublicKey(), header.getSignatureCoverage(),header.getValidatorSignature(), Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE))
@@ -137,6 +139,7 @@ public class BlockChainManager {
                 if (changedAuthorityVoting.getNumAgree() >= tempValidationInterval) {
                     if(changedAuthorityVoting.isAdd()) {
                         tempOverallAuthorityList.add(changedAuthorityVoting.getBeneficiary().getIdentifier());
+                        tempAuthorityList.put(changedAuthorityVoting.getBeneficiary().getIdentifier(), new AuthorityInfoForInternal(changedAuthorityVoting.getBeneficiary(),-1,null));
                     }
                     else
                     {
