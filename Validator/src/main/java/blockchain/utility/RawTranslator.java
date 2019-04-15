@@ -29,32 +29,32 @@ public class RawTranslator {
 
         return hashLocator.toArray(new byte[0][0]);
     }
-    public static InetAddress[] parseAddresses(byte[] raw) throws BlockChainObjectParsingException {
-        ArrayList<InetAddress> addresses = new ArrayList<>();
+    public static String[] parseAddresses(byte[] raw) throws BlockChainObjectParsingException {
+        ArrayList<String> addresses = new ArrayList<>();
 
         ByteArrayReader byteArrayReader = new ByteArrayReader();
         byteArrayReader.set(raw);
         try{
             while(!byteArrayReader.isFinished())
             {
-                byte length = byteArrayReader.readByte();
-                addresses.add(InetAddress.getByAddress(byteArrayReader.readBytes(length)));
+                int length = byteArrayReader.readInt();
+                addresses.add(InetAddress.getByName(new String(byteArrayReader.readBytes(length))).getHostName());
             }} catch (UnknownHostException e) {
             e.printStackTrace();
             throw new BlockChainObjectParsingException();
         }
 
-        return addresses.toArray(new InetAddress[0]);
+        return addresses.toArray(new String[0]);
     }
 
-    public static byte[] translateAddressesToBytes(InetAddress[] addresses){
+    public static byte[] translateAddressesToBytes(String[] addresses){
 
         ByteArrayOutputStream byteArrayOutputStream =new ByteArrayOutputStream();
 
         try {
-            for (InetAddress address : addresses) {
-                byte[] addressBytes =address.getAddress();
-                byteArrayOutputStream.write((byte)addressBytes.length);
+            for (String address : addresses) {
+                byte[] addressBytes =address.getBytes();
+                byteArrayOutputStream.write(GeneralHelper.intToBytes(addressBytes.length));
                 byteArrayOutputStream.write(addressBytes);
             }
         }

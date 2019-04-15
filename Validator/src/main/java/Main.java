@@ -79,6 +79,44 @@ public class Main {
             }
         }
 
+        KeyStore apiKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
+        char[] apiKeyStorePassword;
+        while(true) {
+            try {
+                if (console != null) {
+                    apiKeyStorePassword = console.readPassword("Please enter api keystore password: ");
+                } else {
+                    System.out.print("Please enter api keystore password: ");
+                    apiKeyStorePassword = sc.next().toCharArray();
+
+                }
+                apiKeyStore.load(new FileInputStream(Configuration.API_KEYSTORE_FILE), apiKeyStorePassword);
+                break;
+            }
+            catch (Exception e)
+            {
+                System.out.println("Wrong Password");
+                continue;
+            }
+        }
+
+
+        System.out.print("Is your address public static ip address? [y/n]: ");
+        String isStaticPublic = sc.next();
+        String myAddress=null;
+
+        if(isStaticPublic.equals("n"))
+            while (true) {
+                System.out.print("Enter addressable name: "); //## for debug
+                String hostName = sc.next();
+
+                try {
+                    myAddress=InetAddress.getByName(hostName).getHostName();
+                    break;
+                } catch (UnknownHostException e) {
+                    System.out.println("Not appropriate name");
+                }
+            }
 
         ArrayList<InetAddress> potentialPeers = new ArrayList<>();
 
@@ -132,31 +170,10 @@ public class Main {
 
         }
 
-        KeyStore apiKeyStore= KeyStore.getInstance(Configuration.KEYSTORE_TYPE);
-        char[] apiKeyStorePassword;
-        while(true) {
-            try {
-                if (console != null) {
-                    apiKeyStorePassword = console.readPassword("Please enter api keystore password: ");
-                } else {
-                    System.out.print("Please enter api keystore password: ");
-                    apiKeyStorePassword = sc.next().toCharArray();
-
-                }
-                apiKeyStore.load(new FileInputStream(Configuration.API_KEYSTORE_FILE), apiKeyStorePassword);
-                break;
-            }
-            catch (Exception e)
-            {
-                System.out.println("Wrong Password");
-                continue;
-            }
-        }
-
         sc.close();
 
         Validator validator = Validator.create(connectionKeyStore,connectionKeyStorePassword,signingKeyStore,
-                signingKeyStorePassword,Configuration.NODE_SERVER_PORT, Configuration.BLOCKCHAIN_LOG_FILENAME);
+                signingKeyStorePassword,Configuration.NODE_SERVER_PORT, Configuration.BLOCKCHAIN_LOG_FILENAME, myAddress);
         ValidatorRestServer restServer= ValidatorRestServer.create(apiKeyStore,apiKeyStorePassword
                 ,Configuration.API_SERVER_PORT, new ValidatorAPIResolver(validator),Configuration.API_LOG_FILENAME);
 

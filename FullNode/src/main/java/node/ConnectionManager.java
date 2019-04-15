@@ -14,6 +14,7 @@ public class ConnectionManager {
     private SSLSocket socket;
     private boolean isConfirmed;
     private boolean isClosed=false;
+    private String addressString=null;
 
     public boolean isConfirmed() {
         return isConfirmed;
@@ -21,6 +22,18 @@ public class ConnectionManager {
 
     public void setConfirmed(boolean confirmed) {
         isConfirmed = confirmed;
+    }
+
+    public String getAddressString(){
+        return addressString!=null?addressString:socket.getInetAddress().getHostAddress();
+    }
+
+    public String getExplicitHostName(){
+        return socket.getInetAddress().getHostName();
+    }
+
+    public void setAddressString(String addressString){
+        this.addressString=addressString;
     }
 
 
@@ -117,7 +130,7 @@ public class ConnectionManager {
     //currently no limit
     private void checkLength(byte number, int length) throws InvalidBlockChainMessageException {
         switch (number) {
-            case Configuration.MESSAGE_STATUS:
+            case Configuration.MESSAGE_HELLO:
                 break;
             case Configuration.MESSAGE_PEER_NODE_REQUEST:
                 if(length!=0)

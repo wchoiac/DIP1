@@ -1,6 +1,5 @@
 package node;
 
-import blockchain.Status;
 import blockchain.block.Block;
 import blockchain.block.BlockHeader;
 import blockchain.block.transaction.Transaction;
@@ -10,12 +9,12 @@ import exception.BlockChainObjectParsingException;
 
 import java.util.Arrays;
 
-public class Message{
+public class Message {
     public final byte number;
     public final int length;
     public final byte[] content;
 
-    public Message(byte number,byte[] content)
+    public Message(byte number, byte[] content)
     {
         this.number=number;
         if(content==null)
@@ -39,8 +38,8 @@ public class Message{
     public Object parse() throws BlockChainObjectParsingException {
             switch (number) {
 
-                case Configuration.MESSAGE_STATUS:
-                    return Status.parse(content);
+                case Configuration.MESSAGE_HELLO:
+                    return Hello.parse(content);
                 case Configuration.MESSAGE_PEER_NODE_REQUEST:
                     return content;
                 case Configuration.MESSAGE_HEADER_REQUEST:

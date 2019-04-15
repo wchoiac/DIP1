@@ -37,6 +37,7 @@ import exception.InvalidBlockChainException;
 import exception.InvalidBlockChainMessageException;
 import general.utility.GeneralHelper;
 import node.ConnectionManager;
+import node.Hello;
 import node.Message;
 import node.PeerInfo;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -79,6 +80,7 @@ public class Validator {
     private ECPublicKey myPublicKey;
     private byte[] myIdentifier;
     private String myName;
+    private String myAddressString;
 
     private final BlockChain myMainChain = new BlockChain();
 
@@ -137,9 +139,9 @@ public class Validator {
         }
     }
 
-    public static Validator create(KeyStore connectionKeyStore, char[] connectionKeyStorePassword, KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName) throws Exception {
+    public static Validator create(KeyStore connectionKeyStore, char[] connectionKeyStorePassword, KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName, String myAddressString) throws Exception {
         return new Validator(connectionKeyStore, connectionKeyStorePassword, signingKeyStore, signingKeyStorePassword
-                , port, logFileName);
+                , port, logFileName, myAddressString);
     }
 
     public static Validator getRunningValidator() {
@@ -156,17 +158,6 @@ public class Validator {
         if (runningValidator == null) {
 
             runningValidator = this;
-
-//            if (potentialPeers != null&&!potentialPeers.isEmpty()) {
-//                boolean larger =potentialPeers.size()>Configuration.MAX_OUT_BOUND_CONNECTION;
-//
-//                InetAddress[] initialPeerNodes = potentialPeers.subList(0, larger?Configuration.MAX_OUT_BOUND_CONNECTION:potentialPeers.size() ).toArray(new InetAddress[0]);
-//                if(larger)
-//                {
-//                    potentialPeerPool.addAll(potentialPeers.subList(Configuration.MAX_OUT_BOUND_CONNECTION, potentialPeers.size() ));
-//                }
-//                connectWithPeers(initialPeerNodes);
-//            }
 
             if (potentialPeers != null&&!potentialPeers.isEmpty()) {
                 potentialPeerPool.addAll(potentialPeers);
@@ -209,7 +200,7 @@ public class Validator {
     }
 
 
-    private Validator(KeyStore connectionKeyStore, char[] connectionKeyStorePassword, KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName) throws Exception {
+    private Validator(KeyStore connectionKeyStore, char[] connectionKeyStorePassword, KeyStore signingKeyStore, char[] signingKeyStorePassword, int port, String logFileName,  String myAddressString) throws Exception {
         this.port = port;
 
         KeyStore.PrivateKeyEntry entry = (KeyStore.PrivateKeyEntry) signingKeyStore.getEntry(Configuration.SIGNING_KEYSTORE_ALIAS, new KeyStore.PasswordProtection(signingKeyStorePassword));
@@ -217,6 +208,7 @@ public class Validator {
         this.myPublicKey = (ECPublicKey) entry.getCertificateChain()[0].getPublicKey();
         this.myIdentifier = BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(myPublicKey);
         this.myName = SecurityHelper.getSubjectCNFromX509Certificate((X509Certificate) entry.getCertificateChain()[0]);
+        this.myAddressString = myAddressString;
 
         initializeSocketFactories(connectionKeyStore, connectionKeyStorePassword);
         System.out.println("Initialized SSL socket Factories");
@@ -386,8 +378,8 @@ public class Validator {
 
         if (connectionManager != null) {
 
-            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Successful disconnection");
-            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Successful disconnection"); //## for debug
+            blockChainLogger.info(connectionManager.getAddressString() + ": Successful disconnection");
+            System.out.println(connectionManager.getAddressString() + ": Successful disconnection"); //## for debug
         }
     }
 
@@ -465,7 +457,8 @@ public class Validator {
 
                 boolean isAuthorizedMedicalOrg = myMainChain.hasMedicalOrg(connectionRequesterIdentifier);
                 boolean isAuthority = Arrays.equals(issuerKeyIdentifier, connectionRequesterIdentifier);
-                Message myStatusMessage = new Message(Configuration.MESSAGE_STATUS, myMainChain.getCurrentStatus().getRaw());
+                Hello myHello =new Hello(myMainChain.getCurrentStatus(), myAddressString);
+                Message myHelloMessage = new Message(Configuration.MESSAGE_HELLO, myHello.getRaw());
 
                 peerInfo = new PeerInfo(connectionRequesterIdentifier, issuerKeyIdentifier);
 
@@ -497,7 +490,7 @@ public class Validator {
                     GeneralHelper.lockForMe(usingLockList,writePotentialPeerLock);
                     for(int i=0;i< potentialPeerPool.size();++i)
                     {
-                        if(potentialPeerPool.get(i).getHostAddress().equals(newConnectionManager.getSocket().getInetAddress().getHostAddress())) {
+                        if(potentialPeerPool.get(i).getHostAddress().equals(newConnectionManager.getAddressString())) {
                             potentialPeerPool.remove(i);
                             break;
                         }
@@ -510,28 +503,38 @@ public class Validator {
                 GeneralHelper.unLockForMe(usingLockList);
 
 
-                System.out.println("Connected to " + newConnectionManager.getSocket().getInetAddress().getHostAddress());
+                System.out.println("Connected to " + newConnectionManager.getAddressString());
 
-                Status peerStatus = null;
+                Hello peerHello = null;
                 if (isOutBound) {
-                    newConnectionManager.write(myStatusMessage);
-                    blockChainLogger.info("Sent status: " + newConnectionManager.getSocket().getInetAddress().getHostAddress());
-                    System.out.println("Sent status to " + newConnectionManager.getSocket().getInetAddress().getHostAddress()); //## debug
-                    peerStatus = (Status) newConnectionManager.read().parse();
-                    blockChainLogger.info("Received status: " + newConnectionManager.getSocket().getInetAddress().getHostAddress());
-                    System.out.println("Received status from " + newConnectionManager.getSocket().getInetAddress().getHostAddress()); //## debug
+                    newConnectionManager.write(myHelloMessage);
+                    blockChainLogger.info("Sent status: " + newConnectionManager.getAddressString());
+                    System.out.println("Sent status to " + newConnectionManager.getAddressString()); //## debug
+                    peerHello = (Hello) newConnectionManager.read().parse();
+                    blockChainLogger.info("Received status: " + newConnectionManager.getAddressString());
+                    System.out.println("Received status from " + newConnectionManager.getAddressString()); //## debug
+                    if(peerHello.getAddressString()!=null){
+                        System.out.println(newConnectionManager.getAddressString()+ " uses name of "+ peerHello.getAddressString());
+                        newConnectionManager.setAddressString(peerHello.getAddressString());
+                    }
 
                 } else {
-                    peerStatus = (Status) newConnectionManager.read().parse();
-                    blockChainLogger.info("Received status: " + newConnectionManager.getSocket().getInetAddress().getHostAddress());
-                    System.out.println("Received status: " + newConnectionManager.getSocket().getInetAddress().getHostAddress()); //## debug
-                    newConnectionManager.write(myStatusMessage);
-                    blockChainLogger.info("Sent status: " + newConnectionManager.getSocket().getInetAddress().getHostAddress());
-                    System.out.println("Sent status to " + newConnectionManager.getSocket().getInetAddress().getHostAddress()); //## debug
+                    peerHello = (Hello) newConnectionManager.read().parse();
+                    blockChainLogger.info("Received status: " + newConnectionManager.getAddressString());
+                    System.out.println("Received status: " + newConnectionManager.getAddressString()); //## debug
+                    if(peerHello.getAddressString()!=null){
+                        blockChainLogger.info(newConnectionManager.getAddressString()+ " uses name of "+ peerHello.getAddressString());
+                        System.out.println(newConnectionManager.getAddressString()+ " uses name of "+ peerHello.getAddressString());
+                        newConnectionManager.setAddressString(peerHello.getAddressString());
+                    }
+
+                    newConnectionManager.write(myHelloMessage);
+                    blockChainLogger.info("Sent status: " + newConnectionManager.getAddressString());
+                    System.out.println("Sent status to " + newConnectionManager.getAddressString()); //## debug
                 }
 
                 newConnectionManager.getSocket().setSoTimeout(0);
-                startHandleConnection(newConnectionManager, peerInfo, peerStatus, isOutBound);
+                startHandleConnection(newConnectionManager, peerInfo, peerHello.getStatus(), isOutBound);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -618,7 +621,7 @@ public class Validator {
 
             GeneralHelper.lockForMe(usingLockList, readConnectionLock);
 
-            InetAddress[] peerAddresses = getPeerList(peerInfo);
+            String[] peerAddresses = getPeerList(peerInfo);
 
             if (peerAddresses != null && peerAddresses.length != 0)
                 connectionManager.write(new Message(Configuration.MESSAGE_PEER_NODE_LIST, RawTranslator.translateAddressesToBytes(peerAddresses)));
@@ -645,7 +648,7 @@ public class Validator {
             GeneralHelper.unLockForMe(usingLockList);
 
 
-            String peerAddressString = connectionManager.getSocket().getInetAddress().getHostAddress();
+            String peerAddressString = connectionManager.getAddressString();
 
             while (!isTerminated) {
 
@@ -663,7 +666,7 @@ public class Validator {
                     throw new InvalidBlockChainMessageException(peerAddressString, messageNumber);
                 }
 
-                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": message " + messageNumber + " received"); //debug
+                System.out.println(connectionManager.getAddressString() + ": message " + messageNumber + " received"); //debug
 
                 switch (messageNumber) {
 
@@ -730,30 +733,30 @@ public class Validator {
                         break;
 
                     case Configuration.MESSAGE_PEER_NODE_LIST: //peer node list
-                        InetAddress[] receivedAddresses = (InetAddress[])(parsedContent);
-                        ArrayList<String> newPotentialAddressStrings = new ArrayList<>();
+                        String[] receivedAddresses = (String[])(parsedContent);
 
-                        for(InetAddress receivedAddress: receivedAddresses)
-                        {
-                            newPotentialAddressStrings.add(receivedAddress.getHostAddress());
-                        }
+                        ArrayList<String> newPotentialAddressStrings = new ArrayList<>(Arrays.asList(receivedAddresses));
 
                         GeneralHelper.lockForMe(usingLockList, readConnectionLock, writePotentialPeerLock,readRequestedPeerLock);
 
                         for (ConnectionManager inboundConnectionManager : inBoundConnectionList.values()) {
-                            newPotentialAddressStrings.remove(inboundConnectionManager.getSocket().getInetAddress().getHostAddress());
+                            newPotentialAddressStrings.remove(inboundConnectionManager.getExplicitHostName());
+                            newPotentialAddressStrings.remove(inboundConnectionManager.getAddressString());
                         }
 
                         for (ConnectionManager outboundConnectionManager : outBoundConnectionList.values()) {
-                            newPotentialAddressStrings.remove(outboundConnectionManager.getSocket().getInetAddress().getHostAddress());
+                            newPotentialAddressStrings.remove(outboundConnectionManager.getExplicitHostName());
+                            newPotentialAddressStrings.remove(outboundConnectionManager.getAddressString());
                         }
 
                         for (InetAddress potentialPeerAddress : potentialPeerPool) {
                             newPotentialAddressStrings.remove(potentialPeerAddress.getHostAddress());
+                            newPotentialAddressStrings.remove(potentialPeerAddress.getHostName());
                         }
 
                         for (InetAddress requestedPeerAddress : requestedPeerList) {
                             newPotentialAddressStrings.remove(requestedPeerAddress.getHostAddress());
+                            newPotentialAddressStrings.remove(requestedPeerAddress.getHostName());
                         }
 
                         if(!newPotentialAddressStrings.isEmpty()) {
@@ -1197,13 +1200,10 @@ public class Validator {
                 {
                     try (BufferedWriter out = new BufferedWriter(new FileWriter(Configuration.BLOCKCHAIN_PREV_PEERS.getAbsoluteFile()))) {
                         for (PeerInfo peerInfo : inBoundConnectionList.keySet()) {
-                            out.write(inBoundConnectionList.get(peerInfo).getSocket().getInetAddress().getHostAddress()+"\n");
+                            out.write(inBoundConnectionList.get(peerInfo).getAddressString()+"\n");
                         }
                         for (PeerInfo peerInfo : outBoundConnectionList.keySet()) {
-                            out.write(outBoundConnectionList.get(peerInfo).getSocket().getInetAddress().getHostAddress()+"\n");
-                        }
-                        for (InetAddress potentialPeer : potentialPeerPool) {
-                            out.write(potentialPeer.getHostAddress()+"\n");
+                            out.write(outBoundConnectionList.get(peerInfo).getAddressString()+"\n");
                         }
                     }
                     catch (IOException e)
@@ -1556,12 +1556,11 @@ public class Validator {
                 }
 
                 connectionManager.write(message);
-                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number);
-    //            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number); //#debug
+                blockChainLogger.info(connectionManager.getAddressString() + ": Sent message " + message.number);
             }
         } catch (IOException e) {
-            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
-            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
+            blockChainLogger.info(connectionManager.getAddressString() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
+            System.out.println(connectionManager.getAddressString() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
             connectionManager.close();
         }
 
@@ -1602,12 +1601,12 @@ public class Validator {
                 }
 
                 connectionManager.write(message);
-                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number);
-                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Sent message " + message.number); //#debug
+                blockChainLogger.info(connectionManager.getAddressString() + ": Sent message " + message.number);
+                System.out.println(connectionManager.getAddressString() + ": Sent message " + message.number); //#debug
             }
         } catch (IOException e) {
-            blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
-            System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
+            blockChainLogger.info(connectionManager.getAddressString() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
+            System.out.println(connectionManager.getAddressString() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
             connectionManager.close();
         }
 
@@ -1632,8 +1631,8 @@ public class Validator {
                 connectionManager.write(message);
                 ++totalSize;
             } catch (IOException e) {
-                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
-                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
+                blockChainLogger.info(connectionManager.getAddressString() + ": Attempted to send message "+ message.number+" but failed due to IOException. So, closing the connection");
+                System.out.println(connectionManager.getAddressString() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
                 connectionManager.close();
             }
         }
@@ -1651,8 +1650,8 @@ public class Validator {
                 connectionManager.write(message);
                 ++totalSize;
             } catch (IOException e) {
-                blockChainLogger.info(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
-                System.out.println(connectionManager.getSocket().getInetAddress().getHostAddress() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
+                blockChainLogger.info(connectionManager.getAddressString() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection");
+                System.out.println(connectionManager.getAddressString() + ": Attempted to send message"+ message.number+" but failed due to IOException. So, closing the connection"); //#debug
                 connectionManager.close();
             }
         }
@@ -1745,19 +1744,19 @@ public class Validator {
         return transactionPool.subList(0, num > transactionPool.size() ? transactionPool.size() : num).toArray(new Transaction[0]);
     }
 
-    private InetAddress[] getPeerList(PeerInfo toWhom) {
+    private String[] getPeerList(PeerInfo toWhom) {
         int inBoundSize = inBoundConnectionList.size();
         int outBoundSize = outBoundConnectionList.size();
         int totalSize = inBoundSize + outBoundSize - 1; // remove the one who asked
-        InetAddress[] peerList = new InetAddress[totalSize > 0 ? totalSize : 0];
+        String[] peerList = new String[totalSize > 0 ? totalSize : 0];
 
         int index = 0;
         for (PeerInfo peerInfo : inBoundConnectionList.keySet())
             if (!peerInfo.equals(toWhom))
-                peerList[index++] = inBoundConnectionList.get(peerInfo).getSocket().getInetAddress();
+                peerList[index++] = inBoundConnectionList.get(peerInfo).getAddressString();
         for (PeerInfo peerInfo : outBoundConnectionList.keySet())
             if (!peerInfo.equals(toWhom))
-                peerList[index++] = outBoundConnectionList.get(peerInfo).getSocket().getInetAddress();
+                peerList[index++] = outBoundConnectionList.get(peerInfo).getAddressString();
 
         return peerList;
     }
