@@ -38,7 +38,7 @@ public class BlockChainManager {
         ArrayList<Voting> tempVotingList = VotingManager.load(initPrevBlockHash);
 
         int tempTotalScore= initPrevBlockStateInfo.getTotalScore();
-        long prevBlockTimeStemp = initPrevBlockHeader.getTimestamp();
+        long prevBlockTimeStamp = initPrevBlockHeader.getTimestamp();
 
         for(BlockHeader header: headers)
         {
@@ -53,6 +53,9 @@ public class BlockChainManager {
                     tempAuthorityList.put(header.getValidatorIdentifier(), authorityInfoForInternal);
                 }
             }
+
+            if (header.getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0)
+                tempVotingList.clear();
 
             AuthorityInfoForInternal validatorInfoForInternal = tempAuthorityList.get(header.getValidatorIdentifier());
 
@@ -74,8 +77,8 @@ public class BlockChainManager {
             if(expectedScore!= header.getScore())
                 return -1;
 
-            if(header.getTimestamp()> System.currentTimeMillis()||
-                    header.getTimestamp() -prevBlockTimeStemp<(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
+            if(header.getTimestamp()> System.currentTimeMillis()+Configuration.TIME_DIFFERENCE_ALLOWANCE||
+                    header.getTimestamp() -prevBlockTimeStamp<(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
                 return -1;
 
             //check vote and process vote - could be changed later
@@ -151,7 +154,7 @@ public class BlockChainManager {
             }
 
             tempTotalScore+=expectedScore;
-            prevBlockTimeStemp= header.getTimestamp();
+            prevBlockTimeStamp= header.getTimestamp();
         }
 
 

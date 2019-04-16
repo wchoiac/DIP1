@@ -223,42 +223,6 @@ public class BlockChain {
     }
 
 
-    public boolean canSignNext(byte[] identifier) throws IOException, BlockChainObjectParsingException {
-
-        if (!hasAuthority(identifier))
-            return false;
-
-
-        boolean isNextInOrder = isNextBlockInOrder(identifier);
-
-
-        if (isNextInOrder) {
-            if (System.currentTimeMillis() - getLatestBlockTimeStamp() < Configuration.BLOCK_PERIOD)
-                return false;
-        } else {
-            if (System.currentTimeMillis() - getLatestBlockTimeStamp() < Configuration.MIN_OUT_ORDER_BLOCK_PERIOD)
-                return false;
-        }
-
-
-        return (getAuthorityInfoForInternal(identifier).getLastSignedBlockNumber() == -1 || (getCurrentLatestBlockNumber() + 1) - getAuthorityInfoForInternal(identifier).getLastSignedBlockNumber() >= getValidationInterval());
-
-
-    }
-
-    // checking if next block is inoder for pk
-    public boolean isNextBlockInOrder(byte[] identifier) {
-        int nextHeight = getCurrentLatestBlockNumber() + 1;
-        return nextHeight % getTotalAuthorities() == authorityIndex(identifier);
-    }
-
-
-    public int generateRandomOffset() {
-
-        Random rand = new Random();
-        return (Configuration.MIN_OUT_ORDER_BLOCK_PERIOD - Configuration.BLOCK_PERIOD) + rand.nextInt(500 * getValidationInterval());
-    }
-
     public boolean isNextBlockHeader(BlockHeader blockheader) {
         if (blockheader.getBlockNumber() != getCurrentLatestBlockNumber() + 1) {
             return false;
@@ -293,7 +257,7 @@ public class BlockChain {
         ArrayList<byte[]> tempOverallAuthorityList = (ArrayList<byte[]>) currentOverallAuthorityIdentifierList.clone();
         ArrayList<Voting> tempVotingList = (ArrayList<Voting>) currentVotingList.clone();
 
-        long prevBlockTimeStemp = getLatestBlockTimeStamp();
+        long prevBlockTimeStamp = getLatestBlockTimeStamp();
         int tempTotalScore = getTotalScore();
 
         for (BlockHeader header : headers) {
@@ -308,6 +272,9 @@ public class BlockChain {
                             authorityInfoForInternal.getLastSignedBlockNumber(), null));
 
                 }
+
+            if (header.getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0)
+                tempVotingList.clear();
 
             AuthorityInfoForInternal validatorInfoForInternal = tempAuthorityList.get(header.getValidatorIdentifier());
 
@@ -330,8 +297,8 @@ public class BlockChain {
             if (expectedScore != header.getScore())
                 return -1;
 
-            if (header.getTimestamp()> System.currentTimeMillis()||
-                    header.getTimestamp() - prevBlockTimeStemp < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
+            if (header.getTimestamp()> System.currentTimeMillis()+Configuration.TIME_DIFFERENCE_ALLOWANCE||
+                    header.getTimestamp() - prevBlockTimeStamp < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
                 return -1;
 
 
@@ -391,6 +358,7 @@ public class BlockChain {
                 if (changedAuthorityVoting.getNumAgree() >= tempValidationInterval) {
                     if (changedAuthorityVoting.isAdd()) {
                         tempOverallAuthorityList.add(changedAuthorityVoting.getBeneficiary().getIdentifier());
+                        tempAuthorityList.put(changedAuthorityVoting.getBeneficiary().getIdentifier(), new AuthorityInfoForInternal(changedAuthorityVoting.getBeneficiary(),-1,null));
                     } else {
                         tempOverallAuthorityList.remove(GeneralHelper.getIndexFromArrayList(changedAuthorityVoting.getBeneficiary().getIdentifier(), tempOverallAuthorityList));
                         tempAuthorityList.remove(changedAuthorityVoting.getBeneficiary().getIdentifier());
@@ -406,7 +374,7 @@ public class BlockChain {
             }
 
             tempTotalScore += expectedScore;
-            prevBlockTimeStemp = header.getTimestamp();
+            prevBlockTimeStamp = header.getTimestamp();
         }
 
         return tempTotalScore;
@@ -415,8 +383,9 @@ public class BlockChain {
 
     public boolean checkNextBlock(Block block, ArrayList<Transaction> transactionPool) throws BlockChainObjectParsingException, IOException, FileCorruptionException {
 
-        if (block == null)
+        if (block == null) {
             return false;
+        }
 
         if (!isNextBlock(block)) {
             return false;
@@ -425,14 +394,16 @@ public class BlockChain {
         byte[] latestBlockHash = getLatestBlockHash();
 
         //*****header check start
-        if (!hasAuthority(block.getHeader().getValidatorIdentifier()))
+        if (!hasAuthority(block.getHeader().getValidatorIdentifier())){
             return false;
+        }
 
         AuthorityInfoForInternal validatorInfo = getAuthorityInfoForInternal(block.getHeader().getValidatorIdentifier());
         try {
             if (!SecurityHelper.verifyRawECDSASignatureWithContent(validatorInfo.getAuthorityInfo().getPublicKey(), block.getHeader().getSignatureCoverage()
-                    , block.getHeader().getValidatorSignature(),Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE))
+                    , block.getHeader().getValidatorSignature(),Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE)){
                 return false;
+            }
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
@@ -449,9 +420,10 @@ public class BlockChain {
             return false;
 
 
-        if (block.getHeader().getTimestamp()> System.currentTimeMillis()||
-                block.getHeader().getTimestamp() - getLatestBlockTimeStamp() < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
+        if (block.getHeader().getTimestamp()> System.currentTimeMillis()+Configuration.TIME_DIFFERENCE_ALLOWANCE||
+                block.getHeader().getTimestamp() - getLatestBlockTimeStamp() < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD)){
             return false;
+        }
 
         if (block.getHeader().getVote() != null)
         {

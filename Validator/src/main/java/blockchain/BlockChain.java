@@ -314,7 +314,7 @@ public class BlockChain {
         ArrayList<byte[]> tempOverallAuthorityList = (ArrayList<byte[]>) currentOverallAuthorityIdentifierList.clone();
         ArrayList<Voting> tempVotingList = (ArrayList<Voting>) currentVotingList.clone();
 
-        long prevBlockTimeStemp = getLatestBlockTimeStamp();
+        long prevBlockTimeStamp = getLatestBlockTimeStamp();
         int tempTotalScore = getTotalScore();
 
         for (BlockHeader header : headers) {
@@ -329,6 +329,9 @@ public class BlockChain {
                             authorityInfoForInternal.getLastSignedBlockNumber(), null));
 
                 }
+
+            if (header.getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0)
+                tempVotingList.clear();
 
             AuthorityInfoForInternal validatorInfoForInternal = tempAuthorityList.get(header.getValidatorIdentifier());
 
@@ -350,8 +353,8 @@ public class BlockChain {
             if (expectedScore != header.getScore())
                 return -1;
 
-            if (header.getTimestamp()> System.currentTimeMillis()||
-                    header.getTimestamp() - prevBlockTimeStemp < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
+            if (header.getTimestamp()> System.currentTimeMillis()+Configuration.TIME_DIFFERENCE_ALLOWANCE||
+                    header.getTimestamp() - prevBlockTimeStamp < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
                 return -1;
 
 
@@ -411,6 +414,7 @@ public class BlockChain {
                 if (changedAuthorityVoting.getNumAgree() >= tempValidationInterval) {
                     if (changedAuthorityVoting.isAdd()) {
                         tempOverallAuthorityList.add(changedAuthorityVoting.getBeneficiary().getIdentifier());
+                        tempAuthorityList.put(changedAuthorityVoting.getBeneficiary().getIdentifier(), new AuthorityInfoForInternal(changedAuthorityVoting.getBeneficiary(),-1,null));
                     } else {
                         tempOverallAuthorityList.remove(GeneralHelper.getIndexFromArrayList(changedAuthorityVoting.getBeneficiary().getIdentifier(), tempOverallAuthorityList));
                         tempAuthorityList.remove(changedAuthorityVoting.getBeneficiary().getIdentifier());
@@ -426,7 +430,7 @@ public class BlockChain {
             }
 
             tempTotalScore += expectedScore;
-            prevBlockTimeStemp = header.getTimestamp();
+            prevBlockTimeStamp = header.getTimestamp();
         }
 
         return tempTotalScore;
@@ -468,7 +472,7 @@ public class BlockChain {
             return false;
 
 
-        if (block.getHeader().getTimestamp()> System.currentTimeMillis()||
+        if (block.getHeader().getTimestamp()> System.currentTimeMillis()+Configuration.TIME_DIFFERENCE_ALLOWANCE||
                 block.getHeader().getTimestamp() - getLatestBlockTimeStamp() < (isInOrder ? Configuration.BLOCK_PERIOD : Configuration.MIN_OUT_ORDER_BLOCK_PERIOD))
             return false;
 
