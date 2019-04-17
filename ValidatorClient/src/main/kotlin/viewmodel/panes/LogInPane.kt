@@ -44,8 +44,8 @@ object LogInPane : BorderPane() {
 
     init {
         val file = this.javaClass.classLoader.getResource("savedLoginInfo.txt")?.file
-        if(file != null) {
-            val fileText = File(file).readText(UTF_8)
+        try {
+            val fileText = File(file ?: "./savedLoginInfo.txt").readText(UTF_8)
             val jsonObj = Parser().parse(StringBuilder(fileText)) as JsonObject
             certFile = File(jsonObj["certUrl"] as String)
             if(!certFile!!.exists()) certFile = null
@@ -55,7 +55,7 @@ object LogInPane : BorderPane() {
             ssl.isSelected = jsonObj["secured"] as Boolean
             username.text = jsonObj["username"] as String
             password.text = jsonObj["password"] as String
-        }
+        } catch (ignored: Exception) { }
         container.alignment = Pos.CENTER
         ip.promptText = "API IP Address"
         username.promptText = "Username"
@@ -91,6 +91,16 @@ object LogInPane : BorderPane() {
     private fun styleComponents() {
         invalidWarning.styleClass.add("warning-text")
         certificateBtn.styleClass.add("small-button")
+    }
+
+    private fun writeToFile(file: File) {
+        file.writeText("""{
+            "certUrl": "${certFile?.absolutePath?.replace('\\', '/')}",
+            "secured": ${ssl.isSelected}
+            "ipAddress": "$ip",
+            "username": "$username",
+            "password": "$password"
+        }""".replace("\\s".toRegex(), ""), UTF_8)
     }
 
     private fun setCallbacks() {
@@ -164,14 +174,13 @@ object LogInPane : BorderPane() {
 
                     if(response.third.component1() != null && response.third.component1() != "") {
                         invalidWarning.visibleProperty().value = false
-                        val file = File("./src/main/resources/savedLoginInfo.txt")
-                        file.writeText("""{
-                            "certUrl": "${certFile?.absolutePath?.replace('\\', '/')}",
-                            "secured": ${ssl.isSelected}
-                            "ipAddress": "$ip",
-                            "username": "$username",
-                            "password": "$password"
-                        }""".replace("\\s".toRegex(), ""), UTF_8)
+                        try {
+                            writeToFile(File("./src/main/resources/savedLoginInfo.txt"))
+                        } catch(e: Exception) {
+                            try {
+                                writeToFile(File("./savedLoginInfo.txt"))
+                            } catch(ignored: Exception) { }
+                        }
                         Helper.token = response.third.component1()!!
                         SceneManager.showMainMenuScene()
                     } else {
