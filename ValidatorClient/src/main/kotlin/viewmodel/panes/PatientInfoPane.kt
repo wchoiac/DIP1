@@ -234,12 +234,13 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
 
         createRecordButton.setOnAction {
             errorLabel.visibleProperty().set(true)
+            val genderText = gender.text.toUpperCase()
             when {
                 name.text == "" -> {
                     name.requestFocus()
                     errorLabel.text = "Please enter the name"
                 }
-                gender.text == "" || !(gender.text == "M" || gender.text =="F") -> {
+                genderText == "" || !(genderText == "M" || genderText =="F") -> {
                     gender.requestFocus()
                     errorLabel.text = "Please enter the gender as 'M' or 'F'"
                 }
@@ -253,21 +254,21 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
                 }
                 nationality.text == "" -> {
                     nationality.requestFocus()
-                    errorLabel.text = "Please enter the correct blood type"
+                    errorLabel.text = "Please enter the correct nationality type"
                 }
-                address.text.contains("[^0-9.]".toRegex()) -> {
+                address.text == "" -> {
                     address.requestFocus()
-                    errorLabel.text = "Please enter correct address value"
+                    errorLabel.text = "Please enter correct address"
                 }
-                phoneNumber.text.contains("[^0-9.]".toRegex()) -> {
+                phoneNumber.text == "" -> {
                     phoneNumber.requestFocus()
-                    errorLabel.text = "Please enter correct address value"
+                    errorLabel.text = "Please enter correct phone number"
                 }
                 else -> {
                     errorLabel.visibleProperty().set(false)
                     val patientIdentity = PatientIdentity(
                             name = if(name.text == "") null else name.text,
-                            gender = if(gender.text == "") null else gender.text,
+                            gender = if(gender.text == "") null else gender.text.toUpperCase(),
                             birthDate = if(birthDate.text == "") null else birthDate.text,
                             identificationNumber = if(identification.text == "") null else identification.text,
                             nationality = if(nationality.text == "") null else nationality.text,
@@ -299,13 +300,15 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
 
         drawQR.setOnAction {
             val items = listView.selectionModel.selectedItems
-            val timestampList = mutableListOf<String>()
-            items.forEach {hBox ->
-                timestampList.add("-" + timeToStampMap[(hBox.children.first() as Label).text]!!)
-            }
+            if(items.isNotEmpty()) {
+                val timestampList = mutableListOf<String>()
+                items.forEach { hBox ->
+                    timestampList.add("-" + timeToStampMap[(hBox.children.first() as Label).text]!!)
+                }
 
-            Platform.runLater {
-                Helper.drawQRCode(qrView, timestampList.toString())
+                Platform.runLater {
+                    Helper.drawQRCode(qrView, timestampList.toString())
+                }
             }
         }
     }

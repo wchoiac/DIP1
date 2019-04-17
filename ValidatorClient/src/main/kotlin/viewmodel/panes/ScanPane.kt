@@ -35,7 +35,7 @@ object ScanPane : BorderPane() {
     private val backToMenu = Button("Back to Menu")
     private var webcam: Webcam? = null
     private val imgWebCamCapturedImage = ImageView()
-    var stopCamera = true
+    private var stopCamera = true
     private val imageProperty = SimpleObjectProperty<Image>()
     private val cameraOptions: ComboBox<WebCamInfo> = ComboBox()
     var type = TYPE.INVALID
@@ -45,11 +45,11 @@ object ScanPane : BorderPane() {
         INVALID, PUBLIC_KEY, SECRET_KEY, SIGNATURE
     }
 
-    var resultKeyTime : KeyTime? = null
-    var resultSignature : ByteArray? = null
-    var resultAES : SecretKey? = null
-    var resultTimestamp : Long? = null
-    var resultPatientInfo : ByteArray? = null
+    private var resultKeyTime : KeyTime? = null
+    private var resultSignature : ByteArray? = null
+    private var resultAES : SecretKey? = null
+    private var resultTimestamp : Long? = null
+    private var resultPatientInfo : ByteArray? = null
 
     private class WebCamInfo {
         internal var webCamName: String? = null
@@ -62,7 +62,6 @@ object ScanPane : BorderPane() {
     init {
         createTopPanel()
         connectComponents()
-        styleComponents()
         setCallbacks()
         Platform.runLater { this.setImageViewSize() }
     }
@@ -113,10 +112,6 @@ object ScanPane : BorderPane() {
                 scan(newValue.webCamIndex)
             }
         }
-    }
-
-    private fun styleComponents() {
-
     }
 
     private fun setCallbacks() {
