@@ -8,7 +8,6 @@ import kotlinx.android.synthetic.main.activity_generate_key.*
 import xyz.medirec.medirec.pojo.SecretTime
 
 class GenerateKeyActivity : AppCompatActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_generate_key)
