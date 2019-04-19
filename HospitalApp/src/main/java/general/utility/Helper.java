@@ -79,13 +79,13 @@ public class Helper {
     }
 
     public static byte[] AESencrypt(byte[] text, SecretKey key) throws InvalidAlgorithmParameterException, NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
         IvParameterSpec iv = new IvParameterSpec(new byte[16]);
         cipher.init(Cipher.ENCRYPT_MODE, key, iv);
         return cipher.doFinal(text);
     }
     public static byte[] AESdecrypt(byte[] text, SecretKey key) throws InvalidAlgorithmParameterException, NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
         IvParameterSpec iv = new IvParameterSpec(new byte[16]);
         cipher.init(Cipher.DECRYPT_MODE, key, iv);
         return cipher.doFinal(text);

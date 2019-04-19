@@ -107,12 +107,15 @@ public class LogInPane  {
                 System.out.println(GeneralHelper.bytesToStringHex(GlobalVar.fullNodeRestClient.getMedicalOrgIdentifier()));
                 try {
                     SQLlogin();
+                    SceneManager.MainMenuInit();
                     SceneManager.showMainMenuScene();
                 } catch (Exception e) {
+                    e.printStackTrace();
                     invalidWarning.visibleProperty().setValue(true);
                     invalidWarning.setText(Config.WRONG_SQL_WARNING);
                 }
             } catch (Exception e){
+                e.printStackTrace();
             }
         });
 
@@ -149,10 +152,11 @@ public class LogInPane  {
         );
         vbox.setAlignment(Pos.CENTER);
         invalidWarning.setStyle("-fx-text-fill:red;-fx-font-size:15;");
-        SQLlocation.setText("localhost:1433");
+        IPtext.setText("25.58.208.225");
+        SQLlocation.setText("25.58.208.225");
         DBname.setText("Customer");
-        SQLusername.setText("root");
-        SQLpw.setText("1234");
+        SQLusername.setText("SA");
+        SQLpw.setText("Fyp123456");
         username.setText("user");
         password.setText("1234");
         scene.setRoot(vbox);

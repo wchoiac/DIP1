@@ -180,7 +180,7 @@ object ScanPane : BorderPane() {
                                     val signature = KTHelper.decodeFromString(decode)
                                     if (signature.size * 4 != 256 || type != TYPE.SIGNATURE)
                                         throw IllegalArgumentException("NOT SIGNATURE")
-                                    val publicKey = this.resultKeyTime!!.pubKeyEncoded
+                                    //val publicKey = this.resultKeyTime!!.pubKeyEncoded
                                     this.resultSignature = signature
                                     SceneManager.getSign(signature,
                                             this.resultAES,
