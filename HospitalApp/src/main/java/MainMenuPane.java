@@ -1,3 +1,4 @@
+import general.utility.GeneralHelper;
 import general.utility.Helper;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
@@ -8,6 +9,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.bouncycastle.asn1.cmp.GenRepContent;
 import viewmodel.Config;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -26,23 +28,48 @@ public class MainMenuPane  {
     public static Scene scene = new Scene(new Group(), Config.WIDTH, Config.HEIGHT);
     private static VBox Record_List = new VBox(0);
 
-    public void AddPatientToList(String name, String ID, byte[] keyencoded) {
+    public void AddPatientToList(String name, String ID, byte[] keyencoded, String PatientID) {
         ToggleButton p1 = new ToggleButton(name + " - " + ID);
-        p1.setUserData(name + " - " + ID);
+        p1.setUserData(name + " - " + ID + " ^ " + PatientID);
         p1.setId(Helper.encode(keyencoded));
         System.out.println("ID : " + p1.getId());
         p1.setToggleGroup(PatientToggleGroup);
         Record_List.getChildren().add(p1);
+        String patientPkey = Helper.encode(keyencoded);
+
         String SQL = "if (select top 1 ID from PatientList where PatientName = '" + name + "' and " +
-                " ID = '" + ID + "' ) is null " +
-                " insert into PatientList (PatientName, ID)\n" +
-                " values ('" +
-                name +
-                "','" +
-                ID +
-                "')";
+                " ID = '" + ID + "' and encodePublicKey = '" + patientPkey + "' and patientIdentifier = '" + PatientID + "' ) is null " +
+                " insert into PatientList (PatientName, ID, encodePublicKey, patientIdentifier)\n" +
+                " values ('" + name + "','" + ID + "','" + patientPkey + "','" + PatientID + "')";
         try {
             GlobalVar.statement.executeUpdate(SQL);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void InitAddPatientToList() {
+        String name = null;
+        String ID = null;
+        String PatientID = null;
+        String keyencoded = null;
+        String SQL = "SELECT * FROM PatientList";
+        ResultSet rs = null;
+        try {
+            rs = GlobalVar.statement.executeQuery(SQL);
+            while (rs.next()) {
+                name = rs.getString("PatientName");
+                ID = rs.getString("ID");
+                keyencoded = rs.getString("encodePublicKey");
+                PatientID = rs.getString("patientIdentifier");
+                System.out.println(name + " " + ID + " " + keyencoded + " " + PatientID);
+                ToggleButton p1 = new ToggleButton(name + " - " + ID);
+                p1.setUserData(name + " - " + ID + " ^ " + PatientID);
+                p1.setId(keyencoded);
+                p1.setToggleGroup(PatientToggleGroup);
+                Record_List.getChildren().add(p1);
+
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -55,13 +82,14 @@ public class MainMenuPane  {
             {
                 Record_List.getChildren().remove(i);
                 String name = nameID.substring(0, nameID.indexOf(" - "));
-                String ID = nameID.substring(nameID.indexOf(" - ") + 3);
-                System.out.println("delete patient " + " name :" + name + "*******ID :" + ID);
+                String ID = nameID.substring(nameID.indexOf(" - ") + 3, nameID.indexOf(" ^ "));
+                String PatientID = nameID.substring(nameID.indexOf(" ^ ") + 3);
+                System.out.println("delete patient " + " name : " + name + "  ID : " + ID + " P_ID : "+ PatientID);
                 String SQL = "delete from PatientList where PatientName = '" +
                         name +
                         "' and ID = '" +
                         ID +
-                        "'";
+                        "' and patientIdentifier = '" + PatientID + "'";
                 try {
                     GlobalVar.statement.executeUpdate(SQL);
                 } catch (SQLException e) {
@@ -94,14 +122,13 @@ public class MainMenuPane  {
                 SceneManager.selected = NameID;
                 System.out.println("ID : " + p1.getId());
                 SceneManager.setEncodedEC(Helper.decode(p1.getId()));
+
                 String name = NameID.substring(0, NameID.indexOf(" - "));
-                String ID = NameID.substring(NameID.indexOf(" - ") + 3);
+                String ID = NameID.substring(NameID.indexOf(" - ") + 3, NameID.indexOf(" ^ ") );
+                String PatientID = NameID.substring(NameID.indexOf(" ^ ") + 3);
+                System.out.println("start create record for patient " + " name : " + name + "  ID : " + ID + " P_ID : "+ PatientID);
                 String record_String = "";
-                String SQL = "SELECT * FROM Customer where NewRecords = 1 and ID = '" +
-                        ID +
-                        "' and PatientName = '" +
-                        name +
-                        "'";
+                String SQL = "SELECT * FROM Customer where NewRecords = 1  and patientIdentifier = '" + PatientID + "'";
                 try {
                     ResultSet rs = GlobalVar.statement.executeQuery(SQL);
                     int i = 0;

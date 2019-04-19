@@ -64,9 +64,14 @@ public class SceneManager {
         return MainMenuPane.NameID_List();
     }
 
-    public static void addPatient(String name, String ID , byte[] keyencoded){
-        MainMenuPane.AddPatientToList(name, ID , keyencoded);
+    public static void addPatient(String name, String ID , byte[] keyencoded, String PatientID){
+        MainMenuPane.AddPatientToList(name, ID , keyencoded, PatientID);
     }
+
+    public static void MainMenuInit(){
+        MainMenuPane.InitAddPatientToList();
+    }
+
     public static void showMainMenuScene(){
         showScene(MainMenuPane.scene);
     }
@@ -104,8 +109,7 @@ public class SceneManager {
     public static void getSign(byte[] sign, SecretKey key, long timestamp) {
         //byte[] record = null;
 
-        String name = selected.substring(0, selected.indexOf(" - "));
-        String ID = selected.substring(selected.indexOf(" - ") + 3);
+        String PatientID = selected.substring(selected.indexOf(" ^ ") + 3);
         System.out.println("Timestamp2 : " + timestamp);
         KeyFactory keyFactory = null;
         ECPublicKey PKEY = null;
@@ -137,11 +141,12 @@ public class SceneManager {
                     false,
                     sign,
                     BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(PKEY));
+
             String SQL = "update Customer set NewRecords = 0, Timestamp = '" +
                     timestamp +
-                    "' where PatientName = '" + name +
-                    "' and ID = '" + ID +
-                    "' and MedName = 'local' and NewRecords = 1 ";
+                    "' where patientIdentifier = '" + PatientID + "'" +
+                    " and MedName = 'local' and NewRecords = 1 ";
+            System.out.println("SQL : " + SQL);
             GlobalVar.statement.executeUpdate(SQL);
 
             record_string = null;

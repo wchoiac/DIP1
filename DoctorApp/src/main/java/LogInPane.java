@@ -61,10 +61,10 @@ public class LogInPane {
     public void connect_components()
      {
         container.setAlignment(Pos.CENTER);
-        SQLlocation.setText("localhost:1433");
+        SQLlocation.setText("25.58.208.225");
         DBname.setText("Customer");
-        username.setText("root");
-        password.setText("1234");
+        username.setText("SA");
+        password.setText("Fyp123456");
         invalidWarning.visibleProperty().setValue(false);
 
         VBox vbox = new VBox(35); // spacing = 8
