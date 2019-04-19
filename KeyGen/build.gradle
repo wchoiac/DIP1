@@ -1,0 +1,33 @@
+
+plugins {
+    // Apply the java plugin to add support for Java
+    id 'java'
+    // Apply the application plugin to add support for building an application
+    id 'application'
+    id "com.github.johnrengelman.shadow" version "4.0.3"
+
+}
+
+group 'DIP1'
+
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+repositories {
+    jcenter()
+}
+
+task keyGenJar(type: ShadowJar) {
+    manifest.attributes 'Main-Class': 'KeyGen'
+    baseName = 'keyGen'
+    configurations = [project.configurations.runtime]
+    destinationDir = file('./jars')
+
+    from(project.convention.getPlugin(JavaPluginConvention).sourceSets.main.output)
+
+    configurations = [project.configurations.runtime]
+    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+}
+dependencies {
+    compile group: 'org.bouncycastle', name: 'bcpkix-jdk15on', version: '1.60'
+    compile group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.60'
+
+}

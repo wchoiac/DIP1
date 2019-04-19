@@ -1,6 +1,3 @@
-package node;
-
-
 import config.Configuration;
 import general.security.SecurityHelper;
 

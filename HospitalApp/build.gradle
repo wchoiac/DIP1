@@ -40,7 +40,7 @@ dependencies {
     compile 'com.github.kittinunf.fuel:fuel:1.15.0'
     compile 'com.beust:klaxon:3.0.1'
     compile group: 'com.microsoft.sqlserver', name: 'mssql-jdbc', version: '7.0.0.jre8'
-    implementation 'com.google.code.gson:gson:2.8.5'
+    compile 'com.google.code.gson:gson:2.8.5'
 
     //for client
     compile group: 'javax.xml.bind', name: 'jaxb-api', version: '2.4.0-b180830.0359'
