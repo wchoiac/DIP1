@@ -104,11 +104,11 @@ public class Configuration {
     public static final int PEER_NODE_LIST_REQUEST_INTERVAL=60000;
     public static final int CONNECTION_REQUEST_INTERVAL=20000;
     public static final int REQUEST_BLOCKS_INTERVAL=2000;
-
-
+    public static final int VALIDATION_INTERVAL=100;
+    public static final int TIME_DIFFERENCE_ALLOWANCE=100;
 
     //message number
-    public static final byte MESSAGE_STATUS=0;
+    public static final byte MESSAGE_HELLO=0;
     public static final byte MESSAGE_PEER_NODE_REQUEST=1;
     public static final byte MESSAGE_HEADER_REQUEST=2;
     public static final byte MESSAGE_BLOCK_REQUEST=3;

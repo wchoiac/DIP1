@@ -24,7 +24,6 @@ public class Status implements Raw{
     public Status()
     {
     }
-
     public byte[] getLatestBlockHash() {
         return latestBlockHash;
     }

@@ -39,8 +39,8 @@ public class Message {
     public Object parse() throws BlockChainObjectParsingException {
             switch (number) {
 
-                case Configuration.MESSAGE_STATUS:
-                    return Status.parse(content);
+                case Configuration.MESSAGE_HELLO:
+                    return Hello.parse(content);
                 case Configuration.MESSAGE_PEER_NODE_REQUEST:
                     return content;
                 case Configuration.MESSAGE_HEADER_REQUEST:

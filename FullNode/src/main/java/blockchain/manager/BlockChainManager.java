@@ -39,7 +39,7 @@ public class BlockChainManager {
         ArrayList<Voting> tempVotingList = VotingManager.load(initPrevBlockHash);
 
         int tempTotalScore= initPrevBlockStateInfo.getTotalScore();
-        long prevBlockTimeStemp = initPrevBlockHeader.getTimestamp();
+        long prevBlockTimeStamp = initPrevBlockHeader.getTimestamp();
 
         for(BlockHeader header: headers)
         {
@@ -49,7 +49,6 @@ public class BlockChainManager {
                 return -1;
             else {
                 if (!tempAuthorityList.containsKey(header.getValidatorIdentifier())) {
-
                     AuthorityInfoForInternal authorityInfoForInternal = AuthorityInfoManager.load(initPrevBlockHash, header.getValidatorIdentifier());
                     tempAuthorityList.put(header.getValidatorIdentifier(), authorityInfoForInternal);
                 }
@@ -57,6 +56,12 @@ public class BlockChainManager {
 
 
             AuthorityInfoForInternal validatorInfoForInternal = tempAuthorityList.get(header.getValidatorIdentifier());
+
+            if (header.getBlockNumber() % Configuration.CHECK_POINT_BLOCK_INTERVAL == 0)
+                tempVotingList.clear();
+
+            if(validatorInfoForInternal==null)
+                System.out.println("Bust no infoForInternal");
 
             try {
                 if(!SecurityHelper.verifyRawECDSASignatureWithContent(validatorInfoForInternal.getAuthorityInfo().getPublicKey(), header.getSignatureCoverage(),header.getValidatorSignature(), Configuration.BLOCKCHAIN_HASH_ALGORITHM,Configuration.ELIPTIC_CURVE))
@@ -77,8 +82,8 @@ public class BlockChainManager {
             if(expectedScore!= header.getScore())
                 return -1;
 
-            if(header.getTimestamp()> System.currentTimeMillis()||
-                    header.getTimestamp() -prevBlockTimeStemp<(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
+            if(header.getTimestamp()> System.currentTimeMillis()+Configuration.TIME_DIFFERENCE_ALLOWANCE||
+                    header.getTimestamp() -prevBlockTimeStamp<(isInOrder? Configuration.BLOCK_PERIOD: Configuration.MIN_OUT_ORDER_BLOCK_PERIOD) )
                 return -1;
 
 
@@ -137,6 +142,7 @@ public class BlockChainManager {
                 if (changedAuthorityVoting.getNumAgree() >= tempValidationInterval) {
                     if(changedAuthorityVoting.isAdd()) {
                         tempOverallAuthorityList.add(changedAuthorityVoting.getBeneficiary().getIdentifier());
+                        tempAuthorityList.put(changedAuthorityVoting.getBeneficiary().getIdentifier(), new AuthorityInfoForInternal(changedAuthorityVoting.getBeneficiary(),-1,null));
                     }
                     else
                     {
@@ -153,7 +159,7 @@ public class BlockChainManager {
             }
 
             tempTotalScore+=expectedScore;
-            prevBlockTimeStemp= header.getTimestamp();
+            prevBlockTimeStamp= header.getTimestamp();
         }
 
         return tempTotalScore;

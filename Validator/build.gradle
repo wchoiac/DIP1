@@ -17,7 +17,7 @@ plugins {
 
 }
 
-group 'Validator'
+group 'DIP1'
 
 repositories {
     // Use jcenter for resolving your dependencies.
@@ -43,20 +43,6 @@ task validatorInitializerJar(type: ShadowJar) {
 
     mainClassName="ValidatorInitializer"
     baseName = 'validatorInitializer'
-    destinationDir = file('./jars')
-
-    from(project.convention.getPlugin(JavaPluginConvention).sourceSets.main.output)
-
-    configurations = [project.configurations.runtime]
-    exclude('META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
-}
-
-task keyGenJar(type: ShadowJar) {
-    manifest.attributes 'Main-Class': 'node.KeyGen'
-
-    mainClassName="KeyGen"
-    baseName = 'keyGen'
-    configurations = [project.configurations.runtime]
     destinationDir = file('./jars')
 
     from(project.convention.getPlugin(JavaPluginConvention).sourceSets.main.output)
