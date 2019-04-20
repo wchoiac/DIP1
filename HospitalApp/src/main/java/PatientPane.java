@@ -365,8 +365,13 @@ public class PatientPane {
         userButtons1[0].setOnAction(event -> {
             String str = "";
             for (int i = 0; i < Record_List.getChildren().size(); i++)
-                if (((ToggleButton) Record_List.getChildren().get(i)).isSelected())
-                     str = str + Record_List.getChildren().get(i).getUserData();
+                if (((ToggleButton) Record_List.getChildren().get(i)).isSelected()) {
+                    str = str + Record_List.getChildren().get(i).getUserData() + ",";
+                }
+                str = str.substring(0,str.length() - 1);
+                str = "[" + str + "]";
+                System.out.println("Draw QR code : **************************");
+                System.out.println(str);
             KTHelper.drawQRCode(QR, str);
         });
         userButtons1[0].setStyle("-fx-pref-width: 400;");
