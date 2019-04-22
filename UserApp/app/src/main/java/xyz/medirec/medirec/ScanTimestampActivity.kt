@@ -28,7 +28,7 @@ class ScanTimestampActivity : AppCompatActivity() {
         val result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
         if (result != null) {
             if (result.contents == null) {
-                Toast.makeText(this, "Cancelled", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Canceclled", Toast.LENGTH_SHORT).show()
                 goToMenu()
             } else {
                 println(result.contents)
@@ -44,6 +44,8 @@ class ScanTimestampActivity : AppCompatActivity() {
                 val editor = getSharedPreferences("UserData", MODE_PRIVATE).edit()
                 editor.putStringSet("TimeSet", set)
                 editor.apply()
+                Toast.makeText(this, "Timestamps Added", Toast.LENGTH_SHORT).show()
+                goToMenu()
             }
         } else {
             super.onActivityResult(requestCode, resultCode, data)

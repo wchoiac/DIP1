@@ -43,14 +43,15 @@ import kotlin.text.Charsets.UTF_8
 object Helper {
 
     var token = ""
+    var lastDirectory = "${System.getProperty("user.home")}/Desktop"
     var nameToInfoMap = mutableMapOf<String, Pair<String, Boolean>>()
     var lastPatientName = ""
     var nameToPublicKey = mutableMapOf<String, String>()
 
     init {
-        val file = this.javaClass.classLoader.getResource("savedPatientsNotScanned.txt")?.file
-        if(file != null) {
-            val fileText = File(file).readText(UTF_8)
+        val file = File("${Config.BASE_PATH}/savedPatientsNotScanned.txt")
+        if(file.exists()) {
+            val fileText = file.readText(UTF_8)
             val jsonArray = Parser().parse(StringBuilder(fileText)) as JsonArray<*>
             jsonArray.forEach {
                 it as JsonObject

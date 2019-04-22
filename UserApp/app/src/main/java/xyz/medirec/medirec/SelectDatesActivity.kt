@@ -21,10 +21,10 @@ class SelectDatesActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_select_dates)
         val initialSet = getSharedPreferences("UserData", Context.MODE_PRIVATE).getStringSet("TimeSet", mutableSetOf())!!
-        var sortedList = initialSet.toSortedSet().toList()
+        val sortedSet = initialSet.toSortedSet()
         val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault())
         dateFormat.timeZone = TimeZone.getDefault()
-        for(timestamp in sortedList) {
+        for(timestamp in sortedSet) {
             val box = CheckBox(this)
             val timestampLong = timestamp.toLong()
             val date = Date(Math.abs(timestampLong))
@@ -37,7 +37,7 @@ class SelectDatesActivity : AppCompatActivity() {
         generateKey.setOnClickListener {
             val list = mutableListOf<Long>()
             var i = 0
-            for(timestamp in sortedList)
+            for(timestamp in sortedSet)
                 if((dateList.getChildAt(i++) as CheckBox).isChecked)
                     list.add(Math.abs(timestamp.toLong()))
             val intent = Intent(this, ViewQrActivity::class.java)
@@ -52,7 +52,7 @@ class SelectDatesActivity : AppCompatActivity() {
         }
 
         selectAll.setOnCheckedChangeListener { _, isChecked ->
-            for(i in 0 until sortedList.size)
+            for(i in 0 until sortedSet.size)
                 (dateList.getChildAt(i) as CheckBox).isChecked = isChecked
         }
 
@@ -66,13 +66,10 @@ class SelectDatesActivity : AppCompatActivity() {
                     while(i < dateList.childCount) {
                         if((dateList.getChildAt(i) as CheckBox).isChecked) {
                             val date = (dateList.getChildAt(i) as CheckBox).text
-                            for(j in 0 until sortedList.size) {
-                                val dateString = dateFormat.format(Date(Math.abs(sortedList[j].toLong())))
+                            for(j in sortedSet) {
+                                val dateString = dateFormat.format(Date(Math.abs(j.toLong())))
                                 if(date.contains(dateString)) {
-                                    sortedList = if(sortedList.size == 1)
-                                        mutableListOf()
-                                    else
-                                        sortedList.drop(j)
+                                    sortedSet.remove(j)
                                     break
                                 }
                             }
@@ -80,12 +77,11 @@ class SelectDatesActivity : AppCompatActivity() {
                         } else ++i
                     }
 
-                    println(sortedList)
                     val editor = getSharedPreferences("UserData", MODE_PRIVATE).edit()
-                    editor.putStringSet("TimeSet", sortedList.toSet())
+                    editor.putStringSet("TimeSet", sortedSet)
                     editor.apply()
 
-                    if(sortedList.isEmpty()) {
+                    if(sortedSet.isEmpty()) {
                         generateKey.performClick()
                     }
                 }
@@ -102,7 +98,7 @@ class SelectDatesActivity : AppCompatActivity() {
         selectAll.performClick()
 
         // IF THERE IS NO TIMESET -> CREATE KEY
-        if(sortedList.isEmpty()) generateKey.performClick()
+        if(sortedSet.isEmpty()) generateKey.performClick()
     }
 
     override fun onBackPressed() {

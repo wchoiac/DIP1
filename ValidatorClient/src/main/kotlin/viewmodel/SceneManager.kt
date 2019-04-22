@@ -29,7 +29,7 @@ object SceneManager {
             field!!.setOnCloseRequest {
                 println("Exiting...")
                 (scanScene.root as ScanPane).disposeWebCamCamera()
-                val file = File("./src/main/resources/savedPatientsNotScanned.txt")
+                val file = File("${Config.BASE_PATH}/savedPatientsNotScanned.txt")
                 if(Helper.nameToInfoMap.isNotEmpty()) {
                     val nameToInfoJsonString = StringBuilder("[")
                     Helper.nameToInfoMap.forEach { entry ->
