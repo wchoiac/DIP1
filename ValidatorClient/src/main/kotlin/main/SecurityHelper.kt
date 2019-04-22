@@ -282,62 +282,6 @@ object SecurityHelper {
         return IETFUtils.valueToString(cn.first.value)
     }
 
-    //reference: https://stackoverflow.com/questions/16412315/creating-custom-x509-v3-extensions-in-java-with-bouncy-castle
-    @Throws(CertificateException::class, OperatorCreationException::class, IOException::class)
-    fun issueCertificate(
-        newPublicKey: PublicKey,
-        issuerPublicKey: ECPublicKey,
-        issuerPrivateKey: PrivateKey,
-        noAfter: Date,
-        subjectName: String,
-        authorityName: String,
-        subjectKeyIdentifierBytes: ByteArray,
-        authorityKeyIdentifierBytes: ByteArray,
-        ipAddress: InetAddress?,
-        algo: String,
-        isForSigning: Boolean
-    ): X509Certificate {
-        val builder = X509v3CertificateBuilder(
-            X500Name("CN=$authorityName"),
-            BigInteger.valueOf(Random().nextInt().toLong()),
-            Date(),
-            noAfter,
-            X500Name("CN=$subjectName"),
-            SubjectPublicKeyInfo.getInstance(newPublicKey.encoded)
-        )
-
-        val authorityKeyIdentifier = AuthorityKeyIdentifier(authorityKeyIdentifierBytes)
-        builder.addExtension(Extension.authorityKeyIdentifier, false, authorityKeyIdentifier)
-        if (isForSigning) {
-            val subjectKeyIdentifier = SubjectKeyIdentifier(subjectKeyIdentifierBytes)
-            builder.addExtension(Extension.subjectKeyIdentifier, false, subjectKeyIdentifier)
-        }
-
-        if (isForSigning) {
-            val usage = KeyUsage(KeyUsage.keyCertSign or KeyUsage.digitalSignature)
-            builder.addExtension(Extension.keyUsage, false, usage.encoded)
-        } else {
-            val usage = KeyUsage(KeyUsage.digitalSignature)
-            builder.addExtension(Extension.keyUsage, false, usage.encoded)
-        }
-
-
-        //		builder.addExtension(Extension.keyUsage,true,new KeyUsage(KeyUsage.digitalSignature|KeyUsage.keyEncipherment));
-
-        if (ipAddress != null) {
-            val generalName = arrayOf(GeneralName(GeneralName.iPAddress, ipAddress.hostAddress))
-            builder.addExtension(Extension.subjectAlternativeName, false, DERSequence(generalName))
-        }
-
-
-        return JcaX509CertificateConverter().getCertificate(
-            builder
-                .build(JcaContentSignerBuilder(algo).setProvider("BC").build(issuerPrivateKey))
-        )
-
-    }
-
-
     @Throws(IOException::class)
     fun writePublicKeyToPEM(publicKey: PublicKey, fileName: String) {
         val writer = FileWriter(fileName)

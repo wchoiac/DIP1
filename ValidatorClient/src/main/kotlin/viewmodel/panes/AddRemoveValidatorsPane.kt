@@ -69,12 +69,13 @@ object AddRemoveValidatorsPane : BorderPane() {
         publicKeyImport.setOnAction {
             val fc = FileChooser()
             fc.title = "Public Key Import"
-            fc.initialDirectory = File(System.getProperty("user.home"))
+            fc.initialDirectory = File(Helper.lastDirectory)
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("pem files", "*.pem"))
             try {
                 val file = fc.showOpenDialog(SceneManager.stage)
                 if (file != null) {
+                    Helper.lastDirectory = file.parent
                     publicKeyFile = file
                     publicKey = SecurityHelper.getPublicKeyFromPEM(file, "EC")
                     publicKeyConfirm.visibleProperty().set(true)
