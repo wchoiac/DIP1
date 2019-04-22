@@ -147,11 +147,13 @@ public class PatientPane {
 
             PatientInfoContentPojo[] patientinfo_content = GlobalVar.fullNodeRestClient.getPatientInfoContentsList(patient_location_pojo);
             String patient_info_string = "Patient Infomation : \n";
+            System.out.println(" Patientinfo length : " + Patientinfo.length);
+            System.out.println(" Timelist length : " + Timelist.length);
             for (int i = 0; i < Patientinfo.length; i++) {
                 for (int j = 0; j < Timelist.length; j++) {
                     System.out.println(" - - - - - - - - - - - - - -- - - -- -");
+                    System.out.println(Patientinfo[i].getTimestamp());
                     System.out.println(Timelist[j]);
-                    System.out.println(encoded_secret_key[j]);
                     if (Timelist[j] == (Patientinfo[i].getTimestamp())) {
                         System.out.println("RUNNING Patient AES ************* " + i);
                         AESkey = new SecretKeySpec(encoded_secret_key[j], "AES");
@@ -169,57 +171,56 @@ public class PatientPane {
                 }
             }
 
-            if (patient_info_string.equals("Patient Infomation : \n"))
-                return false;
+            if (!patient_info_string.equals("Patient Infomation : \n"))
+            {
+                Name = patient_info_string.substring(
+                        patient_info_string.lastIndexOf("name\":") + 7,
+                        patient_info_string.indexOf('"', patient_info_string.lastIndexOf("name\":") + 7)
+                );
+                System.out.println("Name : " + Name);
 
-            Name = patient_info_string.substring(
-                    patient_info_string.lastIndexOf("name\":") + 7,
-                    patient_info_string.indexOf('"', patient_info_string.lastIndexOf("name\":") + 7)
-            );
-            System.out.println("Name : " + Name);
+                Gender = patient_info_string.substring(
+                        patient_info_string.lastIndexOf("gender\":") + 9,
+                        patient_info_string.indexOf('"', patient_info_string.lastIndexOf("gender\":") + 9)
+                );
+                System.out.println("Gender : " + Gender);
 
-            Gender = patient_info_string.substring(
-                    patient_info_string.lastIndexOf("gender\":") + 9,
-                    patient_info_string.indexOf('"', patient_info_string.lastIndexOf("gender\":") + 9)
-            );
-            System.out.println("Gender : " + Gender);
+                Birth = patient_info_string.substring(
+                        patient_info_string.lastIndexOf("birthDate\":") + 12,
+                        patient_info_string.indexOf('"', patient_info_string.lastIndexOf("birthDate\":") + 12)
+                );
+                System.out.println("Birth : " + Birth);
 
-            Birth = patient_info_string.substring(
-                    patient_info_string.lastIndexOf("birthDate\":") + 12,
-                    patient_info_string.indexOf('"', patient_info_string.lastIndexOf("birthDate\":") + 12)
-            );
-            System.out.println("Birth : " + Birth);
+                ID = patient_info_string.substring(
+                        patient_info_string.lastIndexOf("identificationNumber\":") + 23,
+                        patient_info_string.indexOf('"', patient_info_string.lastIndexOf("identificationNumber\":") + 23)
+                );
+                System.out.println("ID : " + ID);
 
-            ID = patient_info_string.substring(
-                    patient_info_string.lastIndexOf("identificationNumber\":") + 23,
-                    patient_info_string.indexOf('"', patient_info_string.lastIndexOf("identificationNumber\":") + 23)
-            );
-            System.out.println("ID : " + ID);
+                address = patient_info_string.substring(
+                        patient_info_string.lastIndexOf("address\":") + 10,
+                        patient_info_string.indexOf('"', patient_info_string.lastIndexOf("address\":") + 10)
+                );
+                System.out.println("address : " + address);
 
-            address = patient_info_string.substring(
-                    patient_info_string.lastIndexOf("address\":") + 10,
-                    patient_info_string.indexOf('"', patient_info_string.lastIndexOf("address\":") + 10)
-            );
-            System.out.println("address : " + address);
+                phoneNum = patient_info_string.substring(
+                        patient_info_string.lastIndexOf("phoneNum\":") + 11,
+                        patient_info_string.indexOf('"', patient_info_string.lastIndexOf("phoneNum\":") + 11)
+                );
+                System.out.println("phoneNum : " + phoneNum);
 
-            phoneNum = patient_info_string.substring(
-                    patient_info_string.lastIndexOf("phoneNum\":") + 11,
-                    patient_info_string.indexOf('"', patient_info_string.lastIndexOf("phoneNum\":") + 11)
-            );
-            System.out.println("phoneNum : " + phoneNum);
+                nationality = patient_info_string.substring(
+                        patient_info_string.lastIndexOf("nationality\":") + 14,
+                        patient_info_string.indexOf('"', patient_info_string.lastIndexOf("nationality\":") + 14)
+                );
+                System.out.println("nationality : " + nationality);
 
-            nationality = patient_info_string.substring(
-                    patient_info_string.lastIndexOf("nationality\":") + 14,
-                    patient_info_string.indexOf('"', patient_info_string.lastIndexOf("nationality\":") + 14)
-            );
-            System.out.println("nationality : " + nationality);
-
-            extra = patient_info_string.substring(
-                    patient_info_string.lastIndexOf("extra\":") + 8,
-                    patient_info_string.indexOf('"', patient_info_string.lastIndexOf("extra\":") + 8)
-            );
-            System.out.println("extra : " + extra);
-
+                extra = patient_info_string.substring(
+                        patient_info_string.lastIndexOf("extra\":") + 8,
+                        patient_info_string.indexOf('"', patient_info_string.lastIndexOf("extra\":") + 8)
+                );
+                System.out.println("extra : " + extra);
+            }
 
             if(checkRegistered(Name + " - " + ID) == true)
             {
