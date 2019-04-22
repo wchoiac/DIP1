@@ -42,7 +42,6 @@ object SceneManager {
                     }
 
                     file.writeText((nameToInfoJsonString.substring(0, nameToInfoJsonString.length - 1) + "]")
-                            .replace(' ', '-')
                             .replace("\\s".toRegex(), ""), UTF_8)
                 } else {
                     if(file.exists()) {
