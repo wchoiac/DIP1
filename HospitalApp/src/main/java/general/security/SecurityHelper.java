@@ -33,6 +33,7 @@ import org.bouncycastle.util.io.pem.PemWriter;
 import java.io.*;
 import java.math.BigInteger;
 import java.net.InetAddress;
+import java.nio.file.Files;
 import java.security.*;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
@@ -313,8 +314,7 @@ public class SecurityHelper {
 
     public static X509Certificate getX509FromDER(File file) throws IOException, CertificateException {
         CertificateFactory certificateFactory = CertificateFactory.getInstance("X509");
-        FileInputStream fis = new FileInputStream(file);
-        ByteArrayInputStream bis = new ByteArrayInputStream(fis.readAllBytes());
+        ByteArrayInputStream bis = new ByteArrayInputStream(Files.readAllBytes(file.toPath()));
         X509Certificate cert = (X509Certificate) certificateFactory.generateCertificate(bis);
 
         bis.close();
