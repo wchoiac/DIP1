@@ -110,7 +110,7 @@ public class DoctorRecordPane  {
 
     public void loadrecords(String nameID) {
         name = nameID.substring(0, nameID.indexOf(" - "));
-        ID = nameID.substring(nameID.indexOf(" - ") + 3);
+        ID = nameID.substring(nameID.indexOf(" - ") + 3, nameID.indexOf(" ^ "));
         loadinfo();
         String SQL = "SELECT * FROM Customer where patientIdentifier = '" +
                 patientID +

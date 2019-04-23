@@ -29,6 +29,7 @@ import general.utility.Helper;
 
 public class PatientPane {
     public static Scene scene = new Scene(new Group(), Config.WIDTH, Config.HEIGHT);
+    private static VBox Record_List = new VBox(0);
     private static KeyTime keyTime = null;
     private static final Button[] userButtons1 = {new Button("Generate Selected Timestamps")};
     private static final Button[] userButtons2 = {new Button("Confirm"), new Button("Cancel")};
@@ -77,10 +78,34 @@ public class PatientPane {
         MedName.clear();
         recordtimestamps.clear();
         patienttimestamps.clear();
+        Record_List.getChildren().clear();
         PKEY = null;
         Timelist = null;
+        QR.setImage(QRcode);
     }
 
+    public static boolean checkScannedAllTimestamps(){
+        for (int i = 0; i < Record_List.getChildren().size(); i++)
+        {
+            if(Record_List.getChildren().get(i).isDisabled())
+            {
+                System.out.println(i + " is disable");
+                Alert alert = new Alert(Alert.AlertType.NONE);
+                alert.setTitle("Information Dialog");
+                alert.setHeaderText(null);
+                alert.setContentText("Please scan all lost timestamps and click cancel to scan Patient's QR code again");
+                DialogPane dialogPane = alert.getDialogPane();
+                dialogPane.getStylesheets().add(Config.CSS_STYLES);
+                Stage stage = (Stage) dialogPane.getScene().getWindow();
+                stage.getIcons().add(
+                        new Image("images/icon.png"));
+                alert.getDialogPane().getButtonTypes().add(ButtonType.OK);
+                alert.showAndWait();
+                return false;
+            }
+        }
+        return true;
+    }
     public static boolean checkRegistered(String nameID){
         System.out.println("checking");
         String[] list = SceneManager.CheckPatient();
@@ -222,6 +247,7 @@ public class PatientPane {
                 System.out.println("extra : " + extra);
             }
 
+
             if(checkRegistered(Name + " - " + ID) == true)
             {
                 eraseData();
@@ -263,7 +289,7 @@ public class PatientPane {
         HBox hBox1 = new HBox(50);
         hBox1.setAlignment(Pos.CENTER);
 
-        VBox Record_List = new VBox(0);
+        System.out.println("VBOX size" + Record_List.getChildren().size());
         Record_List.setPrefSize(400,400);
         recordouterloop:
         for (int i = 0; i < recordtimestamps.size(); i++)
@@ -277,6 +303,7 @@ public class PatientPane {
                     p1.setUserData(recordtimestamps.get(i));
                     p1.setSelected(false);
                     p1.setDisable(true);
+                    p1.setId("1");
                     Record_List.getChildren().add(p1);
                     continue recordouterloop;
                 }
@@ -286,6 +313,7 @@ public class PatientPane {
             p1.setContentDisplay(ContentDisplay.RIGHT);
             p1.setAlignment(Pos.CENTER_LEFT);
             p1.setUserData(recordtimestamps.get(i));
+            p1.setId("1");
             Record_List.getChildren().add(p1);
 
         }
@@ -301,6 +329,7 @@ public class PatientPane {
                     p1.setContentDisplay(ContentDisplay.RIGHT);
                     p1.setDisable(true);
                     p1.setSelected(false);
+                    p1.setId("0");
                     p1.setUserData(patienttimestamps.get(i));
                     Record_List.getChildren().add(p1);
                     continue patientouterloop;
@@ -311,6 +340,7 @@ public class PatientPane {
             p1.setContentDisplay(ContentDisplay.RIGHT);
             p1.setAlignment(Pos.CENTER_LEFT);
             p1.setUserData(patienttimestamps.get(i));
+            p1.setId("0");
             Record_List.getChildren().add(p1);
         }
 
@@ -367,7 +397,12 @@ public class PatientPane {
             String str = "";
             for (int i = 0; i < Record_List.getChildren().size(); i++)
                 if (((ToggleButton) Record_List.getChildren().get(i)).isSelected()) {
-                    str = str + Record_List.getChildren().get(i).getUserData() + ",";
+                    String timestamp = "";
+                    if (Record_List.getChildren().get(i).getId().equals("0"))
+                        timestamp = "-" + Record_List.getChildren().get(i).getUserData();
+                    else
+                        timestamp = timestamp +  Record_List.getChildren().get(i).getUserData();
+                    str = str + timestamp + ",";
                 }
                 str = str.substring(0,str.length() - 1);
                 str = "[" + str + "]";
@@ -383,6 +418,11 @@ public class PatientPane {
         hbox3n2.setAlignment(Pos.CENTER);
 
         userButtons2[0].setOnAction(event -> {
+            if(checkScannedAllTimestamps() == false) {
+                System.out.println("check if scan all timestamps");
+                return;
+            }
+
             String patientID = GeneralHelper.bytesToStringHex(BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(PKEY));
             SceneManager.addPatient(Name, ID, keyTime.getPubKeyEncoded(), patientID);
             Date date= new Date();
