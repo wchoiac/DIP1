@@ -50,7 +50,13 @@ public class DoctorMainPane  {
             {
                 SceneManager.selected = toggleGroup.getSelectedToggle().getUserData().toString();
                 SceneManager.showRecordScene();
+            } else if (toggleGroup2.getSelectedToggle() != null)
+            {
+                SceneManager.selected = toggleGroup2.getSelectedToggle().getUserData().toString();
+                System.out.println(toggleGroup2.getSelectedToggle().getUserData().toString());
+                SceneManager.showRecordScene();
             }
+
         });
 
         ShowButton.setOnAction(event -> {
@@ -79,7 +85,6 @@ public class DoctorMainPane  {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
 
         AllRecordsList.getChildren().clear();
         SQL = "SELECT * FROM Customer where PatientName is not null order by Timestamp";
