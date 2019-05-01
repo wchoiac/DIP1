@@ -87,7 +87,7 @@ public class PatientPane {
     public static boolean checkScannedAllTimestamps(){
         for (int i = 0; i < Record_List.getChildren().size(); i++)
         {
-            if(Record_List.getChildren().get(i).isDisabled())
+            if(!Record_List.getChildren().get(i).isDisabled())
             {
                 System.out.println(i + " is disable");
                 Alert alert = new Alert(Alert.AlertType.NONE);
