@@ -46,12 +46,10 @@ public class DoctorMainPane  {
         });
 
         WriteButton.setOnAction(event -> {
-            if (toggleGroup.getSelectedToggle() != null)
-            {
+            if (toggleGroup.getSelectedToggle() != null) {
                 SceneManager.selected = toggleGroup.getSelectedToggle().getUserData().toString();
                 SceneManager.showRecordScene();
-            } else if (toggleGroup2.getSelectedToggle() != null)
-            {
+            } else if (toggleGroup2.getSelectedToggle() != null) {
                 SceneManager.selected = toggleGroup2.getSelectedToggle().getUserData().toString();
                 System.out.println(toggleGroup2.getSelectedToggle().getUserData().toString());
                 SceneManager.showRecordScene();
@@ -60,8 +58,7 @@ public class DoctorMainPane  {
         });
 
         ShowButton.setOnAction(event -> {
-            if (toggleGroup2.getSelectedToggle() != null)
-            {
+            if (toggleGroup2.getSelectedToggle() != null) {
                 SceneManager.selected = toggleGroup2.getSelectedToggle().getUserData().toString();
                 System.out.println(toggleGroup2.getSelectedToggle().getUserData().toString());
                 SceneManager.showRecordScene();
@@ -73,11 +70,14 @@ public class DoctorMainPane  {
     public void updateList(){
         List.getChildren().clear();
         String SQL = "SELECT * FROM PatientList";
+
         try {
             ResultSet rs = SceneManager.statement.executeQuery(SQL);
             while (rs.next()) {
-                String nameID = rs.getString("PatientName") + " - " + rs.getString("ID");
-                ToggleButton p1 = new ToggleButton(nameID);
+                String nameID = rs.getString("PatientName") + " - " +
+                        rs.getString("ID") + " ^ " +
+                        rs.getString("patientIdentifier");
+                ToggleButton p1 = new ToggleButton(nameID.substring(0, nameID.indexOf(" ^ ")));
                 p1.setUserData(nameID);
                 p1.setToggleGroup(toggleGroup);
                 List.getChildren().add(p1);
