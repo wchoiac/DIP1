@@ -85,15 +85,11 @@ public class PatientPane {
     }
 
     public static boolean checkScannedAllTimestamps(){
-        for (int i = 0; i < Record_List.getChildren().size(); i++)
-        {
-            if(!Record_List.getChildren().get(i).isDisabled())
-            {
-                System.out.println(i + " is disable");
+        if(Name == null) {
                 Alert alert = new Alert(Alert.AlertType.NONE);
                 alert.setTitle("Information Dialog");
                 alert.setHeaderText(null);
-                alert.setContentText("Please scan all lost timestamps and click cancel to scan Patient's QR code again");
+                alert.setContentText("Please confirm Patient's personal information");
                 DialogPane dialogPane = alert.getDialogPane();
                 dialogPane.getStylesheets().add(Config.CSS_STYLES);
                 Stage stage = (Stage) dialogPane.getScene().getWindow();
@@ -102,8 +98,8 @@ public class PatientPane {
                 alert.getDialogPane().getButtonTypes().add(ButtonType.OK);
                 alert.showAndWait();
                 return false;
-            }
         }
+
         return true;
     }
     public static boolean checkRegistered(String nameID){

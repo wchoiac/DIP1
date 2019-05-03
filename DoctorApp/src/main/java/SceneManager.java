@@ -60,6 +60,7 @@ public class SceneManager {
 
     public static void showRecordScene(){
         doctorRecordPane.loadrecords(selected);
+        selected = null;
         showScene(doctorRecordPane.scene);
     }
 

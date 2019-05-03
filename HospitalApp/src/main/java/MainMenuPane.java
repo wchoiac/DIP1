@@ -19,7 +19,7 @@ import java.sql.SQLException;
 //
 public class MainMenuPane  {
 
-    private static final Button[] userButtons = {new Button("Patient Registration"), new Button("Get Patient Key"), new Button("Delete Patient")};
+    private static final Button[] userButtons = {new Button("Patient Registration"), new Button("Get AES Key"), new Button("Delete Patient")};
     private static final Image[] userImages = {
             new Image("images/menu/registration.png", Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true),
             new Image("images/menu/modifyRecord.png", Config.IMAGE_WIDTH, Config.IMAGE_HEIGHT, true, true),
