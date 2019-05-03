@@ -33,6 +33,7 @@ import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.X509EncodedKeySpec
 import java.util.*
+import javax.crypto.spec.IvParameterSpec
 
 
 object KTHelper {
@@ -158,6 +159,15 @@ object KTHelper {
         val cipher = Cipher.getInstance(algorithm)
         cipher.init(Cipher.DECRYPT_MODE, key)
         return cipher.doFinal(text)
+    }
+
+    @JvmStatic
+    fun decryptAES(encrypted: ByteArray, secretKey: SecretKey, iv: ByteArray): ByteArray {
+        val keySpec = SecretKeySpec(secretKey.encoded, "AES")
+        val ivParameterSpec = IvParameterSpec(iv)
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+        cipher.init(Cipher.DECRYPT_MODE, keySpec, ivParameterSpec)
+        return cipher.doFinal(encrypted)
     }
 
     fun generateSecretKey(password: CharArray, provider: String = "BC"): SecretKey {

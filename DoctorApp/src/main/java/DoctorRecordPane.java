@@ -32,9 +32,11 @@ public class DoctorRecordPane  {
     private static String ID = null;
     private static String Gender = null;
     private static String Birth = null;
-    private static String BloodType = null;
-    private static String Weight = null;
-    private static String Height = null;
+    private static String address = null;
+    private static String phoneNum = null;
+    private static String nationality = null;
+    private static String extra = null;
+    private static String patientID = null;
 
     public void init() {
         setButtonFunction();
@@ -44,9 +46,11 @@ public class DoctorRecordPane  {
         ID = null;
         Gender = null;
         Birth = null;
-        BloodType = null;
-        Weight = null;
-        Height = null;
+        address = null;
+        phoneNum = null;
+        nationality = null;
+        extra = null;
+        patientID = null;
         input.setText(null);
     }
 
@@ -55,19 +59,13 @@ public class DoctorRecordPane  {
             if (input.getText() == null || input.getText().trim().isEmpty()){
                 System.out.println("No record is created");
             } else {
-                String SQL = "insert into Customer (PatientName, Gender, ID, [Date of birth], MedName, Records," +
-                        " NewRecords, BloodType , Weight, Height) \n" +
+                String SQL = "insert into Customer (patientIdentifier, MedName, Records," +
+                        " NewRecords) \n" +
                         "values ('" +
-                        name +
-                        "', '" +
-                        Gender +
-                        "' , '" +
-                        ID +
-                        "', '" +
-                        Birth +
+                        patientID +
                         "' , 'local','" +
                         input.getText() +
-                        "', 1 , '" + BloodType + "' , '" + Weight + "' , '" + Height + "' )";
+                        "', 1 )";
                 try {
                     SceneManager.statement.executeUpdate(SQL);
                 } catch (SQLException e) {
@@ -85,23 +83,42 @@ public class DoctorRecordPane  {
         });
     }
 
-    public void loadrecords(String nameID) {
-        name = nameID.substring(0, nameID.indexOf(" - "));
-        ID = nameID.substring(nameID.indexOf(" - ") + 3);
+    public void loadinfo(){
         String SQL = "SELECT * FROM Customer where PatientName = '" +
                 name +
                 "' and ID = '" +
-                ID +
-                "' order by Timestamp";
+                ID + "' and records is null and NewRecords is null " +
+                "order by Timestamp";
+        ResultSet rs = null;
+        try {
+            rs = SceneManager.statement.executeQuery(SQL);
+            while (rs.next()) {
+                String timestamp = rs.getString("Timestamp");
+                Gender = rs.getString("Gender");
+                Birth = rs.getString("Date of birth");
+                address = rs.getString("address");
+                phoneNum = rs.getString("phoneNum");
+                nationality = rs.getString("nationality");
+                extra = rs.getString("extra");
+                patientID = rs.getString("patientIdentifier");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void loadrecords(String nameID) {
+        name = nameID.substring(0, nameID.indexOf(" - "));
+        ID = nameID.substring(nameID.indexOf(" - ") + 3, nameID.indexOf(" ^ "));
+        loadinfo();
+        String SQL = "SELECT * FROM Customer where patientIdentifier = '" +
+                patientID +
+                "' and NewRecords is not null order by Timestamp";
         String records_data = "";
         try {
             ResultSet rs = SceneManager.statement.executeQuery(SQL);
             while (rs.next()) {
-                Gender = rs.getString("Gender");
-                Birth = rs.getString("Date of birth");
-                BloodType = rs.getString("BloodType");
-                Weight = rs.getString("Weight");
-                Height = rs.getString("Height");
 
                 String timestring = null;
                 SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
@@ -111,6 +128,7 @@ public class DoctorRecordPane  {
                 records_data = records_data + "From " + rs.getString("MedName") + "    " + timestring + "\n" +
                         rs.getString("Records") + "\n\n";
             }
+            if(!records_data.equals(""))
             records_data = records_data.substring(0, records_data.length() - 2);
             System.out.println(records_data);
         } catch (Exception e) {
@@ -163,12 +181,11 @@ public class DoctorRecordPane  {
         Label text2 = new Label(
                 "\n\n\n\n\nName : " + name + "\n\n" +
                         "Gender : " + Gender + "\n\n" +
-                        "Nationality : Hong Kong SAR\n\n" +
+                        "Nationality : " + nationality + "\n\n" +
                         "Date of Birth : " + Birth + "\n\n" +
-                        "Blood Type : " + BloodType + "\n\n" +
-                        "Weight : " + Weight + "\n\n" +
-                        "Height : " + Height + "\n\n" +
-                        "Addition information : \n\n"
+                        "Address : " + address + "\n\n" +
+                        "Phone : " + phoneNum + "\n\n" +
+                        "Addition information : " + extra + "\n\n"
         );
         text2.setAlignment(Pos.TOP_LEFT);
         text2.setPrefSize(450,680);

@@ -2,6 +2,7 @@ package viewmodel
 
 object Config {
     var BASE_URL = "https://25.30.118.78/api"
+    val BASE_PATH = System.getProperty("user.home") + "/AppData/Roaming/MediRec"
     var WIDTH = 1600.0
     var HEIGHT = 900.0
 

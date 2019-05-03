@@ -48,8 +48,8 @@ public class Helper {
     }
 
     public KeyPair generateKeyPair(String algorithm, String provider) throws NoSuchProviderException, NoSuchAlgorithmException {
-        var keyPair = KeyPairGenerator.getInstance(algorithm, provider);
-        var keySize = (algorithm.equals("ECDSA") || algorithm.equals("EC"))? 256 : 2048;
+        KeyPairGenerator keyPair = KeyPairGenerator.getInstance(algorithm, provider);
+        int keySize = (algorithm.equals("ECDSA") || algorithm.equals("EC"))? 256 : 2048;
         keyPair.initialize(keySize);
         return keyPair.generateKeyPair();
     }
@@ -63,7 +63,7 @@ public class Helper {
     }
 
     public byte[] encrypt(String text, PublicKey key, String algorithm, String provider) throws NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        var cipher = Cipher.getInstance(algorithm, provider);
+        Cipher cipher = Cipher.getInstance(algorithm, provider);
         cipher.init(Cipher.ENCRYPT_MODE, key);
         return cipher.doFinal(text.getBytes());
     }
@@ -73,19 +73,19 @@ public class Helper {
     }
 
     public static String decrypt(byte[] text, PrivateKey key, String algorithm, String provider) throws NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        var cipher = Cipher.getInstance(algorithm, provider);
+        Cipher cipher = Cipher.getInstance(algorithm, provider);
         cipher.init(Cipher.DECRYPT_MODE, key);
         return new String(cipher.doFinal(text));
     }
 
     public static byte[] AESencrypt(byte[] text, SecretKey key) throws InvalidAlgorithmParameterException, NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
         IvParameterSpec iv = new IvParameterSpec(new byte[16]);
         cipher.init(Cipher.ENCRYPT_MODE, key, iv);
         return cipher.doFinal(text);
     }
     public static byte[] AESdecrypt(byte[] text, SecretKey key) throws InvalidAlgorithmParameterException, NoSuchPaddingException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
         IvParameterSpec iv = new IvParameterSpec(new byte[16]);
         cipher.init(Cipher.DECRYPT_MODE, key, iv);
         return cipher.doFinal(text);
@@ -96,7 +96,7 @@ public class Helper {
     }
 
     public static byte[] generateSignature(PrivateKey privateKey, byte[] input, String algorithm, String provider) throws NoSuchProviderException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-        var signature = Signature.getInstance(algorithm, provider);
+        Signature signature = Signature.getInstance(algorithm, provider);
         signature.initSign(privateKey);
         signature.update(input);
         return signature.sign();
@@ -107,7 +107,7 @@ public class Helper {
     }
 
     public boolean verifySignature(PublicKey publicKey, byte[] input, byte[] encSignature, String algorithm, String provider) throws NoSuchProviderException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-        var signature = Signature.getInstance(algorithm, provider);
+        Signature signature = Signature.getInstance(algorithm, provider);
         signature.initVerify(publicKey);
         signature.update(input);
         return signature.verify(encSignature);
@@ -118,8 +118,8 @@ public class Helper {
     }
 
     public SecretKey makePbeKey(char[] password, String provider) throws NoSuchProviderException, NoSuchAlgorithmException, InvalidKeySpecException {
-        var keyFact = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA384", provider);
-        var hmacKey = keyFact.generateSecret(
+        SecretKeyFactory keyFact = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA384", provider);
+        SecretKey hmacKey = keyFact.generateSecret(
                 new PBEKeySpec(password, Hex.decode("0102030405060708090a0b0c0d0e0f10"), 1024, 256));
         return new SecretKeySpec(hmacKey.getEncoded(), "AES");
     }
@@ -173,11 +173,11 @@ public class Helper {
 
     public boolean exportToFile(String path, String fileName, String input) {
         try {
-            var directory = new File(path);
+            File directory = new File(path);
             if (!directory.exists())
                 if(!directory.mkdir())
                     throw new IOException("Directory creation failed");
-            var writer = new BufferedWriter(new FileWriter(path + "/" + fileName));
+            BufferedWriter writer = new BufferedWriter(new FileWriter(path + "/" + fileName));
             writer.write(input);
             writer.close();
             return true;
@@ -189,11 +189,11 @@ public class Helper {
 
     public boolean exportToFile(String path, String fileName, Key input) {
         try {
-            var directory = new File(path);
+            File directory = new File(path);
             if (!directory.exists())
                 if(!directory.mkdir())
                     throw new IOException("Directory creation failed");
-            var objectOutputStream = new ObjectOutputStream(new FileOutputStream(new File(path + "/" + fileName)));
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(new File(path + "/" + fileName)));
             objectOutputStream.writeObject(input);
             return true;
         } catch (Exception e) {
@@ -204,7 +204,7 @@ public class Helper {
 
     public Key importObjectFile(String path) {
         try {
-            var objectInputStream = new ObjectInputStream(new FileInputStream(new File(path)));
+            ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(new File(path)));
             return (Key) objectInputStream.readObject();
         } catch (Exception e) {
             e.printStackTrace();

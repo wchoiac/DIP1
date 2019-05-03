@@ -43,12 +43,12 @@ object LogInPane : BorderPane() {
     private val submitBtn = Button("Sign In")
 
     init {
-        val file = this.javaClass.classLoader.getResource("savedLoginInfo.txt")?.file
         try {
-            val fileText = File(file ?: "./savedLoginInfo.txt").readText(UTF_8)
+            val fileText = File("${Config.BASE_PATH}/savedLoginInfo.txt").readText(UTF_8)
             val jsonObj = Parser().parse(StringBuilder(fileText)) as JsonObject
             certFile = File(jsonObj["certUrl"] as String)
             if(!certFile!!.exists()) certFile = null
+            if(certFile?.parent != null) Helper.lastDirectory = certFile?.parent!!
             certFileLabel.text = certFile?.name ?: ""
             certInvisibleLabel.text = certFile?.name ?: ""
             ip.text = jsonObj["ipAddress"] as String
@@ -97,9 +97,9 @@ object LogInPane : BorderPane() {
         file.writeText("""{
             "certUrl": "${certFile?.absolutePath?.replace('\\', '/')}",
             "secured": ${ssl.isSelected}
-            "ipAddress": "$ip",
-            "username": "$username",
-            "password": "$password"
+            "ipAddress": "${ip.text}",
+            "username": "${username.text}",
+            "password": "${password.text}"
         }""".replace("\\s".toRegex(), ""), UTF_8)
     }
 
@@ -117,7 +117,7 @@ object LogInPane : BorderPane() {
         certificateBtn.setOnAction {
             val fc = FileChooser()
             fc.title = "Import Certificate"
-            fc.initialDirectory = File(System.getProperty("user.home"))
+            fc.initialDirectory = File(Helper.lastDirectory)
             fc.extensionFilters.clear()
             fc.extensionFilters.addAll(FileChooser.ExtensionFilter("cer files", "*.cer"))
             val file = fc.showOpenDialog(SceneManager.stage)
@@ -125,6 +125,7 @@ object LogInPane : BorderPane() {
                 certFile = file
                 certFileLabel.text = file.name
                 certInvisibleLabel.text = file.name
+                Helper.lastDirectory = file.parent
             }
         }
 
@@ -175,12 +176,8 @@ object LogInPane : BorderPane() {
                     if(response.third.component1() != null && response.third.component1() != "") {
                         invalidWarning.visibleProperty().value = false
                         try {
-                            writeToFile(File("./src/main/resources/savedLoginInfo.txt"))
-                        } catch(e: Exception) {
-                            try {
-                                writeToFile(File("./savedLoginInfo.txt"))
-                            } catch(ignored: Exception) { }
-                        }
+                            writeToFile(File("${Config.BASE_PATH}/savedLoginInfo.txt"))
+                        } catch(ignored: Exception) { }
                         Helper.token = response.third.component1()!!
                         SceneManager.showMainMenuScene()
                     } else {
