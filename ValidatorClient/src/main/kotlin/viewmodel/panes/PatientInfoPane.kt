@@ -277,7 +277,7 @@ class PatientInfoPane(private val keyTime: KeyTime) : BorderPane() {
                             extra = if(extra.text == "") null else extra.text
                     )
                     Helper.nameToInfoMap[name.text] = Pair(
-                            Gson().toJson(patientIdentity).replace("\\s".toRegex(), ""), timeList.isNotEmpty())
+                            Gson().toJson(patientIdentity).trimIndent(), timeList.isNotEmpty())
                     Helper.nameToPublicKey[name.text] = Helper.encodeToString(keyTime.pubKeyEncoded)
                     MainMenuPane.addToList(name.text)
                     SceneManager.showMainMenuScene()
