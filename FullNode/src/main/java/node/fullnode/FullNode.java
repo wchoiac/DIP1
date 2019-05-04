@@ -419,7 +419,7 @@ public class FullNode {
             ReadLock readMyChainLock = myChainLock.readLock();
             ArrayList<Lock> usingLockList = new ArrayList<>();
 
-            try (newConnection) {
+            try {
 
                 ECPublicKey peerPublicKey = (ECPublicKey) newConnection.getSession().getPeerCertificates()[1].getPublicKey();
                 byte[] connectionRequesterIdentifier = BlockChainSecurityHelper.calculateIdentifierFromECPublicKey(peerPublicKey);
@@ -522,6 +522,9 @@ public class FullNode {
                 e.printStackTrace();
             } finally {
                 GeneralHelper.unLockForMe(usingLockList);
+                try {
+                    newConnection.close();
+                } catch (Exception e) { }
             }
 
 
