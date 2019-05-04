@@ -1,6 +1,7 @@
 */out/
 **/.gradle/
 **/.idea/
-**/jars/
+*/jars/
 **/gradle/
 **/*.iml
+*/build/
